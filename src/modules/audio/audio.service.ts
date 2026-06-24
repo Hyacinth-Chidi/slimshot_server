@@ -27,6 +27,7 @@ interface ProviderSearchResult {
   total: number;
   configured: boolean;
   successful: boolean;
+  message?: string;
 }
 
 @Injectable()
@@ -49,13 +50,13 @@ export class AudioService {
 
     if (!result.configured) {
       throw new ServiceUnavailableException(
-        'Pixabay is not configured. Add PIXABAY_API_KEY to .env.',
+        result.message ?? 'Pixabay is not configured. Add PIXABAY_API_KEY to .env.',
       );
     }
 
     if (!result.successful) {
       throw new ServiceUnavailableException(
-        'Pixabay is currently unavailable.',
+        result.message ?? 'Pixabay is currently unavailable.',
       );
     }
 

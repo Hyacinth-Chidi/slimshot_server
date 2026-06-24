@@ -14,6 +14,7 @@ interface ProviderSearchResult {
   total: number;
   configured: boolean;
   successful: boolean;
+  message?: string;
 }
 
 type PixabayHit = Record<string, unknown>;
@@ -43,7 +44,13 @@ export class PixabayService {
   async search(query: SearchAudioDto): Promise<ProviderSearchResult> {
     if (!this.apiKey) {
       this.logger.warn('PIXABAY_API_KEY is not configured. Skipping Pixabay.');
-      return { data: [], total: 0, configured: false, successful: false };
+      return {
+        data: [],
+        total: 0,
+        configured: false,
+        successful: false,
+        message: 'PIXABAY_API_KEY is not configured.',
+      };
     }
 
     try {
@@ -64,6 +71,21 @@ export class PixabayService {
       const payload = response.data;
       const items = Array.isArray(payload.hits) ? payload.hits : [];
 
+      if (items.length > 0 && items.every((item) => this.isImageHit(item))) {
+        this.logger.error(
+          'Pixabay endpoint returned image results instead of audio results.',
+        );
+
+        return {
+          data: [],
+          total: 0,
+          configured: true,
+          successful: false,
+          message:
+            'Configured Pixabay endpoint is returning image results, not audio results.',
+        };
+      }
+
       return {
         data: items
           .map((item) => this.mapToUnifiedFormat(item, query.type))
@@ -74,7 +96,13 @@ export class PixabayService {
       };
     } catch (error) {
       this.logger.error('Pixabay search failed', error);
-      return { data: [], total: 0, configured: true, successful: false };
+      return {
+        data: [],
+        total: 0,
+        configured: true,
+        successful: false,
+        message: 'Pixabay search failed.',
+      };
     }
   }
 
@@ -135,6 +163,19 @@ export class PixabayService {
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean);
+  }
+
+  private isImageHit(hit: PixabayHit): boolean {
+    const previewUrl =
+      this.readString(hit.previewURL) ??
+      this.readString(hit.webformatURL) ??
+      this.readString(hit.largeImageURL);
+
+    if (!previewUrl) {
+      return false;
+    }
+
+    return /\.(png|jpe?g|webp|gif)(\?|$)/i.test(previewUrl);
   }
 
   private readString(value: unknown): string | null {

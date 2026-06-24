@@ -4,6 +4,12 @@ NestJS backend for SlimShot.
 
 This service currently provides audio search and category endpoints backed by Pixabay. It normalizes Pixabay responses into a consistent JSON format that the Flutter app can consume directly.
 
+## Current Limitation
+
+Pixabay's official JSON API is for images and videos. If the backend is pointed at `https://pixabay.com/api/`, Pixabay can return image hits for music-related queries. The backend now blocks those image results instead of returning incorrect "audio" items.
+
+If you want real Pixabay music search results, the next step is to integrate against Pixabay's music pages with a scraper or switch to an audio-capable source.
+
 ## Features
 
 - NestJS backend with modular `AudioModule`
@@ -11,6 +17,7 @@ This service currently provides audio search and category endpoints backed by Pi
 - Normalized API response shape for the Flutter client
 - Built-in request validation
 - Cached search responses with `@nestjs/cache-manager`
+- Guards against image results being returned as audio
 
 ## Tech Stack
 
@@ -99,6 +106,8 @@ http://localhost:3000
 
 Searches Pixabay audio and returns normalized results.
 
+If Pixabay responds with image data instead of audio-capable data, the endpoint returns an error instead of invalid results.
+
 Query parameters:
 
 - `q` optional search term like `happy`, `cinematic`, or `whoosh`
@@ -172,6 +181,7 @@ Response shape:
 - Search requests are cached to reduce repeated calls to Pixabay.
 - The backend only uses Pixabay right now.
 - If `PIXABAY_API_KEY` is missing, the search endpoint returns a service configuration error.
+- If Pixabay responds with image payloads, the backend rejects them instead of mislabeling them as audio.
 
 ## Related Docs
 
