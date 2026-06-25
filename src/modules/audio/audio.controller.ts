@@ -10,12 +10,10 @@ import {
   Header,
   Post,
   Query,
-  Req,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import type { Request } from 'express';
 
 import { SearchAudioDto } from './dto/search-audio.dto';
 import { UploadAudioDto } from './dto/upload-audio.dto';
@@ -40,9 +38,8 @@ export class AudioController {
 
   @Get('upload')
   @Header('Content-Type', 'text/html; charset=utf-8')
-  getUploadTemplate(@Req() request: Request) {
-    const baseUrl = `${request.protocol}://${request.get('host')}`;
-    return this.audioService.getUploadPage(baseUrl);
+  getUploadTemplate() {
+    return this.audioService.getUploadPage();
   }
 
   @Post('upload')

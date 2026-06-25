@@ -1,10 +1,33 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
+import { parseBuffer } from 'music-metadata';
 
 import type { AudioType } from '../../../common/interfaces/audio-track.interface';
 import { UploadAudioDto } from '../dto/upload-audio.dto';
 import { UploadedAudioFile } from '../interfaces/uploaded-audio-file.interface';
+
+const MUSIC_TAG_OPTIONS = [
+  'cinematic',
+  'ambient',
+  'corporate',
+  'lofi',
+  'trailer',
+  'dramatic',
+  'uplifting',
+  'emotional',
+];
+
+const SFX_TAG_OPTIONS = [
+  'transitions',
+  'whoosh',
+  'impacts',
+  'ui',
+  'riser',
+  'hit',
+  'glitch',
+  'sweep',
+];
 
 export interface UploadedCloudinaryAudioAsset {
   assetId: string | null;
@@ -53,11 +76,15 @@ export class CloudinaryAudioService {
       throw new Error('Cloudinary is not configured.');
     }
 
+    const metadata = await this.extractAudioMetadata(file);
     const title =
-      payload.title?.trim() || this.stripExtension(file.originalname);
-    const author = payload.author?.trim() || 'SlimShot';
+      payload.title?.trim() ||
+      metadata.title ||
+      this.formatDetectedTitle(this.stripExtension(file.originalname));
+    const author = payload.author?.trim() || metadata.artist || 'SlimShot';
     const type = payload.type ?? 'music';
-    const tags = this.buildTags(payload.tags, type, author);
+    const inputTags = [...payload.tags, ...metadata.genres];
+    const tags = this.buildTags(inputTags, type, author);
 
     const result = await new Promise<UploadApiResponse>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
@@ -83,11 +110,13 @@ export class CloudinaryAudioService {
       stream.end(file.buffer);
     });
 
-    return this.mapUploadResult(result, type, author, payload.tags);
+    return this.mapUploadResult(result, type, author, inputTags);
   }
 
-  getUploadPageHtml(baseUrl: string): string {
-    const actionUrl = `${baseUrl}/api/v1/audio/upload`;
+  getUploadPageHtml(): string {
+    const actionUrl = '/api/v1/audio/upload';
+    const musicTagOptions = JSON.stringify(MUSIC_TAG_OPTIONS);
+    const sfxTagOptions = JSON.stringify(SFX_TAG_OPTIONS);
 
     return `<!doctype html>
 <html lang="en">
@@ -107,6 +136,7 @@ export class CloudinaryAudioService {
       label { display: block; margin: 16px 0 8px; font-weight: 600; }
       input, select, button { width: 100%; border-radius: 12px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; padding: 12px; }
       input[type="file"] { padding: 10px; }
+      select[multiple] { min-height: 180px; }
       button { background: #2563eb; border: 0; cursor: pointer; font-weight: 700; margin-top: 20px; }
       button:hover { background: #1d4ed8; }
       button:disabled { opacity: 0.65; cursor: wait; }
@@ -144,6 +174,7 @@ export class CloudinaryAudioService {
 
             <label for="title">Title</label>
             <input id="title" name="title" type="text" placeholder="Epic Trailer">
+            <div class="hint">Leave this blank to auto-fill from embedded audio metadata or the file name.</div>
 
             <label for="author">Author</label>
             <input id="author" name="author" type="text" placeholder="SlimShot Library">
@@ -154,9 +185,13 @@ export class CloudinaryAudioService {
               <option value="sfx">sfx</option>
             </select>
 
-            <label for="tags">Tags</label>
-            <input id="tags" name="tags" type="text" placeholder="cinematic, trailer, epic">
-            <div class="hint">Comma-separated tags. Example: cinematic, dramatic, trailer</div>
+            <label for="tags">Common Tags</label>
+            <select id="tags" name="tags" multiple></select>
+            <div class="hint">Pick one or more preset tags. Hold Ctrl on Windows or Cmd on macOS to select multiple tags.</div>
+
+            <label for="custom-tags">Extra Tags</label>
+            <input id="custom-tags" name="tags" type="text" placeholder="custom tags, comma separated">
+            <div class="hint">Optional extra tags. Example: epic, suspense, clean-piano</div>
 
             <button id="submit-button" type="submit">Upload To Cloudinary</button>
           </form>
@@ -178,8 +213,36 @@ export class CloudinaryAudioService {
       const status = document.getElementById('status');
       const submitButton = document.getElementById('submit-button');
       const fileInput = document.getElementById('file');
+      const titleInput = document.getElementById('title');
+      const typeInput = document.getElementById('type');
+      const tagsSelect = document.getElementById('tags');
       const preview = document.getElementById('audio-preview');
       const resultLink = document.getElementById('result-link');
+      const musicTagOptions = ${musicTagOptions};
+      const sfxTagOptions = ${sfxTagOptions};
+
+      function detectTitleFromFileName(fileName) {
+        return fileName
+          .replace(/\\.[^.]+$/, '')
+          .replace(/[-_]+/g, ' ')
+          .replace(/\\s+/g, ' ')
+          .trim();
+      }
+
+      function renderTagOptions() {
+        const selectedValues = Array.from(tagsSelect.selectedOptions).map((option) => option.value);
+        const options = typeInput.value === 'sfx' ? sfxTagOptions : musicTagOptions;
+
+        tagsSelect.innerHTML = '';
+
+        options.forEach((value) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value;
+          option.selected = selectedValues.includes(value);
+          tagsSelect.appendChild(option);
+        });
+      }
 
       fileInput.addEventListener('change', () => {
         const file = fileInput.files && fileInput.files[0];
@@ -190,7 +253,17 @@ export class CloudinaryAudioService {
 
         status.textContent = 'Ready to upload: ' + file.name;
         status.className = 'muted';
+
+        if (!titleInput.value.trim()) {
+          titleInput.value = detectTitleFromFileName(file.name);
+        }
       });
+
+      typeInput.addEventListener('change', () => {
+        renderTagOptions();
+      });
+
+      renderTagOptions();
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -297,6 +370,45 @@ export class CloudinaryAudioService {
         !tag.startsWith('audio-type:') &&
         !tag.startsWith('author:'),
     );
+  }
+
+  private async extractAudioMetadata(
+    file: UploadedAudioFile,
+  ): Promise<{ title?: string; artist?: string; genres: string[] }> {
+    try {
+      const metadata = await parseBuffer(
+        file.buffer,
+        {
+          mimeType: file.mimetype,
+          size: file.size,
+        },
+        {
+          skipCovers: true,
+        },
+      );
+
+      return {
+        title: metadata.common.title?.trim() || undefined,
+        artist: metadata.common.artist?.trim() || undefined,
+        genres:
+          metadata.common.genre
+            ?.map((entry) => entry.trim().toLowerCase())
+            .filter(Boolean) ?? [],
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unable to parse metadata.';
+
+      this.logger.debug(`Audio metadata detection skipped: ${message}`);
+
+      return {
+        genres: [],
+      };
+    }
+  }
+
+  private formatDetectedTitle(value: string): string {
+    return value.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
   private stripExtension(fileName: string): string {

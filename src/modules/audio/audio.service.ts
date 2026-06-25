@@ -151,8 +151,8 @@ export class AudioService {
     }
   }
 
-  getUploadPage(baseUrl: string): string {
-    return this.cloudinaryAudioService.getUploadPageHtml(baseUrl);
+  getUploadPage(): string {
+    return this.cloudinaryAudioService.getUploadPageHtml();
   }
 
   getCategories(): CategoriesResponse {
