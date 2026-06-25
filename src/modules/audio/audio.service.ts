@@ -1,7 +1,9 @@
 import {
   Injectable,
+  BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import type { AudioAsset, Prisma } from '../../generated/prisma/client';
 
 import {
   AudioCategory,
@@ -9,7 +11,10 @@ import {
   AudioTrack,
 } from '../../common/interfaces/audio-track.interface';
 import { SearchAudioDto } from './dto/search-audio.dto';
-import { PixabayService } from './providers/pixabay.service';
+import { UploadAudioDto } from './dto/upload-audio.dto';
+import { UploadedAudioFile } from './interfaces/uploaded-audio-file.interface';
+import { CloudinaryAudioService } from './providers/cloudinary-audio.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 export interface SearchResponse {
   success: true;
@@ -22,12 +27,9 @@ export interface CategoriesResponse {
   data: AudioCategory[];
 }
 
-interface ProviderSearchResult {
-  data: AudioTrack[];
-  total: number;
-  configured: boolean;
-  successful: boolean;
-  message?: string;
+export interface UploadResponse {
+  success: true;
+  data: AudioTrack;
 }
 
 @Injectable()
@@ -43,42 +45,174 @@ export class AudioService {
     { id: 'ui', name: 'UI', type: 'sfx' },
   ];
 
-  constructor(private readonly pixabayService: PixabayService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly cloudinaryAudioService: CloudinaryAudioService,
+  ) {}
 
   async search(query: SearchAudioDto): Promise<SearchResponse> {
-    const result: ProviderSearchResult = await this.pixabayService.search(query);
+    const where = this.buildSearchWhere(query);
+    const skip = (query.page - 1) * query.limit;
 
-    if (!result.configured) {
+    try {
+      const [records, total] = await this.prismaService.$transaction([
+        this.prismaService.audioAsset.findMany({
+          where,
+          skip,
+          take: query.limit,
+          orderBy: {
+            uploadedAt: 'desc',
+          },
+        }),
+        this.prismaService.audioAsset.count({ where }),
+      ]);
+
+      return {
+        success: true,
+        data: records.map((record) => this.toAudioTrack(record)),
+        meta: {
+          total_results: total,
+          page: query.page,
+          has_more: total > query.page * query.limit,
+        },
+      };
+    } catch {
       throw new ServiceUnavailableException(
-        result.message ?? 'Pixabay is not configured. Add PIXABAY_API_KEY to .env.',
+        'Database is unavailable. Check DATABASE_URL and Prisma setup.',
       );
     }
+  }
 
-    if (!result.successful) {
-      throw new ServiceUnavailableException(
-        result.message ?? 'Pixabay is currently unavailable.',
-      );
+  async upload(
+    file: UploadedAudioFile | undefined,
+    payload: UploadAudioDto,
+  ): Promise<UploadResponse> {
+    if (!file) {
+      throw new BadRequestException('Audio file is required.');
     }
 
-    const normalizedData = result.data
-      .sort((left, right) => right.duration_seconds - left.duration_seconds)
-      .slice(0, query.limit);
+    if (!file.buffer?.length) {
+      throw new BadRequestException('Uploaded audio file is empty.');
+    }
 
-    return {
-      success: true,
-      data: normalizedData,
-      meta: {
-        total_results: result.total,
-        page: query.page,
-        has_more: result.total > query.page * query.limit,
-      },
-    };
+    try {
+      const uploadedAsset = await this.cloudinaryAudioService.uploadAudio(
+        file,
+        payload,
+      );
+      const record = await this.prismaService.audioAsset.upsert({
+        where: {
+          cloudinaryPublicId: uploadedAsset.publicId,
+        },
+        update: {
+          cloudinaryAssetId: uploadedAsset.assetId,
+          originalFilename: uploadedAsset.originalFilename,
+          title: uploadedAsset.title,
+          author: uploadedAsset.author,
+          durationSeconds: uploadedAsset.durationSeconds,
+          previewUrl: uploadedAsset.previewUrl,
+          downloadUrl: uploadedAsset.downloadUrl,
+          type: uploadedAsset.type,
+          tags: uploadedAsset.tags,
+          mimeType: file.mimetype,
+          fileSizeBytes: file.size,
+        },
+        create: {
+          cloudinaryAssetId: uploadedAsset.assetId,
+          cloudinaryPublicId: uploadedAsset.publicId,
+          originalFilename: uploadedAsset.originalFilename,
+          title: uploadedAsset.title,
+          author: uploadedAsset.author,
+          durationSeconds: uploadedAsset.durationSeconds,
+          previewUrl: uploadedAsset.previewUrl,
+          downloadUrl: uploadedAsset.downloadUrl,
+          type: uploadedAsset.type,
+          tags: uploadedAsset.tags,
+          mimeType: file.mimetype,
+          fileSizeBytes: file.size,
+        },
+      });
+
+      return {
+        success: true,
+        data: this.toAudioTrack(record),
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Audio upload failed.';
+
+      if (message === 'Cloudinary is not configured.') {
+        throw new ServiceUnavailableException(
+          'Cloudinary is not configured. Add the Cloudinary credentials to .env.',
+        );
+      }
+
+      throw new ServiceUnavailableException(message);
+    }
+  }
+
+  getUploadPage(baseUrl: string): string {
+    return this.cloudinaryAudioService.getUploadPageHtml(baseUrl);
   }
 
   getCategories(): CategoriesResponse {
     return {
       success: true,
       data: this.categories,
+    };
+  }
+
+  private buildSearchWhere(query: SearchAudioDto): Prisma.AudioAssetWhereInput {
+    if (!query.q) {
+      return {
+        type: query.type,
+      };
+    }
+
+    const term = query.q.trim();
+    const lowerTerm = term.toLowerCase();
+
+    return {
+      type: query.type,
+      OR: [
+        {
+          title: {
+            contains: term,
+            mode: 'insensitive',
+          },
+        },
+        {
+          author: {
+            contains: term,
+            mode: 'insensitive',
+          },
+        },
+        {
+          originalFilename: {
+            contains: term,
+            mode: 'insensitive',
+          },
+        },
+        {
+          tags: {
+            has: lowerTerm,
+          },
+        },
+      ],
+    };
+  }
+
+  private toAudioTrack(record: AudioAsset): AudioTrack {
+    return {
+      id: record.id,
+      title: record.title,
+      author: record.author,
+      duration_seconds: record.durationSeconds,
+      preview_url: record.previewUrl,
+      download_url: record.downloadUrl,
+      type: record.type,
+      source: 'cloudinary',
+      tags: record.tags,
     };
   }
 }

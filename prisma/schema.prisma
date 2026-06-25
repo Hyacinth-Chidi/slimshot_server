@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum AudioType {
+  music
+  sfx
+}
+
+model AudioAsset {
+  id                String    @id @default(cuid())
+  cloudinaryAssetId String?   @unique
+  cloudinaryPublicId String   @unique
+  originalFilename  String
+  title             String
+  author            String
+  durationSeconds   Int
+  previewUrl        String
+  downloadUrl       String
+  type              AudioType
+  tags              String[]
+  mimeType          String
+  fileSizeBytes     Int
+  uploadedAt        DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([type, uploadedAt(sort: Desc)])
+  @@index([title])
+  @@index([author])
+}

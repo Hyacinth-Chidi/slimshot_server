@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import { AudioModule } from './modules/audio/audio.module';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { AudioModule } from './modules/audio/audio.module';
     CacheModule.register({
       isGlobal: true,
     }),
+    PrismaModule,
     AudioModule,
   ],
 })
