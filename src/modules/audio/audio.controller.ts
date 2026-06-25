@@ -4,20 +4,17 @@ import {
 } from '@nestjs/cache-manager';
 import {
   Body,
-  BadRequestException,
   Controller,
   Get,
   Header,
   Post,
   Query,
-  UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
 
+import { CreateAudioUploadSignatureDto } from './dto/create-audio-upload-signature.dto';
+import { FinalizeAudioUploadDto } from './dto/finalize-audio-upload.dto';
 import { SearchAudioDto } from './dto/search-audio.dto';
-import { UploadAudioDto } from './dto/upload-audio.dto';
-import { UploadedAudioFile } from './interfaces/uploaded-audio-file.interface';
 import { AudioService } from './audio.service';
 
 @Controller('api/v1/audio')
@@ -42,29 +39,13 @@ export class AudioController {
     return this.audioService.getUploadPage();
   }
 
-  @Post('upload')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      limits: {
-        fileSize: 50 * 1024 * 1024,
-      },
-      fileFilter: (_request, file, callback) => {
-        if (file.mimetype.startsWith('audio/')) {
-          callback(null, true);
-          return;
-        }
+  @Post('upload/sign')
+  createUploadSignature(@Body() payload: CreateAudioUploadSignatureDto) {
+    return this.audioService.createUploadSignature(payload);
+  }
 
-        callback(
-          new BadRequestException('Only audio files are allowed.'),
-          false,
-        );
-      },
-    }),
-  )
-  uploadAudio(
-    @UploadedFile() file: UploadedAudioFile | undefined,
-    @Body() payload: UploadAudioDto,
-  ) {
-    return this.audioService.upload(file, payload);
+  @Post('upload')
+  finalizeUpload(@Body() payload: FinalizeAudioUploadDto) {
+    return this.audioService.upload(payload);
   }
 }

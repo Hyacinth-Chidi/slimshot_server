@@ -1,10 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
+import { v2 as cloudinary } from 'cloudinary';
 
 import type { AudioType } from '../../../common/interfaces/audio-track.interface';
-import { UploadAudioDto } from '../dto/upload-audio.dto';
-import { UploadedAudioFile } from '../interfaces/uploaded-audio-file.interface';
+import { CreateAudioUploadSignatureDto } from '../dto/create-audio-upload-signature.dto';
+import { FinalizeAudioUploadDto } from '../dto/finalize-audio-upload.dto';
 
 const MUSIC_TAG_OPTIONS = [
   'cinematic',
@@ -41,9 +41,22 @@ export interface UploadedCloudinaryAudioAsset {
   tags: string[];
 }
 
+export interface DirectAudioUploadSignature {
+  uploadUrl: string;
+  apiKey: string;
+  cloudName: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  title: string;
+  author: string;
+  type: AudioType;
+  tags: string[];
+  cloudinaryTags: string[];
+}
+
 @Injectable()
 export class CloudinaryAudioService {
-  private readonly logger = new Logger(CloudinaryAudioService.name);
   private readonly cloudName?: string;
   private readonly apiKey?: string;
   private readonly apiSecret?: string;
@@ -67,53 +80,52 @@ export class CloudinaryAudioService {
     }
   }
 
-  async uploadAudio(
-    file: UploadedAudioFile,
-    payload: UploadAudioDto,
-  ): Promise<UploadedCloudinaryAudioAsset> {
+  createDirectUploadSignature(
+    payload: CreateAudioUploadSignatureDto,
+  ): DirectAudioUploadSignature {
     if (!this.isConfigured()) {
       throw new Error('Cloudinary is not configured.');
     }
 
-    const metadata = await this.extractAudioMetadata(file);
     const title =
       payload.title?.trim() ||
-      metadata.title ||
-      this.formatDetectedTitle(this.stripExtension(file.originalname));
-    const author = payload.author?.trim() || metadata.artist || 'SlimShot';
+      this.formatDetectedTitle(this.stripExtension(payload.originalFilename));
+    const author = payload.author?.trim() || 'SlimShot';
     const type = payload.type ?? 'music';
-    const inputTags = [...payload.tags, ...metadata.genres];
-    const tags = this.buildTags(inputTags, type, author);
+    const tags = this.normalizeTagList(payload.tags);
+    const cloudinaryTags = this.buildTags(tags, type, author);
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = cloudinary.utils.api_sign_request(
+      {
+        folder: this.folder,
+        timestamp,
+        display_name: title,
+        tags: cloudinaryTags.join(','),
+        use_filename: 'true',
+        unique_filename: 'true',
+        overwrite: 'false',
+      },
+      this.apiSecret as string,
+    );
 
-    const result = await new Promise<UploadApiResponse>((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'video',
-          folder: this.folder,
-          display_name: title,
-          use_filename: true,
-          unique_filename: true,
-          overwrite: false,
-          tags,
-        },
-        (error, uploadResult) => {
-          if (error || !uploadResult) {
-            reject(error ?? new Error('Cloudinary upload failed.'));
-            return;
-          }
-
-          resolve(uploadResult);
-        },
-      );
-
-      stream.end(file.buffer);
-    });
-
-    return this.mapUploadResult(result, type, author, inputTags);
+    return {
+      uploadUrl: `https://api.cloudinary.com/v1_1/${this.cloudName}/video/upload`,
+      apiKey: this.apiKey as string,
+      cloudName: this.cloudName as string,
+      timestamp,
+      signature,
+      folder: this.folder,
+      title,
+      author,
+      type,
+      tags,
+      cloudinaryTags,
+    };
   }
 
   getUploadPageHtml(): string {
-    const actionUrl = '/api/v1/audio/upload';
+    const signUrl = '/api/v1/audio/upload/sign';
+    const finalizeUrl = '/api/v1/audio/upload';
     const musicTagOptions = JSON.stringify(MUSIC_TAG_OPTIONS);
     const sfxTagOptions = JSON.stringify(SFX_TAG_OPTIONS);
 
@@ -154,10 +166,10 @@ export class CloudinaryAudioService {
     <div class="wrap">
       <div class="card">
         <h1>SlimShot Audio Upload</h1>
-        <p>Temporary admin page for uploading audio into Cloudinary before the separate frontend is built.</p>
+        <p>Temporary admin page for uploading audio directly to Cloudinary, then saving the searchable record in Postgres.</p>
         <div class="pill-row">
-          <span class="pill">POST ${actionUrl}</span>
-          <span class="pill">Max file size: 50MB</span>
+          <span class="pill">Direct browser upload</span>
+          <span class="pill">Cloudinary signed upload</span>
           <span class="pill">Accepted: audio/*</span>
         </div>
       </div>
@@ -165,15 +177,15 @@ export class CloudinaryAudioService {
       <div class="grid">
         <div class="card">
           <h2>Upload Track</h2>
-          <p class="muted">Upload a single audio file that already contains any embedded cover art metadata. The backend stores the file in Cloudinary and the searchable metadata in Postgres.</p>
-          <form id="upload-form" action="${actionUrl}" method="post" enctype="multipart/form-data">
+          <p class="muted">The browser uploads the file directly to Cloudinary. After that succeeds, the backend saves the audio metadata in Postgres through Prisma.</p>
+          <form id="upload-form">
             <label for="file">Audio File</label>
             <input id="file" name="file" type="file" accept="audio/*" required>
             <div class="hint">Cloudinary stores audio under resource type "video". Embed artwork in the MP3 before upload if you want one asset instead of separate image URLs.</div>
 
             <label for="title">Title</label>
             <input id="title" name="title" type="text" placeholder="Epic Trailer">
-            <div class="hint">Leave this blank to auto-fill from embedded audio metadata or the file name.</div>
+            <div class="hint">Leave this blank to auto-fill from the selected file name.</div>
 
             <label for="author">Author</label>
             <input id="author" name="author" type="text" placeholder="SlimShot Library">
@@ -213,12 +225,16 @@ export class CloudinaryAudioService {
       const submitButton = document.getElementById('submit-button');
       const fileInput = document.getElementById('file');
       const titleInput = document.getElementById('title');
+      const authorInput = document.getElementById('author');
       const typeInput = document.getElementById('type');
       const tagsSelect = document.getElementById('tags');
+      const customTagsInput = document.getElementById('custom-tags');
       const preview = document.getElementById('audio-preview');
       const resultLink = document.getElementById('result-link');
       const musicTagOptions = ${musicTagOptions};
       const sfxTagOptions = ${sfxTagOptions};
+      const signUrl = '${signUrl}';
+      const finalizeUrl = '${finalizeUrl}';
 
       function detectTitleFromFileName(fileName) {
         return fileName
@@ -241,6 +257,16 @@ export class CloudinaryAudioService {
           option.selected = selectedValues.includes(value);
           tagsSelect.appendChild(option);
         });
+      }
+
+      function collectTags() {
+        const presetTags = Array.from(tagsSelect.selectedOptions).map((option) => option.value);
+        const customTags = customTagsInput.value
+          .split(',')
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean);
+
+        return Array.from(new Set([...presetTags, ...customTags]));
       }
 
       fileInput.addEventListener('change', () => {
@@ -266,8 +292,17 @@ export class CloudinaryAudioService {
 
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
+        const file = fileInput.files && fileInput.files[0];
+
+        if (!file) {
+          status.textContent = 'Choose an audio file first.';
+          status.className = 'error';
+          result.textContent = 'Audio file is required.';
+          return;
+        }
+
         submitButton.disabled = true;
-        status.textContent = 'Uploading...';
+        status.textContent = 'Signing upload...';
         status.className = 'muted';
         result.textContent = 'Uploading...';
         resultLink.textContent = '';
@@ -275,20 +310,98 @@ export class CloudinaryAudioService {
         preview.removeAttribute('src');
 
         try {
-          const response = await fetch(form.action, {
+          const signResponse = await fetch(signUrl, {
             method: 'POST',
-            body: new FormData(form),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              originalFilename: file.name,
+              mimeType: file.type || 'application/octet-stream',
+              fileSizeBytes: file.size,
+              title: titleInput.value.trim(),
+              author: authorInput.value.trim(),
+              type: typeInput.value,
+              tags: collectTags(),
+            }),
           });
 
-          const payload = await response.json().catch(() => null);
+          const signPayload = await signResponse.json().catch(() => null);
 
-          if (!response.ok) {
+          if (!signResponse.ok || !signPayload || !signPayload.data) {
+            const message =
+              signPayload && signPayload.message
+                ? Array.isArray(signPayload.message)
+                  ? signPayload.message.join(', ')
+                  : signPayload.message
+                : 'Could not prepare the Cloudinary upload.';
+
+            throw new Error(message);
+          }
+
+          const signedUpload = signPayload.data;
+          const cloudinaryForm = new FormData();
+          cloudinaryForm.append('file', file);
+          cloudinaryForm.append('api_key', signedUpload.apiKey);
+          cloudinaryForm.append('timestamp', String(signedUpload.timestamp));
+          cloudinaryForm.append('signature', signedUpload.signature);
+          cloudinaryForm.append('folder', signedUpload.folder);
+          cloudinaryForm.append('display_name', signedUpload.title);
+          cloudinaryForm.append('tags', signedUpload.cloudinaryTags.join(','));
+          cloudinaryForm.append('use_filename', 'true');
+          cloudinaryForm.append('unique_filename', 'true');
+          cloudinaryForm.append('overwrite', 'false');
+
+          status.textContent = 'Uploading file to Cloudinary...';
+
+          const cloudinaryResponse = await fetch(signedUpload.uploadUrl, {
+            method: 'POST',
+            body: cloudinaryForm,
+          });
+
+          const cloudinaryPayload = await cloudinaryResponse.json().catch(() => null);
+
+          if (!cloudinaryResponse.ok || !cloudinaryPayload) {
+            const message =
+              cloudinaryPayload && cloudinaryPayload.error && cloudinaryPayload.error.message
+                ? cloudinaryPayload.error.message
+                : 'Cloudinary upload failed.';
+
+            throw new Error(message);
+          }
+
+          status.textContent = 'Saving audio record...';
+
+          const finalizeResponse = await fetch(finalizeUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              assetId: cloudinaryPayload.asset_id || null,
+              publicId: cloudinaryPayload.public_id,
+              originalFilename: file.name,
+              title: signedUpload.title,
+              author: signedUpload.author,
+              durationSeconds: Math.round(cloudinaryPayload.duration || 0),
+              previewUrl: cloudinaryPayload.secure_url,
+              downloadUrl: cloudinaryPayload.secure_url,
+              type: signedUpload.type,
+              tags: signedUpload.tags,
+              mimeType: file.type || 'application/octet-stream',
+              fileSizeBytes: cloudinaryPayload.bytes || file.size,
+            }),
+          });
+
+          const payload = await finalizeResponse.json().catch(() => null);
+
+          if (!finalizeResponse.ok) {
             const message =
               payload && payload.message
                 ? Array.isArray(payload.message)
                   ? payload.message.join(', ')
                   : payload.message
-                : 'Upload failed.';
+                : 'Could not save the uploaded audio record.';
 
             throw new Error(message);
           }
@@ -318,26 +431,22 @@ export class CloudinaryAudioService {
 </html>`;
   }
 
-  private mapUploadResult(
-    result: UploadApiResponse,
-    type: AudioType,
-    author: string,
-    inputTags: string[],
+  mapDirectUploadResult(
+    payload: FinalizeAudioUploadDto,
   ): UploadedCloudinaryAudioAsset {
     return {
-      assetId: result.asset_id ?? null,
-      publicId: result.public_id,
-      originalFilename: result.original_filename ?? this.basename(result.public_id),
-      title:
-        result.display_name?.trim() ||
-        result.original_filename?.trim() ||
-        this.basename(result.public_id),
-      author,
-      durationSeconds: Math.round(result.duration ?? 0),
-      previewUrl: result.secure_url,
-      downloadUrl: result.secure_url,
-      type,
-      tags: this.cleanTags(this.buildTags(inputTags, type, author)),
+      assetId: payload.assetId ?? null,
+      publicId: payload.publicId,
+      originalFilename: payload.originalFilename,
+      title: payload.title,
+      author: payload.author,
+      durationSeconds: payload.durationSeconds,
+      previewUrl: payload.previewUrl,
+      downloadUrl: payload.downloadUrl,
+      type: payload.type,
+      tags: this.cleanTags(
+        this.buildTags(payload.tags, payload.type, payload.author),
+      ),
     };
   }
 
@@ -362,49 +471,27 @@ export class CloudinaryAudioService {
     ];
   }
 
-  private cleanTags(tags: string[]): string[] {
-    return tags.filter(
-      (tag) =>
-        tag !== 'slimshot-audio' &&
-        !tag.startsWith('audio-type:') &&
-        !tag.startsWith('author:'),
+  private normalizeTagList(tags: string[]): string[] {
+    return Array.from(
+      new Set(
+        tags
+          .map((tag) => tag.trim().toLowerCase())
+          .filter(Boolean),
+      ),
     );
   }
 
-  private async extractAudioMetadata(
-    file: UploadedAudioFile,
-  ): Promise<{ title?: string; artist?: string; genres: string[] }> {
-    try {
-      const { parseBuffer } = await import('music-metadata');
-      const metadata = await parseBuffer(
-        file.buffer,
-        {
-          mimeType: file.mimetype,
-          size: file.size,
-        },
-        {
-          skipCovers: true,
-        },
-      );
-
-      return {
-        title: metadata.common.title?.trim() || undefined,
-        artist: metadata.common.artist?.trim() || undefined,
-        genres:
-          metadata.common.genre
-            ?.map((entry) => entry.trim().toLowerCase())
-            .filter(Boolean) ?? [],
-      };
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'Unable to parse metadata.';
-
-      this.logger.debug(`Audio metadata detection skipped: ${message}`);
-
-      return {
-        genres: [],
-      };
-    }
+  private cleanTags(tags: string[]): string[] {
+    return Array.from(
+      new Set(
+        tags.filter(
+          (tag) =>
+            tag !== 'slimshot-audio' &&
+            !tag.startsWith('audio-type:') &&
+            !tag.startsWith('author:'),
+        ),
+      ),
+    );
   }
 
   private formatDetectedTitle(value: string): string {
@@ -413,11 +500,6 @@ export class CloudinaryAudioService {
 
   private stripExtension(fileName: string): string {
     return fileName.replace(/\.[^.]+$/, '').trim();
-  }
-
-  private basename(publicId: string): string {
-    const value = publicId.split('/').pop() ?? publicId;
-    return value.replace(/[-_]+/g, ' ').trim();
   }
 
   private isConfigured(): boolean {

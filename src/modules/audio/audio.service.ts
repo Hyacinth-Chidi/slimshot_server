@@ -1,6 +1,5 @@
 import {
   Injectable,
-  BadRequestException,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { AudioAsset, Prisma } from '../../generated/prisma/client';
@@ -10,9 +9,9 @@ import {
   AudioSearchMeta,
   AudioTrack,
 } from '../../common/interfaces/audio-track.interface';
+import { CreateAudioUploadSignatureDto } from './dto/create-audio-upload-signature.dto';
+import { FinalizeAudioUploadDto } from './dto/finalize-audio-upload.dto';
 import { SearchAudioDto } from './dto/search-audio.dto';
-import { UploadAudioDto } from './dto/upload-audio.dto';
-import { UploadedAudioFile } from './interfaces/uploaded-audio-file.interface';
 import { CloudinaryAudioService } from './providers/cloudinary-audio.service';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -30,6 +29,11 @@ export interface CategoriesResponse {
 export interface UploadResponse {
   success: true;
   data: AudioTrack;
+}
+
+export interface UploadSignatureResponse {
+  success: true;
+  data: ReturnType<CloudinaryAudioService['createDirectUploadSignature']>;
 }
 
 @Injectable()
@@ -83,23 +87,32 @@ export class AudioService {
     }
   }
 
-  async upload(
-    file: UploadedAudioFile | undefined,
-    payload: UploadAudioDto,
-  ): Promise<UploadResponse> {
-    if (!file) {
-      throw new BadRequestException('Audio file is required.');
-    }
-
-    if (!file.buffer?.length) {
-      throw new BadRequestException('Uploaded audio file is empty.');
-    }
-
+  createUploadSignature(
+    payload: CreateAudioUploadSignatureDto,
+  ): UploadSignatureResponse {
     try {
-      const uploadedAsset = await this.cloudinaryAudioService.uploadAudio(
-        file,
-        payload,
-      );
+      return {
+        success: true,
+        data: this.cloudinaryAudioService.createDirectUploadSignature(payload),
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Could not prepare upload.';
+
+      if (message === 'Cloudinary is not configured.') {
+        throw new ServiceUnavailableException(
+          'Cloudinary is not configured. Add the Cloudinary credentials to .env.',
+        );
+      }
+
+      throw new ServiceUnavailableException(message);
+    }
+  }
+
+  async upload(payload: FinalizeAudioUploadDto): Promise<UploadResponse> {
+    try {
+      const uploadedAsset =
+        this.cloudinaryAudioService.mapDirectUploadResult(payload);
       const record = await this.prismaService.audioAsset.upsert({
         where: {
           cloudinaryPublicId: uploadedAsset.publicId,
@@ -114,8 +127,8 @@ export class AudioService {
           downloadUrl: uploadedAsset.downloadUrl,
           type: uploadedAsset.type,
           tags: uploadedAsset.tags,
-          mimeType: file.mimetype,
-          fileSizeBytes: file.size,
+          mimeType: payload.mimeType,
+          fileSizeBytes: payload.fileSizeBytes,
         },
         create: {
           cloudinaryAssetId: uploadedAsset.assetId,
@@ -128,8 +141,8 @@ export class AudioService {
           downloadUrl: uploadedAsset.downloadUrl,
           type: uploadedAsset.type,
           tags: uploadedAsset.tags,
-          mimeType: file.mimetype,
-          fileSizeBytes: file.size,
+          mimeType: payload.mimeType,
+          fileSizeBytes: payload.fileSizeBytes,
         },
       });
 
