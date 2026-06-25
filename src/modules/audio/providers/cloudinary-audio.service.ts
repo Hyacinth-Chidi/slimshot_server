@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
-import { parseBuffer } from 'music-metadata';
 
 import type { AudioType } from '../../../common/interfaces/audio-track.interface';
 import { UploadAudioDto } from '../dto/upload-audio.dto';
@@ -376,6 +375,7 @@ export class CloudinaryAudioService {
     file: UploadedAudioFile,
   ): Promise<{ title?: string; artist?: string; genres: string[] }> {
     try {
+      const { parseBuffer } = await import('music-metadata');
       const metadata = await parseBuffer(
         file.buffer,
         {
