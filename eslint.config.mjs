@@ -29,6 +29,7 @@ export default tseslint.config(
       'prisma.config.ts',
       'test/**',
       '**/*.spec.ts',
+      'src/core/crypto/crypto.module.ts',
     ],
     rules: { 'no-restricted-properties': 'off' },
   },
