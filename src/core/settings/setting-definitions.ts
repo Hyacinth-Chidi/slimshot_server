@@ -90,6 +90,14 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     secret: true,
     description: 'Connection URL for Redis (cache, queue, rate limiting).',
   }),
+  defineSetting({
+    key: 'auth.bootstrapCompleted',
+    group: 'auth',
+    type: 'boolean',
+    default: false,
+    secret: false,
+    description: 'Set once the first owner account exists. Disables bootstrap.',
+  }),
 ];
 
 export const SETTINGS: ReadonlyMap<string, SettingDefinition> = new Map(

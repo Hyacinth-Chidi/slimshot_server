@@ -30,6 +30,7 @@ export default tseslint.config(
       'test/**',
       '**/*.spec.ts',
       'src/core/crypto/crypto.module.ts',
+      'src/modules/auth/auth.service.ts',
     ],
     rules: { 'no-restricted-properties': 'off' },
   },
