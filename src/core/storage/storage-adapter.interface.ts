@@ -11,6 +11,11 @@ export interface UploadTicket {
   uploadUrl: string;
   storageKey: string;
   fields: Record<string, string>;
+  /**
+   * Advisory only. Cloudinary validates the signature against `timestamp` using its own
+   * staleness window, so a ticket may remain usable after this passes. Callers must not
+   * treat it as an enforced deadline.
+   */
   expiresAt: Date;
 }
 

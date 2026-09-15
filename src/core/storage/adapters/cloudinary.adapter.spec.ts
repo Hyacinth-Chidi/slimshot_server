@@ -102,6 +102,8 @@ describe('CloudinaryAdapter', () => {
     const obj = await adapter.verifyUpload('slimshot/img/cover');
     expect(obj.durationMs).toBeUndefined();
     expect(obj.width).toBe(800);
+    // Derived from the provider's own resource_type, not assumed to be audio.
+    expect(obj.mimeType).toBe('image/jpg');
   });
 
   it('deletes through the uploader', async () => {
@@ -110,6 +112,42 @@ describe('CloudinaryAdapter', () => {
     expect(mockDestroy).toHaveBeenCalledWith('slimshot/audio/rise', {
       resource_type: 'video',
       invalidate: true,
+      cloud_name: 'demo',
+      api_key: 'key-1',
+      api_secret: 'secret-1',
+      secure: true,
+    });
+  });
+
+  it('does not leak another adapter credentials after a second adapter is built', () => {
+    // Cloudinary's config() mutates one module-level global; the fix threads each
+    // adapter's own credentials through every call instead of relying on it. We assert
+    // directly on what the (mocked) SDK was called with, since that is exactly the
+    // production code path that used to omit credentials and rely on the singleton —
+    // if callConfig were dropped again, this call would carry no cloud_name at all and
+    // the assertion below would fail.
+    const a = new CloudinaryAdapter('prov-A', {
+      cloudName: 'cloud-AAA',
+      apiKey: 'key-AAA',
+      apiSecret: 'secret-AAA',
+      folder: 'a/audio',
+    });
+    // Constructing B must not hijack A.
+    new CloudinaryAdapter('prov-B', {
+      cloudName: 'cloud-BBB',
+      apiKey: 'key-BBB',
+      apiSecret: 'secret-BBB',
+      folder: 'b/audio',
+    });
+
+    a.getDeliveryUrl('a/audio/track');
+
+    expect(mockUrl).toHaveBeenCalledWith('a/audio/track', {
+      resource_type: 'video',
+      cloud_name: 'cloud-AAA',
+      api_key: 'key-AAA',
+      api_secret: 'secret-AAA',
+      secure: true,
     });
   });
 });

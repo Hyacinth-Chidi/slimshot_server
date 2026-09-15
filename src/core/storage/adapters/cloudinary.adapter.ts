@@ -28,19 +28,42 @@ interface CloudinaryResource {
  */
 const RESOURCE_TYPE = 'video';
 
+/** Cloudinary reports resource_type (image/video/raw); map to a sane MIME prefix. */
+function mimeFor(resource: CloudinaryResource): string {
+  const prefix =
+    resource.resource_type === 'image'
+      ? 'image'
+      : resource.resource_type === 'raw'
+        ? 'application'
+        : 'audio';
+  return `${prefix}/${resource.format}`;
+}
+
 export class CloudinaryAdapter implements StorageProviderAdapter {
   readonly kind = StorageKind.cloudinary;
 
   constructor(
     readonly id: string,
     private readonly config: CloudinaryConfig,
-  ) {
-    cloudinary.config({
-      cloud_name: config.cloudName,
-      api_key: config.apiKey,
-      api_secret: config.apiSecret,
+  ) {}
+
+  /**
+   * Cloudinary's `config()` mutates one module-level global, so two adapters for
+   * different providers clobber each other. Every call therefore carries its own
+   * credentials explicitly rather than relying on that singleton.
+   */
+  private get callConfig(): {
+    cloud_name: string;
+    api_key: string;
+    api_secret: string;
+    secure: true;
+  } {
+    return {
+      cloud_name: this.config.cloudName,
+      api_key: this.config.apiKey,
+      api_secret: this.config.apiSecret,
       secure: true,
-    });
+    };
   }
 
   async createUploadTicket(input: UploadTicketInput): Promise<UploadTicket> {
@@ -76,6 +99,7 @@ export class CloudinaryAdapter implements StorageProviderAdapter {
     try {
       resource = (await cloudinary.api.resource(storageKey, {
         resource_type: RESOURCE_TYPE,
+        ...this.callConfig,
       })) as CloudinaryResource;
     } catch (error) {
       const code = (error as { http_code?: number }).http_code;
@@ -89,7 +113,7 @@ export class CloudinaryAdapter implements StorageProviderAdapter {
       storageKey: resource.public_id,
       byteSize: resource.bytes,
       format: resource.format,
-      mimeType: `audio/${resource.format}`,
+      mimeType: mimeFor(resource),
       ...(resource.duration !== undefined
         ? { durationMs: Math.round(resource.duration * 1000) }
         : {}),
@@ -102,17 +126,17 @@ export class CloudinaryAdapter implements StorageProviderAdapter {
   getDeliveryUrl(storageKey: string): string {
     return cloudinary.url(storageKey, {
       resource_type: RESOURCE_TYPE,
-      secure: true,
+      ...this.callConfig,
     });
   }
 
   async getSignedUrl(storageKey: string, ttlSeconds: number): Promise<string> {
     return cloudinary.url(storageKey, {
       resource_type: RESOURCE_TYPE,
-      secure: true,
       sign_url: true,
       type: 'authenticated',
       expires_at: Math.floor(Date.now() / 1000) + ttlSeconds,
+      ...this.callConfig,
     });
   }
 
@@ -120,6 +144,7 @@ export class CloudinaryAdapter implements StorageProviderAdapter {
     await cloudinary.uploader.destroy(storageKey, {
       resource_type: RESOURCE_TYPE,
       invalidate: true,
+      ...this.callConfig,
     });
   }
 }
