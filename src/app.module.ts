@@ -2,6 +2,8 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
+import { CryptoModule } from './core/crypto/crypto.module';
+import { SettingsModule } from './core/settings/settings.module';
 import { AudioModule } from './modules/audio/audio.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -15,6 +17,8 @@ import { PrismaModule } from './prisma/prisma.module';
       isGlobal: true,
     }),
     PrismaModule,
+    CryptoModule,
+    SettingsModule,
     AudioModule,
   ],
 })

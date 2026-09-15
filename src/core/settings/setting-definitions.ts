@@ -1,0 +1,88 @@
+import { defineSetting, SettingDefinition } from './setting-registry';
+
+export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
+  defineSetting({
+    key: 'upload.audio.maxBytes',
+    group: 'upload',
+    type: 'int',
+    default: 52_428_800,
+    secret: false,
+    min: 1,
+    max: 1_073_741_824,
+    description: 'Largest audio file an admin may upload, in bytes.',
+  }),
+  defineSetting({
+    key: 'upload.audio.mimeTypes',
+    group: 'upload',
+    type: 'string[]',
+    default: ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/ogg', 'audio/flac'],
+    secret: false,
+    description: 'MIME types accepted for audio uploads.',
+  }),
+  defineSetting({
+    key: 'upload.ticketTtlSeconds',
+    group: 'upload',
+    type: 'int',
+    default: 900,
+    secret: false,
+    min: 60,
+    max: 86_400,
+    description: 'How long a signed upload ticket stays valid.',
+  }),
+  defineSetting({
+    key: 'auth.accessTokenTtlSeconds',
+    group: 'auth',
+    type: 'int',
+    default: 900,
+    secret: false,
+    min: 60,
+    max: 3_600,
+  }),
+  defineSetting({
+    key: 'auth.refreshTokenTtlSeconds',
+    group: 'auth',
+    type: 'int',
+    default: 604_800,
+    secret: false,
+    min: 3_600,
+    max: 7_776_000,
+  }),
+  defineSetting({
+    key: 'auth.jwtAccessSecret',
+    group: 'auth',
+    type: 'string',
+    default: '',
+    secret: true,
+    description: 'Signing secret for access tokens. Generated on first boot.',
+  }),
+  defineSetting({
+    key: 'auth.loginMaxAttempts',
+    group: 'auth',
+    type: 'int',
+    default: 5,
+    secret: false,
+    min: 1,
+    max: 100,
+  }),
+  defineSetting({
+    key: 'auth.loginLockoutSeconds',
+    group: 'auth',
+    type: 'int',
+    default: 900,
+    secret: false,
+    min: 30,
+    max: 86_400,
+  }),
+  defineSetting({
+    key: 'cors.allowedOrigins',
+    group: 'security',
+    type: 'string[]',
+    default: [],
+    secret: false,
+    description: 'Empty means allow all — acceptable only for the public read API.',
+  }),
+];
+
+export const SETTINGS: ReadonlyMap<string, SettingDefinition> = new Map(
+  SETTING_DEFINITIONS.map((d) => [d.key, d]),
+);

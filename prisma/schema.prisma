@@ -33,3 +33,16 @@ model AudioAsset {
   @@index([title])
   @@index([author])
 }
+
+model SystemSetting {
+  key         String   @id
+  group       String
+  valueJson   Json?
+  valueCipher Bytes?
+  keyVersion  Int?
+  isSecret    Boolean  @default(false)
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+
+  @@index([group])
+}
