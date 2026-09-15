@@ -27,9 +27,11 @@ function prismaMock() {
         rows.push(data);
         return data;
       }),
-      findUnique: jest.fn(async ({ where }: { where: { tokenHash: string } }) =>
-        rows.find((r) => r.tokenHash === where.tokenHash) ?? null,
-      ),
+      findUnique: jest.fn(async ({ where }: { where: { tokenHash: string } }) => {
+        const row = rows.find((r) => r.tokenHash === where.tokenHash);
+        // Simulate `include: { admin: true }`: every row in this mock belongs to ADMIN.
+        return row ? { ...row, admin: ADMIN } : null;
+      }),
       update: jest.fn(async ({ where, data }: { where: { tokenHash: string }; data: Record<string, unknown> }) => {
         const row = rows.find((r) => r.tokenHash === where.tokenHash);
         if (row) Object.assign(row, data);
@@ -135,5 +137,31 @@ describe('TokenService', () => {
   it('reports the access token ttl so clients can schedule refresh', async () => {
     const { svc } = build();
     await expect(svc.issuePair(ADMIN, CTX)).resolves.toMatchObject({ expiresIn: 900 });
+  });
+
+  it('refuses to rotate a token whose account is missing rather than inventing claims', async () => {
+    const { svc, prisma } = build();
+    const pair = await svc.issuePair(ADMIN, CTX);
+    // simulate an orphaned row: the join returns no admin
+    prisma.refreshToken.findUnique = jest.fn(async () => ({
+      ...prisma.rows[0],
+      admin: undefined,
+    })) as never;
+
+    await expect(svc.rotate(pair.refreshToken, CTX)).rejects.toThrow(
+      /not linked to a valid account/,
+    );
+  });
+
+  it('refuses to rotate for a deactivated account and revokes the family', async () => {
+    const { svc, prisma } = build();
+    const pair = await svc.issuePair(ADMIN, CTX);
+    prisma.refreshToken.findUnique = jest.fn(async () => ({
+      ...prisma.rows[0],
+      admin: { ...ADMIN, isActive: false },
+    })) as never;
+
+    await expect(svc.rotate(pair.refreshToken, CTX)).rejects.toThrow(/no longer active/);
+    expect(prisma.rows.every((r) => r.revokedAt)).toBe(true);
   });
 });

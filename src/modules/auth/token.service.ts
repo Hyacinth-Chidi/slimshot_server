@@ -91,11 +91,19 @@ export class TokenService {
       data: { revokedAt: new Date() },
     });
 
-    const admin = (row as { admin?: AdminLike }).admin ?? {
-      id: row.adminUserId,
-      email: '',
-      role: AdminRole.editor,
-    };
+    const admin = (row as { admin?: AdminLike }).admin;
+    if (!admin) {
+      // Unreachable while `admin` is a required relation. If it ever fires, the row is
+      // orphaned — refuse rather than minting a token with invented claims, which would
+      // grant whatever role we guessed to a principal we cannot identify.
+      throw new UnauthorizedException('Refresh token is not linked to a valid account.');
+    }
+
+    const account = admin as AdminLike & { isActive?: boolean; deletedAt?: Date | null };
+    if (account.isActive === false || account.deletedAt) {
+      await this.revokeFamily(row.familyId);
+      throw new UnauthorizedException('Account is no longer active.');
+    }
 
     return this.issuePair(admin, context, row.familyId);
   }
