@@ -9,7 +9,6 @@ import { HealthModule } from './core/health/health.module';
 import { QueueModule } from './core/queue/queue.module';
 import { SettingsModule } from './core/settings/settings.module';
 import { StorageModule } from './core/storage/storage.module';
-import { AudioModule } from './modules/audio/audio.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -30,7 +29,6 @@ import { PrismaModule } from './prisma/prisma.module';
     StorageModule,
     AuditModule,
     HealthModule,
-    AudioModule,
     AuthModule,
   ],
 })
