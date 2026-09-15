@@ -7,31 +7,177 @@ datasource db {
   provider = "postgresql"
 }
 
-enum AudioType {
-  music
-  sfx
+enum AssetKind {
+  audio
+  font
+  template
+}
+
+enum AssetStatus {
+  draft
+  processing
+  ready
+  published
+  archived
+  failed
+}
+
+enum Visibility {
+  public
+  unlisted
+  private
+}
+
+enum ModerationState {
+  pending
+  approved
+  rejected
+}
+
+enum FileRole {
+  original
+  preview
+  thumbnail
+  poster
+  waveform
+  specimen
+  font_file
+  project
+}
+
+enum UploadState {
+  pending
+  uploaded
+  finalized
+  expired
+  aborted
+}
+
+enum AccountStatus {
+  active
+  suspended
+  deleted
+}
+
+model Asset {
+  id              String          @id @default(cuid())
+  kind            AssetKind
+  slug            String
+  title           String
+  description     String?
+  authorName      String
+  ownerId         String?
+  visibility      Visibility      @default(public)
+  status          AssetStatus     @default(draft)
+  moderationState ModerationState @default(approved)
+  createdById     String?
+  updatedById     String?
+  attributes      Json?
+  downloadCount   Int             @default(0)
+  favoriteCount   Int             @default(0)
+  publishedAt     DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  owner     User?           @relation(fields: [ownerId], references: [id])
+  createdBy AdminUser?      @relation("AssetCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy AdminUser?      @relation("AssetUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  files     AssetFile[]
+  audio     AudioAsset?
+  sessions  UploadSession[]
+
+  @@unique([kind, slug])
+  @@index([kind, status, publishedAt(sort: Desc)])
+  @@index([status, deletedAt])
+}
+
+model AssetFile {
+  id             String   @id @default(cuid())
+  assetId        String
+  role           FileRole
+  storageId      String
+  storageKey     String
+  deliveryUrl    String?
+  mimeType       String
+  format         String
+  byteSize       Int
+  checksumSha256 String?
+  width          Int?
+  height         Int?
+  durationMs     Int?
+  variant        Json?
+  isPrimary      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  asset   Asset           @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  storage StorageProvider @relation(fields: [storageId], references: [id])
+
+  @@unique([storageId, storageKey])
+  @@index([assetId, role])
+  @@index([checksumSha256])
 }
 
 model AudioAsset {
-  id                String    @id @default(cuid())
-  cloudinaryAssetId String?   @unique
-  cloudinaryPublicId String   @unique
-  originalFilename  String
-  title             String
-  author            String
-  durationSeconds   Int
-  previewUrl        String
-  downloadUrl       String
-  type              AudioType
-  tags              String[]
-  mimeType          String
-  fileSizeBytes     Int
-  uploadedAt        DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  assetId     String  @id
+  durationMs  Int
+  bpm         Int?
+  musicalKey  String?
+  isLoopable  Boolean @default(false)
+  sampleRate  Int?
+  bitrateKbps Int?
+  channels    Int?
 
-  @@index([type, uploadedAt(sort: Desc)])
-  @@index([title])
-  @@index([author])
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+model UploadSession {
+  id           String      @id @default(cuid())
+  assetId      String
+  role         FileRole
+  storageId    String
+  storageKey   String
+  state        UploadState @default(pending)
+  expiresAt    DateTime
+  declaredMime String
+  declaredSize Int
+  createdById  String
+  createdAt    DateTime    @default(now())
+  finalizedAt  DateTime?
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([state, expiresAt])
+  @@index([assetId])
+}
+
+model User {
+  id            String        @id @default(cuid())
+  email         String?       @unique
+  phone         String?       @unique
+  displayName   String?
+  avatarUrl     String?
+  accountStatus AccountStatus @default(active)
+  tier          String        @default("free")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  deletedAt     DateTime?
+
+  entitlements UserEntitlement[]
+  assets       Asset[]
+}
+
+model UserEntitlement {
+  id        String    @id @default(cuid())
+  userId    String
+  sku       String
+  source    String
+  grantedAt DateTime  @default(now())
+  expiresAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, sku])
 }
 
 model SystemSetting {
@@ -66,6 +212,8 @@ model StorageProvider {
   lastTestedAt DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+
+  files AssetFile[]
 }
 
 model AuditLog {
@@ -105,6 +253,9 @@ model AdminUser {
   updatedAt    DateTime       @updatedAt
   deletedAt    DateTime?
   tokens       RefreshToken[]
+
+  createdAssets Asset[] @relation("AssetCreatedBy")
+  updatedAssets Asset[] @relation("AssetUpdatedBy")
 }
 
 model RefreshToken {

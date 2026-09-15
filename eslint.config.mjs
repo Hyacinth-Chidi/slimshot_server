@@ -31,6 +31,7 @@ export default tseslint.config(
       '**/*.spec.ts',
       'src/core/crypto/crypto.module.ts',
       'src/modules/auth/auth.service.ts',
+      'prisma/seed.ts',
     ],
     rules: { 'no-restricted-properties': 'off' },
   },
