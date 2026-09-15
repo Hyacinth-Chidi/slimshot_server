@@ -37,6 +37,11 @@ export class EnvelopeCryptoService {
     };
   }
 
+  /**
+   * NOTE: `sealed.keyVersion` is recorded but not yet consulted here — this service
+   * holds exactly one key. Rotation requires adding a version→key map and dispatching
+   * on `sealed.keyVersion`; until then a rotated key cannot read old values.
+   */
   decrypt(sealed: SealedValue): string {
     const iv = sealed.cipher.subarray(0, IV_BYTES);
     const tag = sealed.cipher.subarray(IV_BYTES, IV_BYTES + TAG_BYTES);
@@ -49,7 +54,17 @@ export class EnvelopeCryptoService {
 
   /** Display form for the admin API. Never reversible. */
   mask(plaintext: string): string {
-    if (plaintext.length <= 8) return '••••';
-    return `${plaintext.slice(0, 8)}••••${plaintext.slice(-4)}`;
+    const BULLETS = '••••';
+    // Reveal at most a third of the value, split between prefix and suffix, and
+    // never let the two halves meet — otherwise the bullets are decorative and
+    // the whole secret is on screen.
+    const revealable = Math.floor(plaintext.length / 3);
+    if (revealable < 2) return BULLETS;
+
+    const suffix = Math.min(4, Math.floor(revealable / 2));
+    const prefix = Math.min(8, revealable - suffix);
+    if (prefix < 1 || suffix < 1) return BULLETS;
+
+    return `${plaintext.slice(0, prefix)}${BULLETS}${plaintext.slice(-suffix)}`;
   }
 }

@@ -37,10 +37,25 @@ describe('EnvelopeCryptoService', () => {
   });
 
   it('masks a secret for display without revealing it', () => {
-    expect(svc.mask('sk_live_abcdef123456')).toBe('sk_live_••••3456');
+    expect(svc.mask('sk_live_abcdef123456')).toBe('sk_••••456');
   });
 
   it('fully masks a short secret', () => {
     expect(svc.mask('abc')).toBe('••••');
+  });
+
+  it.each([9, 10, 11, 12, 13, 16])(
+    'never reveals more than a third of a %i-character secret',
+    (len) => {
+      const secret = 'A'.repeat(len - 4) + '1234';
+      const masked = svc.mask(secret);
+      const revealed = masked.replace(/•/g, '');
+      expect(revealed.length).toBeLessThanOrEqual(Math.ceil(len / 3));
+    },
+  );
+
+  it('does not let the revealed prefix and suffix overlap', () => {
+    expect(svc.mask('AKIAABCD1234')).not.toBe('AKIAABCD••••1234');
+    expect(svc.mask('AKIAABCD1234').replace(/•/g, '').length).toBeLessThan(12);
   });
 });
