@@ -67,3 +67,21 @@ model StorageProvider {
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 }
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actorType  String
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
