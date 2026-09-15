@@ -43,13 +43,35 @@ export class CacheService {
   /**
    * O(1) invalidation. Every key in the namespace embeds the generation, so
    * incrementing it orphans all of them without scanning or tracking keys.
+   *
+   * Returns false if the bump could not be applied. A cache outage must not fail
+   * the operation that triggered invalidation (e.g. publishing an asset), but a
+   * failed bump means stale entries keep being served until their TTL expires —
+   * so it is logged at error level rather than swallowed quietly.
    */
-  async bumpGeneration(namespace: string): Promise<void> {
-    await this.redis.incr(this.generationKey(namespace));
+  async bumpGeneration(namespace: string): Promise<boolean> {
+    try {
+      await this.redis.incr(this.generationKey(namespace));
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `cache invalidation FAILED for namespace "${namespace}" — stale entries ` +
+          `will be served until their TTL expires: ${String(error)}`,
+      );
+      return false;
+    }
   }
 
-  async del(namespace: string, keyParts: unknown): Promise<void> {
-    await this.redis.del(await this.buildKey(namespace, keyParts));
+  async del(namespace: string, keyParts: unknown): Promise<boolean> {
+    try {
+      await this.redis.del(await this.buildKey(namespace, keyParts));
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `cache eviction FAILED for namespace "${namespace}": ${String(error)}`,
+      );
+      return false;
+    }
   }
 
   private async buildKey(namespace: string, keyParts: unknown): Promise<string> {
@@ -61,6 +83,13 @@ export class CacheService {
     return `cache:${namespace}:g${generation}:${digest}`;
   }
 
+  /**
+   * The generation key has no TTL deliberately: it must outlive the entries it
+   * shadows. Residual risk — if Redis evicts this key independently under memory
+   * pressure while older-generation entries survive, the namespace collapses back
+   * to g0 and those stale entries become reachable again until their own TTL
+   * expires. Bounded by ttlSeconds, not instant.
+   */
   private generationKey(namespace: string): string {
     return `cache:gen:${namespace}`;
   }

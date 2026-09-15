@@ -82,4 +82,25 @@ describe('CacheService', () => {
 
     await expect(svc.wrap('audio', { page: 1 }, factory, 60)).resolves.toEqual({ n: 9 });
   });
+
+  it('does not throw when a generation bump fails, and reports failure', async () => {
+    const redis = fakeRedis();
+    redis.incr.mockRejectedValue(new Error('ECONNREFUSED'));
+    const svc = new CacheService(redis as never);
+
+    await expect(svc.bumpGeneration('audio')).resolves.toBe(false);
+  });
+
+  it('reports success when a generation bump applies', async () => {
+    const svc = new CacheService(fakeRedis() as never);
+    await expect(svc.bumpGeneration('audio')).resolves.toBe(true);
+  });
+
+  it('does not throw when an eviction fails, and reports failure', async () => {
+    const redis = fakeRedis();
+    redis.get.mockRejectedValue(new Error('ECONNREFUSED'));
+    const svc = new CacheService(redis as never);
+
+    await expect(svc.del('audio', { page: 1 })).resolves.toBe(false);
+  });
 });
