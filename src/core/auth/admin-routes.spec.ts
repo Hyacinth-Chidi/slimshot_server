@@ -2,6 +2,8 @@ import { Reflector } from '@nestjs/core';
 
 import { PERMISSION_KEY } from './permissions';
 import { AuthController } from '../../modules/auth/auth.controller';
+import { AdminAssetsController } from '../../modules/admin/admin-assets.controller';
+import { AdminKindsController } from '../../modules/admin/admin-kinds.controller';
 
 /**
  * Controllers whose routes are deliberately reachable without a declared permission.
@@ -14,7 +16,10 @@ const PUBLIC_BY_DESIGN = new Set<string>(['AuthController']);
  * adding a controller and forgetting to guard its methods fails loudly rather than
  * silently becoming reachable by any authenticated role.
  */
-const ADMIN_CONTROLLERS: Array<new (...args: never[]) => object> = [];
+const ADMIN_CONTROLLERS: Array<new (...args: never[]) => object> = [
+  AdminAssetsController,
+  AdminKindsController,
+];
 
 describe('admin route guarding', () => {
   const reflector = new Reflector();
