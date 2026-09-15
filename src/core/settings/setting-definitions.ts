@@ -82,6 +82,14 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     secret: false,
     description: 'Empty means allow all — acceptable only for the public read API.',
   }),
+  defineSetting({
+    key: 'redis.url',
+    group: 'infrastructure',
+    type: 'string',
+    default: 'redis://localhost:6379',
+    secret: true,
+    description: 'Connection URL for Redis (cache, queue, rate limiting).',
+  }),
 ];
 
 export const SETTINGS: ReadonlyMap<string, SettingDefinition> = new Map(

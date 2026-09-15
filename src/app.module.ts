@@ -2,6 +2,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
+import { RedisModule } from './core/cache/redis.module';
 import { CryptoModule } from './core/crypto/crypto.module';
 import { SettingsModule } from './core/settings/settings.module';
 import { StorageModule } from './core/storage/storage.module';
@@ -20,6 +21,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     CryptoModule,
     SettingsModule,
+    RedisModule,
     StorageModule,
     AudioModule,
   ],
