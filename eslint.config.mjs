@@ -24,8 +24,7 @@ export default tseslint.config(
   },
   {
     files: [
-      'src/core/config/**',
-      'src/prisma/**',
+      'src/prisma/prisma.service.ts',
       'src/main.ts',
       'prisma.config.ts',
       'test/**',
