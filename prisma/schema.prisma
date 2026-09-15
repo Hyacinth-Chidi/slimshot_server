@@ -46,3 +46,24 @@ model SystemSetting {
 
   @@index([group])
 }
+
+enum StorageKind {
+  cloudinary
+  s3
+  r2
+  bunny
+}
+
+model StorageProvider {
+  id           String      @id @default(cuid())
+  kind         StorageKind
+  name         String      @unique
+  isDefault    Boolean     @default(false)
+  isActive     Boolean     @default(true)
+  configCipher Bytes
+  keyVersion   Int         @default(1)
+  publicConfig Json?
+  lastTestedAt DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
