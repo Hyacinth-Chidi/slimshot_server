@@ -19,6 +19,11 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
+    // Fail-open BY DESIGN: a route with no @RequirePermission is reachable by any
+    // authenticated caller. That is correct for auth endpoints and public reads. It is
+    // NOT a safe default for admin routes — admin-routes.spec.ts enumerates those and
+    // fails the build if a handler forgets its decorator, which is where that class of
+    // mistake gets caught.
     if (!required) return true;
 
     const user = context
