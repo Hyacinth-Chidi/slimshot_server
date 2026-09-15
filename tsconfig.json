@@ -15,7 +15,7 @@
     "strict": true,
     "moduleResolution": "node",
     "ignoreDeprecations": "6.0",
-    "types": ["node"]
+    "types": ["node", "jest"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "test", "**/*.spec.ts"]
