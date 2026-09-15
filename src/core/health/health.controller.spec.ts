@@ -41,4 +41,12 @@ describe('HealthController', () => {
       response: { checks: { redis: 'down', database: 'up' } },
     });
   });
+
+  it('readiness throws 503 when the storage provider is down', async () => {
+    const d = deps({ storage: { getDefault: jest.fn().mockRejectedValue(new Error('x')) } });
+    const c = new HealthController(d.prisma as never, d.redis as never, d.storage as never);
+    await expect(c.ready()).rejects.toMatchObject({
+      response: { checks: { storage: 'down', database: 'up', redis: 'up' } },
+    });
+  });
 });

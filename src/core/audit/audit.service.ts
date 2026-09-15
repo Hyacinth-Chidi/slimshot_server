@@ -14,7 +14,8 @@ export interface AuditEntry {
   userAgent?: string;
 }
 
-const SECRET_FIELD = /secret|password|token|apikey|api_key|credential/i;
+const SECRET_FIELD =
+  /secret|password|passphrase|token|apikey|api_key|credential|privatekey|private_key|signature|cookie|authorization|bearer|jwt|seed|nonce|salt/i;
 
 @Injectable()
 export class AuditService {
@@ -47,7 +48,24 @@ export class AuditService {
 function redact(value: unknown): unknown {
   if (value === null || value === undefined) return null;
   if (typeof value !== 'object') return value;
+
+  // Binary data is never safe to record: a Buffer walked as a plain object
+  // serializes to {"0":83,"1":85,...}, which decodes straight back to plaintext.
+  if (ArrayBuffer.isView(value)) {
+    return `[binary ${value.byteLength} bytes]`;
+  }
+
+  // Dates recurse to {} and lose their value, so serialize them properly.
+  if (value instanceof Date) return value.toISOString();
+
   if (Array.isArray(value)) return value.map(redact);
+
+  // Anything that is not a plain object (Map, Set, class instance, RegExp...)
+  // has no reliable JSON shape — record its type rather than its innards.
+  const proto = Object.getPrototypeOf(value) as object | null;
+  if (proto !== Object.prototype && proto !== null) {
+    return `[${(value as object).constructor?.name ?? 'object'}]`;
+  }
 
   return Object.fromEntries(
     Object.entries(value as Record<string, unknown>).map(([k, v]) => [
