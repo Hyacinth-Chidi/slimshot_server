@@ -9,6 +9,7 @@ export interface SettingDefinition<T = unknown> {
   description?: string;
   min?: number;
   max?: number;
+  minLength?: number;
   enum?: readonly string[];
 }
 
@@ -33,6 +34,11 @@ export function validateSetting<T>(def: SettingDefinition<T>, value: unknown): T
     case 'string': {
       if (typeof value !== 'string') {
         throw new Error(`${def.key}: expected string, got ${typeof value}`);
+      }
+      if (def.minLength !== undefined && value.length < def.minLength) {
+        throw new Error(
+          `${def.key}: must be at least ${def.minLength} characters`,
+        );
       }
       if (def.enum && !def.enum.includes(value)) {
         throw new Error(`${def.key}: must be one of ${def.enum.join(', ')}`);

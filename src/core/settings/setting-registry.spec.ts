@@ -55,4 +55,17 @@ describe('setting registry', () => {
     expect(validateSetting(provider, 's3')).toBe('s3');
     expect(() => validateSetting(provider, 'ftp')).toThrow(/must be one of/);
   });
+
+  it('rejects a string shorter than the declared minLength', () => {
+    const secret = defineSetting({
+      key: 'auth.jwtAccessSecret',
+      group: 'auth',
+      type: 'string',
+      default: '',
+      secret: true,
+      minLength: 32,
+    });
+    expect(() => validateSetting(secret, 'short')).toThrow(/at least 32 characters/);
+    expect(validateSetting(secret, 'x'.repeat(32))).toBe('x'.repeat(32));
+  });
 });

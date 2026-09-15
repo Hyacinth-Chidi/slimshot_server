@@ -45,7 +45,10 @@ describe('SettingsService', () => {
   it('encrypts a secret on write and decrypts it on read', async () => {
     const prisma = prismaMock();
     const svc = new SettingsService(prisma as never, crypto);
-    await svc.set('auth.jwtAccessSecret', 'super-secret', 'admin-1');
+    // auth.jwtAccessSecret now declares minLength: 32 (Finding 1, fix round 1) —
+    // this value must satisfy it or `set` will reject it before writing anything.
+    const strong = 'super-secret-value-that-is-long-enough';
+    await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
 
     const row = prisma.rows.get('auth.jwtAccessSecret')!;
     // Prisma's typed client requires the Prisma.DbNull sentinel (not plain
@@ -53,9 +56,9 @@ describe('SettingsService', () => {
     // settings.service.ts's `sealed()`. It serializes to NULL at the database;
     // this in-memory mock just stores whatever object was passed as `create`.
     expect(row.valueJson).toBe(Prisma.DbNull);
-    expect((row.valueCipher as Buffer).toString('utf8')).not.toContain('super-secret');
+    expect((row.valueCipher as Buffer).toString('utf8')).not.toContain(strong);
 
-    await expect(svc.get('auth.jwtAccessSecret')).resolves.toBe('super-secret');
+    await expect(svc.get('auth.jwtAccessSecret')).resolves.toBe(strong);
   });
 
   it('rejects a value that fails the registry validator and writes nothing', async () => {
@@ -76,20 +79,23 @@ describe('SettingsService', () => {
 
   it('masks secrets when listing a group', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
-    await svc.set('auth.jwtAccessSecret', 'sk_live_abcdef123456', 'admin-1');
+    // 32 chars exactly, to satisfy auth.jwtAccessSecret's minLength: 32.
+    const strong = 'sk_live_abcdef123456789012345678';
+    await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
 
     const listed = await svc.getMaskedGroup('auth');
     const secret = listed.find((s) => s.key === 'auth.jwtAccessSecret')!;
     // EnvelopeCryptoService.mask reveals at most a third of the value, split
     // between prefix and suffix (fixed for a security bug that used to leak
-    // more). For 'sk_live_abcdef123456' (20 chars) that is 'sk_' + bullets + '456'.
-    expect(secret.value).toBe('sk_••••456');
+    // more). For a 32-char value: revealable = floor(32/3) = 10, suffix =
+    // min(4, floor(10/2)) = 4, prefix = min(8, 10-4) = 6 -> 'sk_liv' + bullets + '5678'.
+    expect(secret.value).toBe('sk_liv••••5678');
     expect(secret.isSecret).toBe(true);
   });
 
   it('never returns a raw secret from getMaskedGroup', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
-    await svc.set('auth.jwtAccessSecret', 'sk_live_abcdef123456', 'admin-1');
+    await svc.set('auth.jwtAccessSecret', 'sk_live_abcdef123456789012345678', 'admin-1');
     const listed = await svc.getMaskedGroup('auth');
     expect(JSON.stringify(listed)).not.toContain('abcdef12');
   });
@@ -107,5 +113,35 @@ describe('SettingsService', () => {
     await svc.get('upload.ticketTtlSeconds');
     await svc.set('upload.ticketTtlSeconds', 300, 'admin-1');
     await expect(svc.get('upload.ticketTtlSeconds')).resolves.toBe(300);
+  });
+
+  it('refuses to return an unset secret that has a minLength', async () => {
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    await expect(svc.get('auth.jwtAccessSecret')).rejects.toThrow(
+      /unset or too short/,
+    );
+  });
+
+  it('returns the secret once it is long enough', async () => {
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    const strong = 'k'.repeat(48);
+    await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
+    await expect(svc.get('auth.jwtAccessSecret')).resolves.toBe(strong);
+  });
+
+  it('throws when a stored value does not match its declared type', async () => {
+    const prisma = prismaMock();
+    const svc = new SettingsService(prisma as never, crypto);
+    prisma.rows.set('upload.audio.maxBytes', {
+      key: 'upload.audio.maxBytes',
+      group: 'upload',
+      isSecret: false,
+      valueJson: 'not-a-number',
+      valueCipher: null,
+      keyVersion: null,
+    });
+    await expect(svc.get('upload.audio.maxBytes')).rejects.toThrow(
+      /stored value is string but the definition declares int/,
+    );
   });
 });

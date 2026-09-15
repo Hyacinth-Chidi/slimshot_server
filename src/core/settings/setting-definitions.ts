@@ -53,6 +53,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     type: 'string',
     default: '',
     secret: true,
+    minLength: 32,
     description: 'Signing secret for access tokens. Generated on first boot.',
   }),
   defineSetting({

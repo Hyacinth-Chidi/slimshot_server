@@ -56,6 +56,28 @@ export class SettingsService {
       value = row.valueJson ?? def.default;
     }
 
+    // A definition with a minLength is security-relevant (e.g. a signing secret).
+    // Returning the empty default would let a caller sign with no secret at all.
+    if (
+      def.minLength !== undefined &&
+      (typeof value !== 'string' || value.length < def.minLength)
+    ) {
+      throw new Error(
+        `${key} is unset or too short (needs >= ${def.minLength} characters). ` +
+          `It must be generated or configured before use.`,
+      );
+    }
+
+    // Guard against a caller's generic disagreeing with the declared type.
+    const actual = Array.isArray(value) ? 'string[]' : typeof value;
+    const expected =
+      def.type === 'int' ? 'number' : def.type === 'json' ? 'object' : def.type;
+    if (actual !== expected) {
+      throw new Error(
+        `${key}: stored value is ${actual} but the definition declares ${def.type}`,
+      );
+    }
+
     this.cache.set(key, value);
     return value as T;
   }
