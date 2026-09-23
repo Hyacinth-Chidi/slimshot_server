@@ -149,4 +149,22 @@ describe('SettingsService', () => {
       /stored value is string but the definition declares int/,
     );
   });
+
+  it('reveals the true value of a secret setting', async () => {
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    const real = 'tok_sample_abcdef123456789012345678';
+    await svc.set('auth.jwtAccessSecret', real, 'admin-1');
+
+    await expect(svc.revealSecret('auth.jwtAccessSecret')).resolves.toBe(real);
+  });
+
+  it('refuses to reveal a setting that is not marked secret', async () => {
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    // Reveal exists for credentials. A non-secret setting is already readable
+    // via get(), so routing it through the privileged path would be a way to
+    // normalise calling reveal on anything.
+    await expect(svc.revealSecret('upload.audio.maxBytes')).rejects.toThrow(
+      /not a secret/i,
+    );
+  });
 });

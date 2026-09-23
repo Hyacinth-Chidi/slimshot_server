@@ -147,6 +147,24 @@ export class SettingsService {
     );
   }
 
+  /**
+   * Returns a secret's true value. This is the ONLY path that returns decrypted
+   * plaintext to a caller, and it is deliberately a separate method rather than
+   * a flag on getMaskedGroup: a boolean can default wrong, be forwarded from a
+   * query string, or be set by a caller that did not intend it. A separate
+   * method cannot be reached by accident.
+   *
+   * Callers MUST gate this behind re-authentication. It has exactly one caller
+   * (AdminSettingsController.reveal) and a test asserts that.
+   */
+  async revealSecret(key: string): Promise<string> {
+    const def = this.definition(key);
+    if (!def.secret) {
+      throw new Error(`${key} is not a secret setting; use get() instead.`);
+    }
+    return this.get<string>(key);
+  }
+
   /** Called by the Redis pub/sub subscriber so every instance drops its copy. */
   invalidate(key: string): void {
     this.cache.delete(key);
