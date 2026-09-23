@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -73,6 +74,13 @@ export class IngestService {
       filename: dto.filename,
       mimeType: dto.mimeType,
       ttlSeconds,
+      // Bound what the ticket itself can write. Cloudinary cannot honour a
+      // shorter lifetime than its own staleness window, so constraining size and
+      // format is what actually limits the damage a leaked ticket can do.
+      maxBytes,
+      allowedFormats: descriptor.accepts.extensions.map((e) =>
+        e.replace(/^\./, ''),
+      ),
     });
 
     const asset = await this.prisma.asset.create({
@@ -130,6 +138,15 @@ export class IngestService {
 
     if (!session) throw new NotFoundException('Upload session not found.');
 
+    // A session belongs to the admin who opened it. Without this, any principal
+    // holding `asset.create` could finalize someone else's in-flight upload and
+    // have it recorded against their own actor id in the audit trail.
+    if (session.createdById !== actorId) {
+      throw new ForbiddenException(
+        'This upload session belongs to a different account.',
+      );
+    }
+
     if (session.state === 'finalized') {
       throw new BadRequestException('This upload session is already finalized.');
     }
@@ -156,6 +173,24 @@ export class IngestService {
 
     const kind = (session as { asset: { kind: AssetKind } }).asset.kind;
     const descriptor = this.kinds.get(kind);
+
+    // createTicket validated the DECLARED mime type; this validates what actually
+    // landed. Without it an admin could declare audio/mpeg, upload an MP4, and
+    // have it stored and catalogued — the provider is the source of truth, so the
+    // allowlist has to be applied to the provider's answer too.
+    const allowedMimeTypes = await this.settings.get<string[]>(
+      descriptor.accepts.mimeTypesSetting,
+    );
+    if (!allowedMimeTypes.includes(remote.mimeType)) {
+      await this.prisma.asset.update({
+        where: { id: session.assetId },
+        data: { status: AssetStatus.failed },
+      });
+      throw new BadRequestException(
+        `The uploaded file is ${remote.mimeType}, which is not accepted for ${kind}. ` +
+          `Allowed: ${allowedMimeTypes.join(', ')}`,
+      );
+    }
 
     await this.prisma.assetFile.create({
       data: {

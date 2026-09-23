@@ -72,11 +72,24 @@ export class CloudinaryAdapter implements StorageProviderAdapter {
 
     // Every signed param is pinned, so a holder of this ticket cannot widen
     // the upload beyond the exact object we expect.
+    //
+    // Note on lifetime: Cloudinary validates `timestamp` against its OWN staleness
+    // window, so `expiresAt` below cannot shorten how long the signature is
+    // accepted — see the note on UploadTicket.expiresAt. What we CAN do is bound
+    // what a leaked ticket is able to write, which is what these two params buy:
+    // a single object, of a capped size, in an allowed format, never overwriting.
     const params: Record<string, string | number> = {
       public_id: publicId,
       timestamp,
       overwrite: 'false',
     };
+
+    if (input.maxBytes !== undefined) {
+      params.bytes_limit = input.maxBytes;
+    }
+    if (input.allowedFormats?.length) {
+      params.allowed_formats = input.allowedFormats.join(',');
+    }
 
     const signature = cloudinary.utils.api_sign_request(params, this.config.apiSecret);
 
@@ -84,9 +97,11 @@ export class CloudinaryAdapter implements StorageProviderAdapter {
       uploadUrl: `https://api.cloudinary.com/v1_1/${this.config.cloudName}/${RESOURCE_TYPE}/upload`,
       storageKey: publicId,
       fields: {
-        public_id: publicId,
-        timestamp: String(timestamp),
-        overwrite: 'false',
+        // Every signed param must also travel in the form body, or Cloudinary
+        // cannot recompute the signature and rejects the upload.
+        ...Object.fromEntries(
+          Object.entries(params).map(([k, v]) => [k, String(v)]),
+        ),
         api_key: this.config.apiKey,
         signature,
       },

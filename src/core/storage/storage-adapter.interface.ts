@@ -5,6 +5,14 @@ export interface UploadTicketInput {
   filename: string;
   mimeType: string;
   ttlSeconds: number;
+  /**
+   * Upper bound the provider should enforce on the uploaded object, in bytes.
+   * Signed into the ticket where the provider supports it, so a leaked ticket
+   * cannot be used to upload something far larger than intended.
+   */
+  maxBytes?: number;
+  /** File extensions the provider should accept, e.g. ['mp3', 'wav']. */
+  allowedFormats?: string[];
 }
 
 export interface UploadTicket {

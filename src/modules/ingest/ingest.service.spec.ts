@@ -157,6 +157,7 @@ describe('IngestService.finalize', () => {
       expiresAt: new Date(Date.now() + 600_000),
       declaredMime: 'audio/mpeg',
       declaredSize: 812_340,
+      createdById: 'admin-1',
       asset: { kind: AssetKind.audio },
     };
   }
@@ -200,6 +201,34 @@ describe('IngestService.finalize', () => {
     await svc.finalize({ sessionId: 'sess-1' }, 'admin-1');
 
     expect(queue.enqueueAssetProcessing).not.toHaveBeenCalled();
+  });
+
+  it('refuses to finalize an upload session opened by another admin', async () => {
+    const { svc } = build({ session: pendingSession() });
+
+    await expect(
+      svc.finalize({ sessionId: 'sess-1' }, 'a-different-admin'),
+    ).rejects.toThrow(/belongs to a different account/);
+  });
+
+  it('rejects a file whose real type is not allowed, whatever was declared', async () => {
+    const { svc, adapter, prisma } = build({ session: pendingSession() });
+    // Declared audio/mpeg at ticket time; an MP4 actually landed.
+    adapter.verifyUpload.mockResolvedValue({
+      storageKey: 'slimshot/audio/abc',
+      byteSize: 812_340,
+      format: 'mp4',
+      mimeType: 'video/mp4',
+      durationMs: 145_200,
+      deliveryUrl: 'https://cdn/abc.mp4',
+    });
+
+    await expect(svc.finalize({ sessionId: 'sess-1' }, 'admin-1')).rejects.toThrow(
+      /not accepted for audio/,
+    );
+    expect(prisma.asset.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
+    );
   });
 
   it('marks the session finalized so it cannot be replayed', async () => {
