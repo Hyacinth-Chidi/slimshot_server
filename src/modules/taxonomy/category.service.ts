@@ -115,10 +115,9 @@ export class CategoryService {
 
     // Children first: deleting a parent would orphan a subtree whose rows still
     // carry its id.
-    const candidates = (await this.prisma.category.findMany({
+    const children = (await this.prisma.category.findMany({
       where: { parentId: id },
     })) as unknown as CategoryRow[];
-    const children = candidates.filter((c) => c.parentId === id);
     if (children.length > 0) {
       throw new ConflictException(
         `This category has ${children.length} child categor${children.length === 1 ? 'y' : 'ies'}. Move or delete them first.`,

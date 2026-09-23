@@ -8,7 +8,11 @@ type Row = Record<string, unknown>;
 function build(rows: Row[] = [], assetCounts: Record<string, number> = {}) {
   const prisma = {
     category: {
-      findMany: jest.fn(async () => rows),
+      findMany: jest.fn(async ({ where }: { where?: Record<string, unknown> } = {}) =>
+        rows.filter((r) =>
+          where?.parentId !== undefined ? r.parentId === where.parentId : true,
+        ),
+      ),
       findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
         rows.find((r) => r.id === where.id) ?? null,
       ),
@@ -110,6 +114,16 @@ describe('CategoryService.remove', () => {
 
     await svc.remove('c1', 'admin-1');
     expect(rows).toHaveLength(0);
+  });
+
+  it('does not treat another parent\'s child as its own', async () => {
+    const target = { id: 'c1', kind: AssetKind.audio, slug: 'music', name: 'Music', parentId: null };
+    const stranger = { id: 'c9', kind: AssetKind.audio, slug: 'other', name: 'Other', parentId: 'somebody-else' };
+    const { svc, rows } = build([target, stranger]);
+
+    // c1 has no children of its own; a child of a DIFFERENT parent must not block it.
+    await svc.remove('c1', 'admin-1');
+    expect(rows.map((r) => r.id)).toEqual(['c9']);
   });
 });
 
