@@ -9,7 +9,9 @@ const config: Config = {
   coveragePathIgnorePatterns: ['/node_modules/', '/src/generated/'],
   testEnvironment: 'node',
   setupFiles: ['<rootDir>/test/setup-env.ts'],
-  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  // `.worktrees/` holds full checkouts of this same repo, so without ignoring it
+  // jest discovers every spec twice and reports double the real count.
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/\\.worktrees/'],
 };
 
 module.exports = config;
