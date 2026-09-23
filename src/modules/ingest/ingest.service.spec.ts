@@ -81,16 +81,18 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
     'upload.ticketTtlSeconds': 900,
   };
 
+  const queue = { enqueueAssetProcessing: jest.fn(async () => 'job-1') };
+
   const svc = new IngestService(
     prisma as never,
     new KindRegistry([AUDIO_DESCRIPTOR]),
     { getDefault: jest.fn(async () => adapter), get: jest.fn(async () => adapter) } as never,
     { get: jest.fn(async (k: string) => settingsValues[k]) } as never,
-    { enqueueAssetProcessing: jest.fn(async () => 'job-1') } as never,
+    queue as never,
     { record: jest.fn(async () => undefined) } as never,
   );
 
-  return { svc, prisma, adapter, created, sessions };
+  return { svc, prisma, adapter, created, sessions, queue };
 }
 
 describe('IngestService.createTicket', () => {
@@ -179,13 +181,25 @@ describe('IngestService.finalize', () => {
     );
   });
 
-  it('moves the asset to processing and enqueues the kind processors', async () => {
+  it('leaves the asset publishable when no processor will advance it', async () => {
     const { svc, prisma } = build({ session: pendingSession() });
+    const result = await svc.finalize({ sessionId: 'sess-1' }, 'admin-1');
+
+    // No worker consumes the queue yet, so parking the asset in `processing`
+    // would strand it: publish() accepts only `ready`/`archived` and nothing
+    // else writes `ready`. Finalize must land somewhere publishable.
+    expect(prisma.asset.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'ready' }) }),
+    );
+    // The reported status must match what was persisted, not a constant.
+    expect(result.status).toBe('ready');
+  });
+
+  it('does not enqueue processing jobs while no worker consumes them', async () => {
+    const { svc, queue } = build({ session: pendingSession() });
     await svc.finalize({ sessionId: 'sess-1' }, 'admin-1');
 
-    expect(prisma.asset.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ status: 'processing' }) }),
-    );
+    expect(queue.enqueueAssetProcessing).not.toHaveBeenCalled();
   });
 
   it('marks the session finalized so it cannot be replayed', async () => {

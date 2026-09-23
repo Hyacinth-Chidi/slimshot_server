@@ -36,6 +36,24 @@ export class SettingsService {
     private readonly crypto: EnvelopeCryptoService,
   ) {}
 
+  /**
+   * Is this setting populated with a value that would satisfy its own definition?
+   *
+   * Exists because `get` THROWS for a setting that declares a `minLength` and is
+   * unset — which is correct for callers about to use the value, but makes it
+   * impossible to ask "does this exist yet?". Bootstrap needs exactly that
+   * question: it generates `auth.jwtAccessSecret` when absent, and using `get`
+   * to detect absence meant the check could not survive the case it detects.
+   */
+  async isConfigured(key: string): Promise<boolean> {
+    try {
+      const value = await this.get(key);
+      return typeof value === 'string' ? value.length > 0 : value !== undefined;
+    } catch {
+      return false;
+    }
+  }
+
   async get<T = unknown>(key: string): Promise<T> {
     if (this.cache.has(key)) return this.cache.get(key) as T;
 

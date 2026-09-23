@@ -113,8 +113,10 @@ export class AuthService implements OnModuleInit {
    * the first owner from env if no admin exists. Self-disabling.
    */
   async bootstrap(): Promise<void> {
-    const existingSecret = await this.settings.get<string>('auth.jwtAccessSecret');
-    if (!existingSecret) {
+    // Must NOT use get() here: it throws for an unset minLength setting, so the
+    // read meant to detect "no secret yet" could not survive a fresh database.
+    const hasSecret = await this.settings.isConfigured('auth.jwtAccessSecret');
+    if (!hasSecret) {
       await this.settings.set(
         'auth.jwtAccessSecret',
         randomBytes(48).toString('base64url'),

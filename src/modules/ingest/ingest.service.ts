@@ -26,6 +26,14 @@ export interface TicketResponse {
 
 @Injectable()
 export class IngestService {
+  /**
+   * No worker consumes the asset-processing queue yet — the audio preview and
+   * waveform processors are a later phase. Until one exists, enqueuing would
+   * strand assets in `processing` with nothing to advance them. Flip this to
+   * true in the same change that adds the first worker.
+   */
+  private readonly processorsEnabled = false;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly kinds: KindRegistry,
@@ -181,16 +189,29 @@ export class IngestService {
       data: { state: 'finalized', finalizedAt: new Date() },
     });
 
+    // Only enter `processing` if something will actually move the asset out of it.
+    // No worker consumes the queue yet (the audio processors are a later phase), so
+    // parking every finalized asset in `processing` would leave it unpublishable
+    // forever: publish() accepts only `ready`/`archived`, and nothing else writes
+    // `ready`. When a kind declares no processors — or none are enqueued — the
+    // asset is already complete and goes straight to `ready`.
+    const willProcess = descriptor.processors.length > 0 && this.processorsEnabled;
+
     await this.prisma.asset.update({
       where: { id: session.assetId },
-      data: { status: AssetStatus.processing, updatedById: actorId },
+      data: {
+        status: willProcess ? AssetStatus.processing : AssetStatus.ready,
+        updatedById: actorId,
+      },
     });
 
-    for (const processor of descriptor.processors) {
-      await this.queue.enqueueAssetProcessing({
-        assetId: session.assetId,
-        processor,
-      });
+    if (willProcess) {
+      for (const processor of descriptor.processors) {
+        await this.queue.enqueueAssetProcessing({
+          assetId: session.assetId,
+          processor,
+        });
+      }
     }
 
     await this.audit.record({
@@ -202,7 +223,10 @@ export class IngestService {
       after: { byteSize: remote.byteSize, durationMs: remote.durationMs },
     });
 
-    return { assetId: session.assetId, status: AssetStatus.processing };
+    return {
+      assetId: session.assetId,
+      status: willProcess ? AssetStatus.processing : AssetStatus.ready,
+    };
   }
 }
 
