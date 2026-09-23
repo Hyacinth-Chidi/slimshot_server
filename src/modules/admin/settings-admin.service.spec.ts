@@ -1,5 +1,6 @@
 import {
   ForbiddenException,
+  NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -173,6 +174,17 @@ describe('SettingsAdminService.update', () => {
     const { svc, settings } = await build();
     await svc.update('upload.audio.maxBytes', 1000, 'admin-1', {}, CTX);
     expect(settings.set).toHaveBeenCalled();
+  });
+
+  // M2: a key that does not exist is a 404, not a 403. The handler already
+  // requires the owner-only settings.write permission, so this is not an
+  // enumeration oracle — purely a wrong status code in the error envelope.
+  it('reports an unknown setting key as 404, not 403', async () => {
+    const { svc, settings } = await build();
+    await expect(
+      svc.update('nope.not.real', 'anything', 'admin-1', {}, CTX),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(settings.set).not.toHaveBeenCalled();
   });
 
   // Spec 6.3 gate 3 / 6.7. A grant is a 120-second bearer token; the admin's

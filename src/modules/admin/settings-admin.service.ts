@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -90,7 +91,10 @@ export class SettingsAdminService {
     ctx: RequestContext,
   ): Promise<void> {
     const def = SETTINGS.get(key);
-    if (!def) throw new ForbiddenException(`Unknown setting: ${key}`);
+    // A key that does not exist is a 404, not a 403: the handler already
+    // requires the owner-only settings.write permission, so this is not an
+    // enumeration oracle — just the correct code for "no such resource."
+    if (!def) throw new NotFoundException(`Unknown setting: ${key}`);
 
     // Validate BEFORE spending the proof. A grant is single-use, so consuming
     // it and only then discovering the value is malformed burns it on the most
