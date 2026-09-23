@@ -1,9 +1,15 @@
-import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { ElevationService } from '../../core/auth/elevation.service';
 import { SETTINGS } from '../../core/settings/setting-definitions';
+import { validateSetting } from '../../core/settings/setting-registry';
 import { SettingsService } from '../../core/settings/settings.service';
 import { LoginAttemptService } from '../auth/login-attempt.service';
 import { PasswordService } from '../auth/password.service';
@@ -85,6 +91,23 @@ export class SettingsAdminService {
   ): Promise<void> {
     const def = SETTINGS.get(key);
     if (!def) throw new ForbiddenException(`Unknown setting: ${key}`);
+
+    // Validate BEFORE spending the proof. A grant is single-use, so consuming
+    // it and only then discovering the value is malformed burns it on the most
+    // likely user error - a mistyped 32-character secret - and the retry then
+    // fails, breaking spec 6.6's one-unlock-authorises-both contract exactly
+    // when a user needs it. SettingsService.set validates again; this is the
+    // same check moved earlier, not a second source of truth.
+    //
+    // validateSetting throws a bare Error, which Nest renders as a 500. A
+    // value the caller got wrong is a 422.
+    try {
+      validateSetting(def, value);
+    } catch (err) {
+      throw new UnprocessableEntityException(
+        err instanceof Error ? err.message : `Invalid value for ${key}.`,
+      );
+    }
 
     if (def.secret) {
       await this.assertElevated(key, adminId, proof, ctx);

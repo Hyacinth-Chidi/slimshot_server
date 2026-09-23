@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
 
@@ -29,7 +30,10 @@ export class AdminCategoriesController {
   @Get()
   @RequirePermission('taxonomy.read')
   async tree(@Query('kind') kind: AssetKind) {
-    return { success: true as const, data: await this.categories.tree(kind) };
+    return {
+      success: true as const,
+      data: await this.categories.tree(assertKind(kind)),
+    };
   }
 
   @Post()
@@ -73,4 +77,23 @@ export class AdminCategoriesController {
     await this.categories.reorder(dto.items, user.sub);
     return { success: true as const, data: { reordered: dto.items.length } };
   }
+}
+
+/**
+ * The `@Query('kind') kind: AssetKind` annotation erases at runtime, and
+ * AssetKind is a const object rather than a TS enum, so it validated nothing.
+ * An empty `kind` - an ordinary dashboard first paint - reached Prisma and
+ * surfaced as a 500 with a stack trace. The sibling write handlers take `kind`
+ * in a body DTO where `@IsEnum(AssetKind)` already covers it; this is the only
+ * handler that reads it straight off the query string.
+ */
+function assertKind(kind: unknown): AssetKind {
+  const known = Object.values(AssetKind);
+  if (typeof kind === 'string' && (known as string[]).includes(kind)) {
+    return kind as AssetKind;
+  }
+
+  throw new UnprocessableEntityException(
+    `kind must be one of: ${known.join(', ')}.`,
+  );
 }

@@ -1,4 +1,8 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  UnauthorizedException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 
 import { PasswordService } from '../auth/password.service';
 import { SettingsAdminService } from './settings-admin.service';
@@ -222,5 +226,57 @@ describe('SettingsAdminService.update', () => {
 
     expect(elevation.consume).not.toHaveBeenCalled();
     expect(settings.set).not.toHaveBeenCalled();
+  });
+});
+
+describe('SettingsAdminService.update value validation', () => {
+  // Spec 6.6: one unlock authorises both the read and the write. A grant is
+  // single-use, so spending it before the value is even looked at means the
+  // most likely user error - mistyping a 32-character secret - burns the
+  // grant and the retry fails, forcing a second password entry the spec
+  // explicitly set out to avoid.
+  it('leaves the grant unspent when the value is rejected', async () => {
+    const { svc, elevation, settings } = await build();
+
+    await expect(
+      svc.update('auth.jwtAccessSecret', 'too-short', 'admin-1', { grant: 'grant-abc' }, CTX),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+
+    expect(elevation.consume).not.toHaveBeenCalled();
+    expect(settings.set).not.toHaveBeenCalled();
+  });
+
+  it('reports a bad value as 422, not a 500', async () => {
+    const { svc } = await build();
+
+    // validateSetting threw a bare Error, which Nest renders as a 500 - an
+    // ordinary input mistake presented as a server fault.
+    await expect(
+      svc.update('auth.jwtAccessSecret', 'too-short', 'admin-1', { grant: 'grant-abc' }, CTX),
+    ).rejects.toThrow(/at least 32 characters/);
+  });
+
+  it('rejects a bad NON-secret value as 422 too', async () => {
+    const { svc, settings } = await build();
+
+    await expect(
+      svc.update('upload.audio.maxBytes', 'not-a-number', 'admin-1', {}, CTX),
+    ).rejects.toBeInstanceOf(UnprocessableEntityException);
+    expect(settings.set).not.toHaveBeenCalled();
+  });
+
+  it('still spends the grant when the value is good', async () => {
+    const { svc, elevation, settings } = await build();
+
+    await svc.update(
+      'auth.jwtAccessSecret',
+      'x'.repeat(40),
+      'admin-1',
+      { grant: 'grant-abc' },
+      CTX,
+    );
+
+    expect(elevation.consume).toHaveBeenCalled();
+    expect(settings.set).toHaveBeenCalled();
   });
 });
