@@ -94,6 +94,55 @@ describe('SettingsService', () => {
     expect(secret.isSecret).toBe(true);
   });
 
+  it('marks an unconfigured minLength secret as configured: false instead of throwing', async () => {
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    // auth.jwtAccessSecret defaults to '' and has minLength: 32, so get() would
+    // throw for it alone. Before bootstrap generates it (or for any future
+    // secret that gains a minLength), the whole group must still render so an
+    // operator can see the page and set the value.
+    const listed = await svc.getMaskedGroup('auth');
+
+    const unset = listed.find((s) => s.key === 'auth.jwtAccessSecret')!;
+    expect(unset.configured).toBe(false);
+    expect(unset.value).toBeNull();
+
+    // Sibling non-secret settings in the same group must still come back
+    // normally — the fix must not swallow errors group-wide.
+    const sibling = listed.find((s) => s.key === 'auth.loginMaxAttempts')!;
+    expect(sibling.configured).toBe(true);
+    expect(sibling.value).toBe(5);
+  });
+
+  it('marks a configured secret as configured: true and still masks its value', async () => {
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    const strong = 'tok_sample_abcdef123456789012345678';
+    await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
+
+    const listed = await svc.getMaskedGroup('auth');
+    const secret = listed.find((s) => s.key === 'auth.jwtAccessSecret')!;
+    expect(secret.configured).toBe(true);
+    expect(secret.value).toBe('tok_sam••••5678');
+  });
+
+  it('still propagates an unrelated error from get() rather than tolerating it', async () => {
+    const prisma = prismaMock();
+    const svc = new SettingsService(prisma as never, crypto);
+    // A stored value that mismatches the declared type is a different failure
+    // mode than "not configured yet" and must not be swallowed.
+    prisma.rows.set('upload.audio.maxBytes', {
+      key: 'upload.audio.maxBytes',
+      group: 'upload',
+      isSecret: false,
+      valueJson: 'not-a-number',
+      valueCipher: null,
+      keyVersion: null,
+    });
+
+    await expect(svc.getMaskedGroup('upload')).rejects.toThrow(
+      /stored value is string but the definition declares int/,
+    );
+  });
+
   it('never returns a raw secret from getMaskedGroup', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
     await svc.set(

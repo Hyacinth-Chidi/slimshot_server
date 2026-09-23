@@ -17,6 +17,14 @@ type SettingRecord = {
   keyVersion: number | null;
 };
 
+/**
+ * Thrown by `get` specifically when a minLength-bearing setting is unset or
+ * too short. Kept distinct from a bare Error so callers that want to
+ * distinguish "not configured yet" from a genuine fault (e.g. a stored value
+ * of the wrong type) can do so without matching on message text.
+ */
+export class SettingNotConfiguredError extends Error {}
+
 export interface MaskedSetting {
   key: string;
   group: string;
@@ -24,6 +32,11 @@ export interface MaskedSetting {
   isSecret: boolean;
   value: unknown;
   description?: string;
+  /**
+   * False when the setting has no value satisfying its own definition yet
+   * (e.g. an unset secret with a minLength) — see getMaskedGroup.
+   */
+  configured: boolean;
 }
 
 @Injectable()
@@ -80,7 +93,7 @@ export class SettingsService {
       def.minLength !== undefined &&
       (typeof value !== 'string' || value.length < def.minLength)
     ) {
-      throw new Error(
+      throw new SettingNotConfiguredError(
         `${key} is unset or too short (needs >= ${def.minLength} characters). ` +
           `It must be generated or configured before use.`,
       );
@@ -134,15 +147,37 @@ export class SettingsService {
     const defs = [...SETTINGS.values()].filter((d) => d.group === group);
     return Promise.all(
       defs.map(async (def) => {
-        const raw = await this.get(def.key);
-        return {
-          key: def.key,
-          group: def.group,
-          type: def.type,
-          isSecret: def.secret,
-          description: def.description,
-          value: def.secret ? this.crypto.mask(String(raw)) : raw,
-        };
+        // get() THROWS for a setting that declares a minLength and is unset
+        // or too short (e.g. auth.jwtAccessSecret before bootstrap generates
+        // it, or redis.url if never configured). Without this guard, one
+        // unconfigured field would 500 the entire group — exactly the page an
+        // operator needs in order to set it. Only that specific, typed
+        // failure is tolerated here (not a bare isConfigured()-style catch-all)
+        // so an unrelated fault, like a stored value of the wrong type, still
+        // propagates instead of being reported as "not configured".
+        try {
+          const raw = await this.get(def.key);
+          return {
+            key: def.key,
+            group: def.group,
+            type: def.type,
+            isSecret: def.secret,
+            description: def.description,
+            value: def.secret ? this.crypto.mask(String(raw)) : raw,
+            configured: true,
+          };
+        } catch (err) {
+          if (!(err instanceof SettingNotConfiguredError)) throw err;
+          return {
+            key: def.key,
+            group: def.group,
+            type: def.type,
+            isSecret: def.secret,
+            description: def.description,
+            value: null,
+            configured: false,
+          };
+        }
       }),
     );
   }
