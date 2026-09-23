@@ -6,17 +6,26 @@ import { SettingsAdminService } from './settings-admin.service';
 const CTX = { ip: '1.2.3.4', userAgent: 'test' };
 const passwords = new PasswordService();
 
-async function build(opts: { attempts?: number; isSecret?: boolean } = {}) {
+async function build(
+  opts: { attempts?: number; isSecret?: boolean; adminExists?: boolean } = {},
+) {
   const hash = await passwords.hash('correct-password');
   const prisma = {
     adminUser: {
-      findFirst: jest.fn(async () => ({
-        id: 'admin-1',
-        email: 'owner@example.com',
-        passwordHash: hash,
-        isActive: true,
-        deletedAt: null,
-      })),
+      // `findFirst` in the service filters on isActive/deletedAt, so a
+      // deactivated admin surfaces as null here, not as a row with isActive
+      // false.
+      findFirst: jest.fn(async () =>
+        opts.adminExists === false
+          ? null
+          : {
+              id: 'admin-1',
+              email: 'owner@example.com',
+              passwordHash: hash,
+              isActive: true,
+              deletedAt: null,
+            },
+      ),
     },
   };
 
@@ -160,5 +169,58 @@ describe('SettingsAdminService.update', () => {
     const { svc, settings } = await build();
     await svc.update('upload.audio.maxBytes', 1000, 'admin-1', {}, CTX);
     expect(settings.set).toHaveBeenCalled();
+  });
+
+  // Spec 6.3 gate 3 / 6.7. A grant is a 120-second bearer token; the admin's
+  // standing can change inside that window. JwtAuthGuard catches deactivation
+  // but NOT lockout, because lockout never invalidates an already-issued
+  // access token, so the grant path is the only place left to check it.
+  it('REFUSES an otherwise-valid grant when the admin is locked out', async () => {
+    const { svc, settings, elevation } = await build({ attempts: 5 });
+    // A genuine grant: right admin, right key, consume() would succeed.
+    (elevation.consume as jest.Mock).mockResolvedValue(true);
+
+    await expect(
+      svc.update(
+        'auth.jwtAccessSecret',
+        'x'.repeat(40),
+        'admin-1',
+        { grant: 'grant-abc' },
+        CTX,
+      ),
+    ).rejects.toThrow(/too many/i);
+
+    expect(settings.set).not.toHaveBeenCalled();
+  });
+
+  it('does not burn the grant when the locked-out admin is refused', async () => {
+    const { svc, elevation } = await build({ attempts: 5 });
+    (elevation.consume as jest.Mock).mockResolvedValue(true);
+
+    await svc
+      .update('auth.jwtAccessSecret', 'x'.repeat(40), 'admin-1', { grant: 'grant-abc' }, CTX)
+      .catch(() => undefined);
+
+    // Standing is checked BEFORE the grant is spent: a rejected attempt must
+    // not consume a single-use grant.
+    expect(elevation.consume).not.toHaveBeenCalled();
+  });
+
+  it('REFUSES a grant when the admin row was deactivated after issue', async () => {
+    const { svc, settings, elevation } = await build({ adminExists: false });
+    (elevation.consume as jest.Mock).mockResolvedValue(true);
+
+    await expect(
+      svc.update(
+        'auth.jwtAccessSecret',
+        'x'.repeat(40),
+        'admin-1',
+        { grant: 'grant-abc' },
+        CTX,
+      ),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
+
+    expect(elevation.consume).not.toHaveBeenCalled();
+    expect(settings.set).not.toHaveBeenCalled();
   });
 });

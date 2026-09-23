@@ -97,12 +97,45 @@ describe('StatsService.uploadsOverTime', () => {
     await expect(svc.uploadsOverTime(0)).resolves.toEqual([]);
   });
 
-  it('buckets uploads by UTC day, not the database session timezone', async () => {
+  // `Asset.createdAt` is TIMESTAMP(3) WITHOUT time zone (0 occurrences of
+  // Timestamptz in schema.prisma; the migration emits plain TIMESTAMP(3)), and
+  // Prisma writes it in UTC. `AT TIME ZONE` is directional: applied to a
+  // tz-less timestamp it CONVERTS the value to timestamptz, which then renders
+  // in the session timezone — reintroducing exactly the drift it looks like it
+  // prevents. A string match on "AT TIME ZONE 'UTC'" cannot tell the two apart
+  // because the substring is present in both the correct and the inverted
+  // form, so these assert the shape of the expressions instead.
+  it('buckets the day directly on the tz-less column, without converting it', async () => {
     const { svc, prisma } = build();
     await svc.uploadsOverTime(30);
 
     const [strings] = (prisma.$queryRaw as jest.Mock).mock.calls[0] as [string[]];
-    const sql = strings.join('');
-    expect(sql).toContain("AT TIME ZONE 'UTC'");
+    const sql = strings.join('').replace(/\s+/g, ' ');
+
+    const bucket = /date_trunc\(\s*'day'\s*,([^)]*)\)/.exec(sql);
+    expect(bucket).not.toBeNull();
+    const bucketArg = (bucket as RegExpExecArray)[1];
+
+    expect(bucketArg).toContain('"createdAt"');
+    // The column goes in bare. Wrapping it converts rather than pins.
+    expect(bucketArg).not.toMatch(/AT TIME ZONE/i);
+    expect(bucketArg.trim()).toBe('"createdAt"');
+  });
+
+  it('compares the window boundary against a tz-less expression too', async () => {
+    const { svc, prisma } = build();
+    await svc.uploadsOverTime(30);
+
+    const [strings] = (prisma.$queryRaw as jest.Mock).mock.calls[0] as [string[]];
+    const sql = strings.join('').replace(/\s+/g, ' ');
+
+    const where = /"createdAt"\s*>=(.*?)(?:GROUP BY|$)/i.exec(sql);
+    expect(where).not.toBeNull();
+    const boundary = (where as RegExpExecArray)[1];
+
+    // A bare NOW() is timestamptz; comparing it to a tz-less column makes
+    // Postgres coerce one side using the session timezone. Both sides must be
+    // tz-less, so the boundary pins NOW() to UTC.
+    expect(boundary).toMatch(/NOW\(\)\s*AT TIME ZONE\s*'UTC'/i);
   });
 });

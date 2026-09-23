@@ -2,11 +2,11 @@ import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/c
 
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
+import { ElevationService } from '../../core/auth/elevation.service';
 import { SETTINGS } from '../../core/settings/setting-definitions';
 import { SettingsService } from '../../core/settings/settings.service';
 import { LoginAttemptService } from '../auth/login-attempt.service';
 import { PasswordService } from '../auth/password.service';
-import { ElevationService } from './elevation.service';
 
 export interface RevealResult {
   value: string;
@@ -112,6 +112,16 @@ export class SettingsAdminService {
     ctx: RequestContext,
   ): Promise<void> {
     if (proof.grant) {
+      // Spec 6.3 gate 3 / 6.7: the admin's standing is checked BEFORE the
+      // grant is spent. A grant lives for 120 seconds and the holder can be
+      // locked out or deactivated inside that window; JwtAuthGuard catches
+      // deactivation but never lockout, because lockout does not invalidate an
+      // already-issued access token. Ordering matters twice over: loading the
+      // admin first also means a refused attempt does not burn a single-use
+      // grant, matching the wrong-key and wrong-admin refusals.
+      const admin = await this.loadAdmin(adminId);
+      await this.attempts.assertNotLockedOut(admin.email);
+
       const ok = await this.elevation.consume(proof.grant, adminId, key);
       if (!ok) {
         throw new ForbiddenException(

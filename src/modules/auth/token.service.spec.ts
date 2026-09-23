@@ -54,8 +54,14 @@ function prismaMock() {
 function build() {
   const prisma = prismaMock();
   const settings = settingsMock();
-  const svc = new TokenService(prisma as never, settings as never, new JwtService({}));
-  return { svc, prisma, settings };
+  const elevation = { revokeForAdmin: jest.fn(async () => undefined) };
+  const svc = new TokenService(
+    prisma as never,
+    settings as never,
+    new JwtService({}),
+    elevation as never,
+  );
+  return { svc, prisma, settings, elevation };
 }
 
 const CTX = { ip: '1.2.3.4', userAgent: 'jest' };
@@ -163,5 +169,32 @@ describe('TokenService', () => {
 
     await expect(svc.rotate(pair.refreshToken, CTX)).rejects.toThrow(/no longer active/);
     expect(prisma.rows.every((r) => r.revokedAt)).toBe(true);
+  });
+
+  // Spec 6.7: any change to isActive/deletedAt revokes the admin's grants.
+  // This is the one place the server observes a deactivation, so grant
+  // revocation belongs alongside the refresh-token revocation already here.
+  it('revokes the deactivated admin elevation grants alongside the family', async () => {
+    const { svc, prisma, elevation } = build();
+    const pair = await svc.issuePair(ADMIN, CTX);
+    prisma.refreshToken.findUnique = jest.fn(async () => ({
+      ...prisma.rows[0],
+      admin: { ...ADMIN, isActive: false },
+    })) as never;
+
+    await svc.rotate(pair.refreshToken, CTX).catch(() => undefined);
+    expect(elevation.revokeForAdmin).toHaveBeenCalledWith(ADMIN.id);
+  });
+
+  it('revokes grants for a soft-deleted admin too', async () => {
+    const { svc, prisma, elevation } = build();
+    const pair = await svc.issuePair(ADMIN, CTX);
+    prisma.refreshToken.findUnique = jest.fn(async () => ({
+      ...prisma.rows[0],
+      admin: { ...ADMIN, deletedAt: new Date() },
+    })) as never;
+
+    await svc.rotate(pair.refreshToken, CTX).catch(() => undefined);
+    expect(elevation.revokeForAdmin).toHaveBeenCalledWith(ADMIN.id);
   });
 });

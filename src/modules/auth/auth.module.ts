@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
+import { ElevationModule } from '../../core/auth/elevation.module';
 import { JwtAuthGuard } from '../../core/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../core/auth/permissions.guard';
 import { AuthController } from './auth.controller';
@@ -10,7 +11,7 @@ import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
 
 @Module({
-  imports: [JwtModule.register({})],
+  imports: [JwtModule.register({}), ElevationModule],
   controllers: [AuthController],
   providers: [
     AuthService,

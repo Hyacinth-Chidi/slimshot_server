@@ -4,6 +4,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import { AdminRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ElevationService } from '../../core/auth/elevation.service';
 import { SettingsService } from '../../core/settings/settings.service';
 
 export interface TokenPair {
@@ -35,6 +36,7 @@ export class TokenService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly jwt: JwtService,
+    private readonly elevation: ElevationService,
   ) {}
 
   async issuePair(
@@ -102,6 +104,11 @@ export class TokenService {
     const account = admin as AdminLike & { isActive?: boolean; deletedAt?: Date | null };
     if (account.isActive === false || account.deletedAt) {
       await this.revokeFamily(row.familyId);
+      // Spec 6.7: any change to isActive/deletedAt revokes the admin's grants.
+      // This is the one place the server observes a deactivation, so grant
+      // revocation stays beside the refresh-token revocation rather than
+      // drifting apart from it.
+      await this.elevation.revokeForAdmin(admin.id);
       throw new UnauthorizedException('Account is no longer active.');
     }
 

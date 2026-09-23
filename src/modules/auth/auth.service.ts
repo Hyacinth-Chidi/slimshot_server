@@ -1,17 +1,10 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  OnModuleInit,
-  UnauthorizedException,
-} from '@nestjs/common';
-import type Redis from 'ioredis';
+import { Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 
 import { AdminRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
-import { REDIS } from '../../core/cache/cache.service';
+import { ElevationService } from '../../core/auth/elevation.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
@@ -29,7 +22,6 @@ export interface AdminProfile {
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
-  private readonly attempts: LoginAttemptService;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -37,17 +29,9 @@ export class AuthService implements OnModuleInit {
     private readonly tokens: TokenService,
     private readonly settings: SettingsService,
     private readonly audit: AuditService,
-    @Inject(REDIS) redis: Redis,
-  ) {
-    // Built directly rather than injected: auth.service.spec.ts constructs
-    // AuthService positionally with six arguments, and a seventh DI parameter
-    // would break it. Safe only because LoginAttemptService is stateless - the
-    // failure budget lives in Redis under a key shared with every other caller
-    // (SettingsAdminService injects its own instance), so two instances and one
-    // instance behave identically. If this service ever gains instance state,
-    // this must become a real DI parameter.
-    this.attempts = new LoginAttemptService(settings, audit, redis);
-  }
+    private readonly attempts: LoginAttemptService,
+    private readonly elevation: ElevationService,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.bootstrap();
@@ -106,7 +90,12 @@ export class AuthService implements OnModuleInit {
     const row = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: hashFor(refreshToken) },
     });
-    if (row) await this.tokens.revokeFamily(row.familyId);
+    if (!row) return;
+
+    await this.tokens.revokeFamily(row.familyId);
+    // Spec 6.7: grants are revoked, not merely expired. Without this a
+    // 120-second write authorisation outlives the session that earned it.
+    await this.elevation.revokeForAdmin(row.adminUserId);
   }
 
   async me(adminId: string): Promise<AdminProfile> {

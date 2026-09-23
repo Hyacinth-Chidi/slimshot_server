@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { createHash, randomBytes } from 'node:crypto';
 
-import { REDIS } from '../../core/cache/cache.service';
+import { REDIS } from '../cache/cache.service';
 
 /**
  * Matches the dashboard's 2-minute idle lock, so the server-side window and the

@@ -1,6 +1,7 @@
 import { UnauthorizedException } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
+import { LoginAttemptService } from './login-attempt.service';
 import { PasswordService } from './password.service';
 
 const CTX = { ip: '1.2.3.4', userAgent: 'jest' };
@@ -18,7 +19,10 @@ function build(opts: { admin?: Record<string, unknown> | null; attempts?: number
       })),
       update: jest.fn(async () => ({})),
     },
-    refreshToken: { updateMany: jest.fn(async () => ({ count: 1 })) },
+    refreshToken: {
+      updateMany: jest.fn(async () => ({ count: 1 })),
+      findUnique: jest.fn(async (): Promise<Record<string, unknown> | null> => null),
+    },
   };
 
   const settingsValues: Record<string, unknown> = {
@@ -69,16 +73,25 @@ function build(opts: { admin?: Record<string, unknown> | null; attempts?: number
 
   const audit = { record: jest.fn(async () => undefined) };
 
+  const attempts = new LoginAttemptService(
+    settings as never,
+    audit as never,
+    redis as never,
+  );
+
+  const elevation = { revokeForAdmin: jest.fn(async () => undefined) };
+
   const svc = new AuthService(
     prisma as never,
     passwords,
     tokens as never,
     settings as never,
     audit as never,
-    redis as never,
+    attempts,
+    elevation as never,
   );
 
-  return { svc, prisma, settings, redis, tokens, audit, passwords };
+  return { svc, prisma, settings, redis, tokens, audit, passwords, elevation };
 }
 
 describe('AuthService.login', () => {
@@ -241,5 +254,31 @@ describe('AuthService.bootstrap', () => {
     const { svc, prisma } = build({ admin: { id: 'x' } });
     await svc.bootstrap();
     expect(prisma.adminUser.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthService.logout', () => {
+  // Spec 6.7: a grant is revoked on logout, not merely left to expire. Without
+  // this, a 120-second write authorisation outlives the session that earned it
+  // and expiry becomes the only control.
+  it('revokes outstanding elevation grants as well as the token family', async () => {
+    const admin = {
+      id: 'admin-1',
+      email: 'a@example.com',
+      name: 'A',
+      role: 'admin',
+      isActive: true,
+      deletedAt: null,
+    };
+    const { svc, prisma, tokens, elevation } = build({ admin });
+    prisma.refreshToken.findUnique.mockResolvedValue({
+      familyId: 'fam-1',
+      adminUserId: 'admin-1',
+    });
+
+    await svc.logout('some-refresh-token');
+
+    expect(tokens.revokeFamily).toHaveBeenCalledWith('fam-1');
+    expect(elevation.revokeForAdmin).toHaveBeenCalledWith('admin-1');
   });
 });

@@ -76,12 +76,25 @@ export class StatsService {
       'stats',
       { view: 'uploads', days },
       async () => {
+        // `Asset.createdAt` is TIMESTAMP(3) WITHOUT time zone and Prisma
+        // already writes it in UTC, so it is bucketed directly.
+        //
+        // Do NOT "helpfully" add `AT TIME ZONE 'UTC'` to the column. The
+        // operator is directional: applied to a tz-less timestamp it CONVERTS
+        // the value to timestamptz, which then renders in the session
+        // timezone — the very drift it looks like it prevents. It pins a value
+        // only when the input is already timestamptz.
+        //
+        // NOW() *is* timestamptz, so the window boundary is the one place the
+        // operator belongs: `NOW() AT TIME ZONE 'UTC'` yields a tz-less UTC
+        // timestamp, keeping both sides of the comparison the same type
+        // instead of letting Postgres coerce one of them by session timezone.
         const rows = (await this.prisma.$queryRaw`
-          SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS date,
+          SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS date,
                  COUNT(*)::int AS count
           FROM "Asset"
           WHERE "deletedAt" IS NULL
-            AND "createdAt" >= NOW() - (${days} || ' days')::interval
+            AND "createdAt" >= (NOW() AT TIME ZONE 'UTC') - (${days} || ' days')::interval
           GROUP BY 1
           ORDER BY 1
         `) as UploadPoint[];
