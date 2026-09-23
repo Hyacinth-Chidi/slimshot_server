@@ -1,12 +1,6 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  OnModuleInit,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import type Redis from 'ioredis';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes, createHash } from 'node:crypto';
 
 import { AdminRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -15,6 +9,7 @@ import { REDIS } from '../../core/cache/cache.service';
 import { SettingsService } from '../../core/settings/settings.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
+import { LoginAttemptService } from './login-attempt.service';
 import { PasswordService } from './password.service';
 import { TokenContext, TokenPair, TokenService } from './token.service';
 
@@ -28,6 +23,7 @@ export interface AdminProfile {
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
+  private readonly attempts: LoginAttemptService;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -35,15 +31,20 @@ export class AuthService implements OnModuleInit {
     private readonly tokens: TokenService,
     private readonly settings: SettingsService,
     private readonly audit: AuditService,
-    @Inject(REDIS) private readonly redis: Redis,
-  ) {}
+    @Inject(REDIS) redis: Redis,
+  ) {
+    // Built directly (not injected) so AuthService keeps its existing six-argument
+    // shape: nothing else in Nest needs its own LoginAttemptService instance here,
+    // and this keeps the constructor stable for callers that build it by hand.
+    this.attempts = new LoginAttemptService(settings, audit, redis);
+  }
 
   async onModuleInit(): Promise<void> {
     await this.bootstrap();
   }
 
   async login(dto: LoginDto, ctx: TokenContext): Promise<TokenPair> {
-    await this.assertNotLockedOut(dto.email);
+    await this.attempts.assertNotLockedOut(dto.email);
 
     const admin = await this.prisma.adminUser.findFirst({
       where: { email: dto.email, deletedAt: null },
@@ -55,13 +56,17 @@ export class AuthService implements OnModuleInit {
       (await this.passwords.verify(admin.passwordHash, dto.password));
 
     if (!ok) {
-      await this.recordFailure(dto.email, ctx);
+      await this.attempts.recordFailure(
+        dto.email,
+        { action: 'auth.login.failed', entityType: 'AdminUser' },
+        ctx,
+      );
       // Identical message for unknown-email and wrong-password so the endpoint
       // cannot be used to enumerate which accounts exist.
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    await this.redis.del(this.attemptKey(dto.email));
+    await this.attempts.clear(dto.email);
     await this.prisma.adminUser.update({
       where: { id: admin.id },
       data: { lastLoginAt: new Date() },
@@ -154,37 +159,6 @@ export class AuthService implements OnModuleInit {
     this.logger.log(`Bootstrapped first owner account: ${email}`);
   }
 
-  private attemptKey(email: string): string {
-    return `auth:login:fail:${email.toLowerCase()}`;
-  }
-
-  private async assertNotLockedOut(email: string): Promise<void> {
-    const max = await this.settings.get<number>('auth.loginMaxAttempts');
-    const current = Number((await this.redis.get(this.attemptKey(email))) ?? '0');
-
-    if (current >= max) {
-      throw new UnauthorizedException(
-        'Too many failed login attempts. Try again later.',
-      );
-    }
-  }
-
-  private async recordFailure(email: string, ctx: TokenContext): Promise<void> {
-    const key = this.attemptKey(email);
-    const lockout = await this.settings.get<number>('auth.loginLockoutSeconds');
-
-    await this.redis.incr(key);
-    await this.redis.expire(key, lockout);
-
-    await this.audit.record({
-      actorType: 'system',
-      action: 'auth.login.failed',
-      entityType: 'AdminUser',
-      after: { email },
-      ip: ctx.ip,
-      userAgent: ctx.userAgent,
-    });
-  }
 }
 
 function hashFor(token: string): string {
