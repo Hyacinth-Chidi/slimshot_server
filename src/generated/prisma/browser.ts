@@ -18,7 +18,57 @@ export { Prisma }
 export * as $Enums from './enums'
 export * from './enums';
 /**
+ * Model Asset
+ * 
+ */
+export type Asset = Prisma.AssetModel
+/**
+ * Model AssetFile
+ * 
+ */
+export type AssetFile = Prisma.AssetFileModel
+/**
  * Model AudioAsset
  * 
  */
 export type AudioAsset = Prisma.AudioAssetModel
+/**
+ * Model UploadSession
+ * 
+ */
+export type UploadSession = Prisma.UploadSessionModel
+/**
+ * Model User
+ * 
+ */
+export type User = Prisma.UserModel
+/**
+ * Model UserEntitlement
+ * 
+ */
+export type UserEntitlement = Prisma.UserEntitlementModel
+/**
+ * Model SystemSetting
+ * 
+ */
+export type SystemSetting = Prisma.SystemSettingModel
+/**
+ * Model StorageProvider
+ * 
+ */
+export type StorageProvider = Prisma.StorageProviderModel
+/**
+ * Model AuditLog
+ * 
+ */
+export type AuditLog = Prisma.AuditLogModel
+/**
+ * Model AdminUser
+ * 
+ */
+export type AdminUser = Prisma.AdminUserModel
+/**
+ * Model RefreshToken
+ * 
+ */
+export type RefreshToken = Prisma.RefreshTokenModel

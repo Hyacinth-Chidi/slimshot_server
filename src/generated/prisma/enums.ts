@@ -9,9 +9,94 @@
 * 🟢 You can import this file directly.
 */
 
-export const AudioType = {
-  music: 'music',
-  sfx: 'sfx'
+export const AssetKind = {
+  audio: 'audio',
+  font: 'font',
+  template: 'template'
 } as const
 
-export type AudioType = (typeof AudioType)[keyof typeof AudioType]
+export type AssetKind = (typeof AssetKind)[keyof typeof AssetKind]
+
+
+export const AssetStatus = {
+  draft: 'draft',
+  processing: 'processing',
+  ready: 'ready',
+  published: 'published',
+  archived: 'archived',
+  failed: 'failed'
+} as const
+
+export type AssetStatus = (typeof AssetStatus)[keyof typeof AssetStatus]
+
+
+export const Visibility = {
+  public: 'public',
+  unlisted: 'unlisted',
+  private: 'private'
+} as const
+
+export type Visibility = (typeof Visibility)[keyof typeof Visibility]
+
+
+export const ModerationState = {
+  pending: 'pending',
+  approved: 'approved',
+  rejected: 'rejected'
+} as const
+
+export type ModerationState = (typeof ModerationState)[keyof typeof ModerationState]
+
+
+export const FileRole = {
+  original: 'original',
+  preview: 'preview',
+  thumbnail: 'thumbnail',
+  poster: 'poster',
+  waveform: 'waveform',
+  specimen: 'specimen',
+  font_file: 'font_file',
+  project: 'project'
+} as const
+
+export type FileRole = (typeof FileRole)[keyof typeof FileRole]
+
+
+export const UploadState = {
+  pending: 'pending',
+  uploaded: 'uploaded',
+  finalized: 'finalized',
+  expired: 'expired',
+  aborted: 'aborted'
+} as const
+
+export type UploadState = (typeof UploadState)[keyof typeof UploadState]
+
+
+export const AccountStatus = {
+  active: 'active',
+  suspended: 'suspended',
+  deleted: 'deleted'
+} as const
+
+export type AccountStatus = (typeof AccountStatus)[keyof typeof AccountStatus]
+
+
+export const StorageKind = {
+  cloudinary: 'cloudinary',
+  s3: 's3',
+  r2: 'r2',
+  bunny: 'bunny'
+} as const
+
+export type StorageKind = (typeof StorageKind)[keyof typeof StorageKind]
+
+
+export const AdminRole = {
+  owner: 'owner',
+  admin: 'admin',
+  editor: 'editor',
+  viewer: 'viewer'
+} as const
+
+export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole]

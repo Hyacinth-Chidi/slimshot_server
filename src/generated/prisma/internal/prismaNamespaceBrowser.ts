@@ -51,7 +51,17 @@ export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
-  AudioAsset: 'AudioAsset'
+  Asset: 'Asset',
+  AssetFile: 'AssetFile',
+  AudioAsset: 'AudioAsset',
+  UploadSession: 'UploadSession',
+  User: 'User',
+  UserEntitlement: 'UserEntitlement',
+  SystemSetting: 'SystemSetting',
+  StorageProvider: 'StorageProvider',
+  AuditLog: 'AuditLog',
+  AdminUser: 'AdminUser',
+  RefreshToken: 'RefreshToken'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -70,25 +80,190 @@ export const TransactionIsolationLevel = runtime.makeStrictEnum({
 export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
-export const AudioAssetScalarFieldEnum = {
+export const AssetScalarFieldEnum = {
   id: 'id',
-  cloudinaryAssetId: 'cloudinaryAssetId',
-  cloudinaryPublicId: 'cloudinaryPublicId',
-  originalFilename: 'originalFilename',
+  kind: 'kind',
+  slug: 'slug',
   title: 'title',
-  author: 'author',
-  durationSeconds: 'durationSeconds',
-  previewUrl: 'previewUrl',
-  downloadUrl: 'downloadUrl',
-  type: 'type',
-  tags: 'tags',
+  description: 'description',
+  authorName: 'authorName',
+  ownerId: 'ownerId',
+  visibility: 'visibility',
+  status: 'status',
+  moderationState: 'moderationState',
+  createdById: 'createdById',
+  updatedById: 'updatedById',
+  attributes: 'attributes',
+  downloadCount: 'downloadCount',
+  favoriteCount: 'favoriteCount',
+  publishedAt: 'publishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt'
+} as const
+
+export type AssetScalarFieldEnum = (typeof AssetScalarFieldEnum)[keyof typeof AssetScalarFieldEnum]
+
+
+export const AssetFileScalarFieldEnum = {
+  id: 'id',
+  assetId: 'assetId',
+  role: 'role',
+  storageId: 'storageId',
+  storageKey: 'storageKey',
+  deliveryUrl: 'deliveryUrl',
   mimeType: 'mimeType',
-  fileSizeBytes: 'fileSizeBytes',
-  uploadedAt: 'uploadedAt',
-  updatedAt: 'updatedAt'
+  format: 'format',
+  byteSize: 'byteSize',
+  checksumSha256: 'checksumSha256',
+  width: 'width',
+  height: 'height',
+  durationMs: 'durationMs',
+  variant: 'variant',
+  isPrimary: 'isPrimary',
+  createdAt: 'createdAt'
+} as const
+
+export type AssetFileScalarFieldEnum = (typeof AssetFileScalarFieldEnum)[keyof typeof AssetFileScalarFieldEnum]
+
+
+export const AudioAssetScalarFieldEnum = {
+  assetId: 'assetId',
+  durationMs: 'durationMs',
+  bpm: 'bpm',
+  musicalKey: 'musicalKey',
+  isLoopable: 'isLoopable',
+  sampleRate: 'sampleRate',
+  bitrateKbps: 'bitrateKbps',
+  channels: 'channels'
 } as const
 
 export type AudioAssetScalarFieldEnum = (typeof AudioAssetScalarFieldEnum)[keyof typeof AudioAssetScalarFieldEnum]
+
+
+export const UploadSessionScalarFieldEnum = {
+  id: 'id',
+  assetId: 'assetId',
+  role: 'role',
+  storageId: 'storageId',
+  storageKey: 'storageKey',
+  state: 'state',
+  expiresAt: 'expiresAt',
+  declaredMime: 'declaredMime',
+  declaredSize: 'declaredSize',
+  createdById: 'createdById',
+  createdAt: 'createdAt',
+  finalizedAt: 'finalizedAt'
+} as const
+
+export type UploadSessionScalarFieldEnum = (typeof UploadSessionScalarFieldEnum)[keyof typeof UploadSessionScalarFieldEnum]
+
+
+export const UserScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  phone: 'phone',
+  displayName: 'displayName',
+  avatarUrl: 'avatarUrl',
+  accountStatus: 'accountStatus',
+  tier: 'tier',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt'
+} as const
+
+export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+export const UserEntitlementScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  sku: 'sku',
+  source: 'source',
+  grantedAt: 'grantedAt',
+  expiresAt: 'expiresAt'
+} as const
+
+export type UserEntitlementScalarFieldEnum = (typeof UserEntitlementScalarFieldEnum)[keyof typeof UserEntitlementScalarFieldEnum]
+
+
+export const SystemSettingScalarFieldEnum = {
+  key: 'key',
+  group: 'group',
+  valueJson: 'valueJson',
+  valueCipher: 'valueCipher',
+  keyVersion: 'keyVersion',
+  isSecret: 'isSecret',
+  updatedById: 'updatedById',
+  updatedAt: 'updatedAt'
+} as const
+
+export type SystemSettingScalarFieldEnum = (typeof SystemSettingScalarFieldEnum)[keyof typeof SystemSettingScalarFieldEnum]
+
+
+export const StorageProviderScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  name: 'name',
+  isDefault: 'isDefault',
+  isActive: 'isActive',
+  configCipher: 'configCipher',
+  keyVersion: 'keyVersion',
+  publicConfig: 'publicConfig',
+  lastTestedAt: 'lastTestedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type StorageProviderScalarFieldEnum = (typeof StorageProviderScalarFieldEnum)[keyof typeof StorageProviderScalarFieldEnum]
+
+
+export const AuditLogScalarFieldEnum = {
+  id: 'id',
+  actorId: 'actorId',
+  actorType: 'actorType',
+  action: 'action',
+  entityType: 'entityType',
+  entityId: 'entityId',
+  before: 'before',
+  after: 'after',
+  ip: 'ip',
+  userAgent: 'userAgent',
+  createdAt: 'createdAt'
+} as const
+
+export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
+
+
+export const AdminUserScalarFieldEnum = {
+  id: 'id',
+  email: 'email',
+  passwordHash: 'passwordHash',
+  name: 'name',
+  role: 'role',
+  isActive: 'isActive',
+  lastLoginAt: 'lastLoginAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  deletedAt: 'deletedAt'
+} as const
+
+export type AdminUserScalarFieldEnum = (typeof AdminUserScalarFieldEnum)[keyof typeof AdminUserScalarFieldEnum]
+
+
+export const RefreshTokenScalarFieldEnum = {
+  id: 'id',
+  tokenHash: 'tokenHash',
+  familyId: 'familyId',
+  adminUserId: 'adminUserId',
+  expiresAt: 'expiresAt',
+  revokedAt: 'revokedAt',
+  userAgent: 'userAgent',
+  ip: 'ip',
+  createdAt: 'createdAt'
+} as const
+
+export type RefreshTokenScalarFieldEnum = (typeof RefreshTokenScalarFieldEnum)[keyof typeof RefreshTokenScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -99,12 +274,29 @@ export const SortOrder = {
 export type SortOrder = (typeof SortOrder)[keyof typeof SortOrder]
 
 
+export const NullableJsonNullValueInput = {
+  DbNull: DbNull,
+  JsonNull: JsonNull
+} as const
+
+export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
 export const QueryMode = {
   default: 'default',
   insensitive: 'insensitive'
 } as const
 
 export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
+
+
+export const JsonNullValueFilter = {
+  DbNull: DbNull,
+  JsonNull: JsonNull,
+  AnyNull: AnyNull
+} as const
+
+export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
 
 
 export const NullsOrder = {

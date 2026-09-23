@@ -29,8 +29,8 @@ export * from "./enums"
  * const prisma = new PrismaClient({
  *   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL })
  * })
- * // Fetch zero or more AudioAssets
- * const audioAssets = await prisma.audioAsset.findMany()
+ * // Fetch zero or more Assets
+ * const assets = await prisma.asset.findMany()
  * ```
  * 
  * Read more in our [docs](https://pris.ly/d/client).
@@ -40,7 +40,57 @@ export type PrismaClient<LogOpts extends Prisma.LogLevel = never, OmitOpts exten
 export { Prisma }
 
 /**
+ * Model Asset
+ * 
+ */
+export type Asset = Prisma.AssetModel
+/**
+ * Model AssetFile
+ * 
+ */
+export type AssetFile = Prisma.AssetFileModel
+/**
  * Model AudioAsset
  * 
  */
 export type AudioAsset = Prisma.AudioAssetModel
+/**
+ * Model UploadSession
+ * 
+ */
+export type UploadSession = Prisma.UploadSessionModel
+/**
+ * Model User
+ * 
+ */
+export type User = Prisma.UserModel
+/**
+ * Model UserEntitlement
+ * 
+ */
+export type UserEntitlement = Prisma.UserEntitlementModel
+/**
+ * Model SystemSetting
+ * 
+ */
+export type SystemSetting = Prisma.SystemSettingModel
+/**
+ * Model StorageProvider
+ * 
+ */
+export type StorageProvider = Prisma.StorageProviderModel
+/**
+ * Model AuditLog
+ * 
+ */
+export type AuditLog = Prisma.AuditLogModel
+/**
+ * Model AdminUser
+ * 
+ */
+export type AdminUser = Prisma.AdminUserModel
+/**
+ * Model RefreshToken
+ * 
+ */
+export type RefreshToken = Prisma.RefreshTokenModel

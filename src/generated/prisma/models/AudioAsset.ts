@@ -27,129 +27,103 @@ export type AggregateAudioAsset = {
 }
 
 export type AudioAssetAvgAggregateOutputType = {
-  durationSeconds: number | null
-  fileSizeBytes: number | null
+  durationMs: number | null
+  bpm: number | null
+  sampleRate: number | null
+  bitrateKbps: number | null
+  channels: number | null
 }
 
 export type AudioAssetSumAggregateOutputType = {
-  durationSeconds: number | null
-  fileSizeBytes: number | null
+  durationMs: number | null
+  bpm: number | null
+  sampleRate: number | null
+  bitrateKbps: number | null
+  channels: number | null
 }
 
 export type AudioAssetMinAggregateOutputType = {
-  id: string | null
-  cloudinaryAssetId: string | null
-  cloudinaryPublicId: string | null
-  originalFilename: string | null
-  title: string | null
-  author: string | null
-  durationSeconds: number | null
-  previewUrl: string | null
-  downloadUrl: string | null
-  type: $Enums.AudioType | null
-  mimeType: string | null
-  fileSizeBytes: number | null
-  uploadedAt: Date | null
-  updatedAt: Date | null
+  assetId: string | null
+  durationMs: number | null
+  bpm: number | null
+  musicalKey: string | null
+  isLoopable: boolean | null
+  sampleRate: number | null
+  bitrateKbps: number | null
+  channels: number | null
 }
 
 export type AudioAssetMaxAggregateOutputType = {
-  id: string | null
-  cloudinaryAssetId: string | null
-  cloudinaryPublicId: string | null
-  originalFilename: string | null
-  title: string | null
-  author: string | null
-  durationSeconds: number | null
-  previewUrl: string | null
-  downloadUrl: string | null
-  type: $Enums.AudioType | null
-  mimeType: string | null
-  fileSizeBytes: number | null
-  uploadedAt: Date | null
-  updatedAt: Date | null
+  assetId: string | null
+  durationMs: number | null
+  bpm: number | null
+  musicalKey: string | null
+  isLoopable: boolean | null
+  sampleRate: number | null
+  bitrateKbps: number | null
+  channels: number | null
 }
 
 export type AudioAssetCountAggregateOutputType = {
-  id: number
-  cloudinaryAssetId: number
-  cloudinaryPublicId: number
-  originalFilename: number
-  title: number
-  author: number
-  durationSeconds: number
-  previewUrl: number
-  downloadUrl: number
-  type: number
-  tags: number
-  mimeType: number
-  fileSizeBytes: number
-  uploadedAt: number
-  updatedAt: number
+  assetId: number
+  durationMs: number
+  bpm: number
+  musicalKey: number
+  isLoopable: number
+  sampleRate: number
+  bitrateKbps: number
+  channels: number
   _all: number
 }
 
 
 export type AudioAssetAvgAggregateInputType = {
-  durationSeconds?: true
-  fileSizeBytes?: true
+  durationMs?: true
+  bpm?: true
+  sampleRate?: true
+  bitrateKbps?: true
+  channels?: true
 }
 
 export type AudioAssetSumAggregateInputType = {
-  durationSeconds?: true
-  fileSizeBytes?: true
+  durationMs?: true
+  bpm?: true
+  sampleRate?: true
+  bitrateKbps?: true
+  channels?: true
 }
 
 export type AudioAssetMinAggregateInputType = {
-  id?: true
-  cloudinaryAssetId?: true
-  cloudinaryPublicId?: true
-  originalFilename?: true
-  title?: true
-  author?: true
-  durationSeconds?: true
-  previewUrl?: true
-  downloadUrl?: true
-  type?: true
-  mimeType?: true
-  fileSizeBytes?: true
-  uploadedAt?: true
-  updatedAt?: true
+  assetId?: true
+  durationMs?: true
+  bpm?: true
+  musicalKey?: true
+  isLoopable?: true
+  sampleRate?: true
+  bitrateKbps?: true
+  channels?: true
 }
 
 export type AudioAssetMaxAggregateInputType = {
-  id?: true
-  cloudinaryAssetId?: true
-  cloudinaryPublicId?: true
-  originalFilename?: true
-  title?: true
-  author?: true
-  durationSeconds?: true
-  previewUrl?: true
-  downloadUrl?: true
-  type?: true
-  mimeType?: true
-  fileSizeBytes?: true
-  uploadedAt?: true
-  updatedAt?: true
+  assetId?: true
+  durationMs?: true
+  bpm?: true
+  musicalKey?: true
+  isLoopable?: true
+  sampleRate?: true
+  bitrateKbps?: true
+  channels?: true
 }
 
 export type AudioAssetCountAggregateInputType = {
-  id?: true
-  cloudinaryAssetId?: true
-  cloudinaryPublicId?: true
-  originalFilename?: true
-  title?: true
-  author?: true
-  durationSeconds?: true
-  previewUrl?: true
-  downloadUrl?: true
-  type?: true
-  tags?: true
-  mimeType?: true
-  fileSizeBytes?: true
-  uploadedAt?: true
-  updatedAt?: true
+  assetId?: true
+  durationMs?: true
+  bpm?: true
+  musicalKey?: true
+  isLoopable?: true
+  sampleRate?: true
+  bitrateKbps?: true
+  channels?: true
   _all?: true
 }
 
@@ -240,21 +214,14 @@ export type AudioAssetGroupByArgs<ExtArgs extends runtime.Types.Extensions.Inter
 }
 
 export type AudioAssetGroupByOutputType = {
-  id: string
-  cloudinaryAssetId: string | null
-  cloudinaryPublicId: string
-  originalFilename: string
-  title: string
-  author: string
-  durationSeconds: number
-  previewUrl: string
-  downloadUrl: string
-  type: $Enums.AudioType
-  tags: string[]
-  mimeType: string
-  fileSizeBytes: number
-  uploadedAt: Date
-  updatedAt: Date
+  assetId: string
+  durationMs: number
+  bpm: number | null
+  musicalKey: string | null
+  isLoopable: boolean
+  sampleRate: number | null
+  bitrateKbps: number | null
+  channels: number | null
   _count: AudioAssetCountAggregateOutputType | null
   _avg: AudioAssetAvgAggregateOutputType | null
   _sum: AudioAssetSumAggregateOutputType | null
@@ -281,78 +248,53 @@ export type AudioAssetWhereInput = {
   AND?: Prisma.AudioAssetWhereInput | Prisma.AudioAssetWhereInput[]
   OR?: Prisma.AudioAssetWhereInput[]
   NOT?: Prisma.AudioAssetWhereInput | Prisma.AudioAssetWhereInput[]
-  id?: Prisma.StringFilter<"AudioAsset"> | string
-  cloudinaryAssetId?: Prisma.StringNullableFilter<"AudioAsset"> | string | null
-  cloudinaryPublicId?: Prisma.StringFilter<"AudioAsset"> | string
-  originalFilename?: Prisma.StringFilter<"AudioAsset"> | string
-  title?: Prisma.StringFilter<"AudioAsset"> | string
-  author?: Prisma.StringFilter<"AudioAsset"> | string
-  durationSeconds?: Prisma.IntFilter<"AudioAsset"> | number
-  previewUrl?: Prisma.StringFilter<"AudioAsset"> | string
-  downloadUrl?: Prisma.StringFilter<"AudioAsset"> | string
-  type?: Prisma.EnumAudioTypeFilter<"AudioAsset"> | $Enums.AudioType
-  tags?: Prisma.StringNullableListFilter<"AudioAsset">
-  mimeType?: Prisma.StringFilter<"AudioAsset"> | string
-  fileSizeBytes?: Prisma.IntFilter<"AudioAsset"> | number
-  uploadedAt?: Prisma.DateTimeFilter<"AudioAsset"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"AudioAsset"> | Date | string
+  assetId?: Prisma.StringFilter<"AudioAsset"> | string
+  durationMs?: Prisma.IntFilter<"AudioAsset"> | number
+  bpm?: Prisma.IntNullableFilter<"AudioAsset"> | number | null
+  musicalKey?: Prisma.StringNullableFilter<"AudioAsset"> | string | null
+  isLoopable?: Prisma.BoolFilter<"AudioAsset"> | boolean
+  sampleRate?: Prisma.IntNullableFilter<"AudioAsset"> | number | null
+  bitrateKbps?: Prisma.IntNullableFilter<"AudioAsset"> | number | null
+  channels?: Prisma.IntNullableFilter<"AudioAsset"> | number | null
+  asset?: Prisma.XOR<Prisma.AssetScalarRelationFilter, Prisma.AssetWhereInput>
 }
 
 export type AudioAssetOrderByWithRelationInput = {
-  id?: Prisma.SortOrder
-  cloudinaryAssetId?: Prisma.SortOrderInput | Prisma.SortOrder
-  cloudinaryPublicId?: Prisma.SortOrder
-  originalFilename?: Prisma.SortOrder
-  title?: Prisma.SortOrder
-  author?: Prisma.SortOrder
-  durationSeconds?: Prisma.SortOrder
-  previewUrl?: Prisma.SortOrder
-  downloadUrl?: Prisma.SortOrder
-  type?: Prisma.SortOrder
-  tags?: Prisma.SortOrder
-  mimeType?: Prisma.SortOrder
-  fileSizeBytes?: Prisma.SortOrder
-  uploadedAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
+  assetId?: Prisma.SortOrder
+  durationMs?: Prisma.SortOrder
+  bpm?: Prisma.SortOrderInput | Prisma.SortOrder
+  musicalKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  isLoopable?: Prisma.SortOrder
+  sampleRate?: Prisma.SortOrderInput | Prisma.SortOrder
+  bitrateKbps?: Prisma.SortOrderInput | Prisma.SortOrder
+  channels?: Prisma.SortOrderInput | Prisma.SortOrder
+  asset?: Prisma.AssetOrderByWithRelationInput
 }
 
 export type AudioAssetWhereUniqueInput = Prisma.AtLeast<{
-  id?: string
-  cloudinaryAssetId?: string
-  cloudinaryPublicId?: string
+  assetId?: string
   AND?: Prisma.AudioAssetWhereInput | Prisma.AudioAssetWhereInput[]
   OR?: Prisma.AudioAssetWhereInput[]
   NOT?: Prisma.AudioAssetWhereInput | Prisma.AudioAssetWhereInput[]
-  originalFilename?: Prisma.StringFilter<"AudioAsset"> | string
-  title?: Prisma.StringFilter<"AudioAsset"> | string
-  author?: Prisma.StringFilter<"AudioAsset"> | string
-  durationSeconds?: Prisma.IntFilter<"AudioAsset"> | number
-  previewUrl?: Prisma.StringFilter<"AudioAsset"> | string
-  downloadUrl?: Prisma.StringFilter<"AudioAsset"> | string
-  type?: Prisma.EnumAudioTypeFilter<"AudioAsset"> | $Enums.AudioType
-  tags?: Prisma.StringNullableListFilter<"AudioAsset">
-  mimeType?: Prisma.StringFilter<"AudioAsset"> | string
-  fileSizeBytes?: Prisma.IntFilter<"AudioAsset"> | number
-  uploadedAt?: Prisma.DateTimeFilter<"AudioAsset"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"AudioAsset"> | Date | string
-}, "id" | "cloudinaryAssetId" | "cloudinaryPublicId">
+  durationMs?: Prisma.IntFilter<"AudioAsset"> | number
+  bpm?: Prisma.IntNullableFilter<"AudioAsset"> | number | null
+  musicalKey?: Prisma.StringNullableFilter<"AudioAsset"> | string | null
+  isLoopable?: Prisma.BoolFilter<"AudioAsset"> | boolean
+  sampleRate?: Prisma.IntNullableFilter<"AudioAsset"> | number | null
+  bitrateKbps?: Prisma.IntNullableFilter<"AudioAsset"> | number | null
+  channels?: Prisma.IntNullableFilter<"AudioAsset"> | number | null
+  asset?: Prisma.XOR<Prisma.AssetScalarRelationFilter, Prisma.AssetWhereInput>
+}, "assetId">
 
 export type AudioAssetOrderByWithAggregationInput = {
-  id?: Prisma.SortOrder
-  cloudinaryAssetId?: Prisma.SortOrderInput | Prisma.SortOrder
-  cloudinaryPublicId?: Prisma.SortOrder
-  originalFilename?: Prisma.SortOrder
-  title?: Prisma.SortOrder
-  author?: Prisma.SortOrder
-  durationSeconds?: Prisma.SortOrder
-  previewUrl?: Prisma.SortOrder
-  downloadUrl?: Prisma.SortOrder
-  type?: Prisma.SortOrder
-  tags?: Prisma.SortOrder
-  mimeType?: Prisma.SortOrder
-  fileSizeBytes?: Prisma.SortOrder
-  uploadedAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
+  assetId?: Prisma.SortOrder
+  durationMs?: Prisma.SortOrder
+  bpm?: Prisma.SortOrderInput | Prisma.SortOrder
+  musicalKey?: Prisma.SortOrderInput | Prisma.SortOrder
+  isLoopable?: Prisma.SortOrder
+  sampleRate?: Prisma.SortOrderInput | Prisma.SortOrder
+  bitrateKbps?: Prisma.SortOrderInput | Prisma.SortOrder
+  channels?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.AudioAssetCountOrderByAggregateInput
   _avg?: Prisma.AudioAssetAvgOrderByAggregateInput
   _max?: Prisma.AudioAssetMaxOrderByAggregateInput
@@ -364,347 +306,308 @@ export type AudioAssetScalarWhereWithAggregatesInput = {
   AND?: Prisma.AudioAssetScalarWhereWithAggregatesInput | Prisma.AudioAssetScalarWhereWithAggregatesInput[]
   OR?: Prisma.AudioAssetScalarWhereWithAggregatesInput[]
   NOT?: Prisma.AudioAssetScalarWhereWithAggregatesInput | Prisma.AudioAssetScalarWhereWithAggregatesInput[]
-  id?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
-  cloudinaryAssetId?: Prisma.StringNullableWithAggregatesFilter<"AudioAsset"> | string | null
-  cloudinaryPublicId?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
-  originalFilename?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
-  title?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
-  author?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
-  durationSeconds?: Prisma.IntWithAggregatesFilter<"AudioAsset"> | number
-  previewUrl?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
-  downloadUrl?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
-  type?: Prisma.EnumAudioTypeWithAggregatesFilter<"AudioAsset"> | $Enums.AudioType
-  tags?: Prisma.StringNullableListFilter<"AudioAsset">
-  mimeType?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
-  fileSizeBytes?: Prisma.IntWithAggregatesFilter<"AudioAsset"> | number
-  uploadedAt?: Prisma.DateTimeWithAggregatesFilter<"AudioAsset"> | Date | string
-  updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AudioAsset"> | Date | string
+  assetId?: Prisma.StringWithAggregatesFilter<"AudioAsset"> | string
+  durationMs?: Prisma.IntWithAggregatesFilter<"AudioAsset"> | number
+  bpm?: Prisma.IntNullableWithAggregatesFilter<"AudioAsset"> | number | null
+  musicalKey?: Prisma.StringNullableWithAggregatesFilter<"AudioAsset"> | string | null
+  isLoopable?: Prisma.BoolWithAggregatesFilter<"AudioAsset"> | boolean
+  sampleRate?: Prisma.IntNullableWithAggregatesFilter<"AudioAsset"> | number | null
+  bitrateKbps?: Prisma.IntNullableWithAggregatesFilter<"AudioAsset"> | number | null
+  channels?: Prisma.IntNullableWithAggregatesFilter<"AudioAsset"> | number | null
 }
 
 export type AudioAssetCreateInput = {
-  id?: string
-  cloudinaryAssetId?: string | null
-  cloudinaryPublicId: string
-  originalFilename: string
-  title: string
-  author: string
-  durationSeconds: number
-  previewUrl: string
-  downloadUrl: string
-  type: $Enums.AudioType
-  tags?: Prisma.AudioAssetCreatetagsInput | string[]
-  mimeType: string
-  fileSizeBytes: number
-  uploadedAt?: Date | string
-  updatedAt?: Date | string
+  durationMs: number
+  bpm?: number | null
+  musicalKey?: string | null
+  isLoopable?: boolean
+  sampleRate?: number | null
+  bitrateKbps?: number | null
+  channels?: number | null
+  asset: Prisma.AssetCreateNestedOneWithoutAudioInput
 }
 
 export type AudioAssetUncheckedCreateInput = {
-  id?: string
-  cloudinaryAssetId?: string | null
-  cloudinaryPublicId: string
-  originalFilename: string
-  title: string
-  author: string
-  durationSeconds: number
-  previewUrl: string
-  downloadUrl: string
-  type: $Enums.AudioType
-  tags?: Prisma.AudioAssetCreatetagsInput | string[]
-  mimeType: string
-  fileSizeBytes: number
-  uploadedAt?: Date | string
-  updatedAt?: Date | string
+  assetId: string
+  durationMs: number
+  bpm?: number | null
+  musicalKey?: string | null
+  isLoopable?: boolean
+  sampleRate?: number | null
+  bitrateKbps?: number | null
+  channels?: number | null
 }
 
 export type AudioAssetUpdateInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  cloudinaryAssetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cloudinaryPublicId?: Prisma.StringFieldUpdateOperationsInput | string
-  originalFilename?: Prisma.StringFieldUpdateOperationsInput | string
-  title?: Prisma.StringFieldUpdateOperationsInput | string
-  author?: Prisma.StringFieldUpdateOperationsInput | string
-  durationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
-  previewUrl?: Prisma.StringFieldUpdateOperationsInput | string
-  downloadUrl?: Prisma.StringFieldUpdateOperationsInput | string
-  type?: Prisma.EnumAudioTypeFieldUpdateOperationsInput | $Enums.AudioType
-  tags?: Prisma.AudioAssetUpdatetagsInput | string[]
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  fileSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
-  uploadedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  durationMs?: Prisma.IntFieldUpdateOperationsInput | number
+  bpm?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  musicalKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isLoopable?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sampleRate?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  bitrateKbps?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  channels?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  asset?: Prisma.AssetUpdateOneRequiredWithoutAudioNestedInput
 }
 
 export type AudioAssetUncheckedUpdateInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  cloudinaryAssetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cloudinaryPublicId?: Prisma.StringFieldUpdateOperationsInput | string
-  originalFilename?: Prisma.StringFieldUpdateOperationsInput | string
-  title?: Prisma.StringFieldUpdateOperationsInput | string
-  author?: Prisma.StringFieldUpdateOperationsInput | string
-  durationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
-  previewUrl?: Prisma.StringFieldUpdateOperationsInput | string
-  downloadUrl?: Prisma.StringFieldUpdateOperationsInput | string
-  type?: Prisma.EnumAudioTypeFieldUpdateOperationsInput | $Enums.AudioType
-  tags?: Prisma.AudioAssetUpdatetagsInput | string[]
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  fileSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
-  uploadedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  assetId?: Prisma.StringFieldUpdateOperationsInput | string
+  durationMs?: Prisma.IntFieldUpdateOperationsInput | number
+  bpm?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  musicalKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isLoopable?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sampleRate?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  bitrateKbps?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  channels?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type AudioAssetCreateManyInput = {
-  id?: string
-  cloudinaryAssetId?: string | null
-  cloudinaryPublicId: string
-  originalFilename: string
-  title: string
-  author: string
-  durationSeconds: number
-  previewUrl: string
-  downloadUrl: string
-  type: $Enums.AudioType
-  tags?: Prisma.AudioAssetCreatetagsInput | string[]
-  mimeType: string
-  fileSizeBytes: number
-  uploadedAt?: Date | string
-  updatedAt?: Date | string
+  assetId: string
+  durationMs: number
+  bpm?: number | null
+  musicalKey?: string | null
+  isLoopable?: boolean
+  sampleRate?: number | null
+  bitrateKbps?: number | null
+  channels?: number | null
 }
 
 export type AudioAssetUpdateManyMutationInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  cloudinaryAssetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cloudinaryPublicId?: Prisma.StringFieldUpdateOperationsInput | string
-  originalFilename?: Prisma.StringFieldUpdateOperationsInput | string
-  title?: Prisma.StringFieldUpdateOperationsInput | string
-  author?: Prisma.StringFieldUpdateOperationsInput | string
-  durationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
-  previewUrl?: Prisma.StringFieldUpdateOperationsInput | string
-  downloadUrl?: Prisma.StringFieldUpdateOperationsInput | string
-  type?: Prisma.EnumAudioTypeFieldUpdateOperationsInput | $Enums.AudioType
-  tags?: Prisma.AudioAssetUpdatetagsInput | string[]
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  fileSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
-  uploadedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  durationMs?: Prisma.IntFieldUpdateOperationsInput | number
+  bpm?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  musicalKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isLoopable?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sampleRate?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  bitrateKbps?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  channels?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 export type AudioAssetUncheckedUpdateManyInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
-  cloudinaryAssetId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  cloudinaryPublicId?: Prisma.StringFieldUpdateOperationsInput | string
-  originalFilename?: Prisma.StringFieldUpdateOperationsInput | string
-  title?: Prisma.StringFieldUpdateOperationsInput | string
-  author?: Prisma.StringFieldUpdateOperationsInput | string
-  durationSeconds?: Prisma.IntFieldUpdateOperationsInput | number
-  previewUrl?: Prisma.StringFieldUpdateOperationsInput | string
-  downloadUrl?: Prisma.StringFieldUpdateOperationsInput | string
-  type?: Prisma.EnumAudioTypeFieldUpdateOperationsInput | $Enums.AudioType
-  tags?: Prisma.AudioAssetUpdatetagsInput | string[]
-  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
-  fileSizeBytes?: Prisma.IntFieldUpdateOperationsInput | number
-  uploadedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  assetId?: Prisma.StringFieldUpdateOperationsInput | string
+  durationMs?: Prisma.IntFieldUpdateOperationsInput | number
+  bpm?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  musicalKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isLoopable?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sampleRate?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  bitrateKbps?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  channels?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
-export type StringNullableListFilter<$PrismaModel = never> = {
-  equals?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel> | null
-  has?: string | Prisma.StringFieldRefInput<$PrismaModel> | null
-  hasEvery?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
-  hasSome?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
-  isEmpty?: boolean
+export type AudioAssetNullableScalarRelationFilter = {
+  is?: Prisma.AudioAssetWhereInput | null
+  isNot?: Prisma.AudioAssetWhereInput | null
 }
 
 export type AudioAssetCountOrderByAggregateInput = {
-  id?: Prisma.SortOrder
-  cloudinaryAssetId?: Prisma.SortOrder
-  cloudinaryPublicId?: Prisma.SortOrder
-  originalFilename?: Prisma.SortOrder
-  title?: Prisma.SortOrder
-  author?: Prisma.SortOrder
-  durationSeconds?: Prisma.SortOrder
-  previewUrl?: Prisma.SortOrder
-  downloadUrl?: Prisma.SortOrder
-  type?: Prisma.SortOrder
-  tags?: Prisma.SortOrder
-  mimeType?: Prisma.SortOrder
-  fileSizeBytes?: Prisma.SortOrder
-  uploadedAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
+  assetId?: Prisma.SortOrder
+  durationMs?: Prisma.SortOrder
+  bpm?: Prisma.SortOrder
+  musicalKey?: Prisma.SortOrder
+  isLoopable?: Prisma.SortOrder
+  sampleRate?: Prisma.SortOrder
+  bitrateKbps?: Prisma.SortOrder
+  channels?: Prisma.SortOrder
 }
 
 export type AudioAssetAvgOrderByAggregateInput = {
-  durationSeconds?: Prisma.SortOrder
-  fileSizeBytes?: Prisma.SortOrder
+  durationMs?: Prisma.SortOrder
+  bpm?: Prisma.SortOrder
+  sampleRate?: Prisma.SortOrder
+  bitrateKbps?: Prisma.SortOrder
+  channels?: Prisma.SortOrder
 }
 
 export type AudioAssetMaxOrderByAggregateInput = {
-  id?: Prisma.SortOrder
-  cloudinaryAssetId?: Prisma.SortOrder
-  cloudinaryPublicId?: Prisma.SortOrder
-  originalFilename?: Prisma.SortOrder
-  title?: Prisma.SortOrder
-  author?: Prisma.SortOrder
-  durationSeconds?: Prisma.SortOrder
-  previewUrl?: Prisma.SortOrder
-  downloadUrl?: Prisma.SortOrder
-  type?: Prisma.SortOrder
-  mimeType?: Prisma.SortOrder
-  fileSizeBytes?: Prisma.SortOrder
-  uploadedAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
+  assetId?: Prisma.SortOrder
+  durationMs?: Prisma.SortOrder
+  bpm?: Prisma.SortOrder
+  musicalKey?: Prisma.SortOrder
+  isLoopable?: Prisma.SortOrder
+  sampleRate?: Prisma.SortOrder
+  bitrateKbps?: Prisma.SortOrder
+  channels?: Prisma.SortOrder
 }
 
 export type AudioAssetMinOrderByAggregateInput = {
-  id?: Prisma.SortOrder
-  cloudinaryAssetId?: Prisma.SortOrder
-  cloudinaryPublicId?: Prisma.SortOrder
-  originalFilename?: Prisma.SortOrder
-  title?: Prisma.SortOrder
-  author?: Prisma.SortOrder
-  durationSeconds?: Prisma.SortOrder
-  previewUrl?: Prisma.SortOrder
-  downloadUrl?: Prisma.SortOrder
-  type?: Prisma.SortOrder
-  mimeType?: Prisma.SortOrder
-  fileSizeBytes?: Prisma.SortOrder
-  uploadedAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
+  assetId?: Prisma.SortOrder
+  durationMs?: Prisma.SortOrder
+  bpm?: Prisma.SortOrder
+  musicalKey?: Prisma.SortOrder
+  isLoopable?: Prisma.SortOrder
+  sampleRate?: Prisma.SortOrder
+  bitrateKbps?: Prisma.SortOrder
+  channels?: Prisma.SortOrder
 }
 
 export type AudioAssetSumOrderByAggregateInput = {
-  durationSeconds?: Prisma.SortOrder
-  fileSizeBytes?: Prisma.SortOrder
+  durationMs?: Prisma.SortOrder
+  bpm?: Prisma.SortOrder
+  sampleRate?: Prisma.SortOrder
+  bitrateKbps?: Prisma.SortOrder
+  channels?: Prisma.SortOrder
 }
 
-export type AudioAssetCreatetagsInput = {
-  set: string[]
+export type AudioAssetCreateNestedOneWithoutAssetInput = {
+  create?: Prisma.XOR<Prisma.AudioAssetCreateWithoutAssetInput, Prisma.AudioAssetUncheckedCreateWithoutAssetInput>
+  connectOrCreate?: Prisma.AudioAssetCreateOrConnectWithoutAssetInput
+  connect?: Prisma.AudioAssetWhereUniqueInput
 }
 
-export type StringFieldUpdateOperationsInput = {
-  set?: string
+export type AudioAssetUncheckedCreateNestedOneWithoutAssetInput = {
+  create?: Prisma.XOR<Prisma.AudioAssetCreateWithoutAssetInput, Prisma.AudioAssetUncheckedCreateWithoutAssetInput>
+  connectOrCreate?: Prisma.AudioAssetCreateOrConnectWithoutAssetInput
+  connect?: Prisma.AudioAssetWhereUniqueInput
 }
 
-export type NullableStringFieldUpdateOperationsInput = {
-  set?: string | null
+export type AudioAssetUpdateOneWithoutAssetNestedInput = {
+  create?: Prisma.XOR<Prisma.AudioAssetCreateWithoutAssetInput, Prisma.AudioAssetUncheckedCreateWithoutAssetInput>
+  connectOrCreate?: Prisma.AudioAssetCreateOrConnectWithoutAssetInput
+  upsert?: Prisma.AudioAssetUpsertWithoutAssetInput
+  disconnect?: Prisma.AudioAssetWhereInput | boolean
+  delete?: Prisma.AudioAssetWhereInput | boolean
+  connect?: Prisma.AudioAssetWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AudioAssetUpdateToOneWithWhereWithoutAssetInput, Prisma.AudioAssetUpdateWithoutAssetInput>, Prisma.AudioAssetUncheckedUpdateWithoutAssetInput>
 }
 
-export type IntFieldUpdateOperationsInput = {
-  set?: number
-  increment?: number
-  decrement?: number
-  multiply?: number
-  divide?: number
+export type AudioAssetUncheckedUpdateOneWithoutAssetNestedInput = {
+  create?: Prisma.XOR<Prisma.AudioAssetCreateWithoutAssetInput, Prisma.AudioAssetUncheckedCreateWithoutAssetInput>
+  connectOrCreate?: Prisma.AudioAssetCreateOrConnectWithoutAssetInput
+  upsert?: Prisma.AudioAssetUpsertWithoutAssetInput
+  disconnect?: Prisma.AudioAssetWhereInput | boolean
+  delete?: Prisma.AudioAssetWhereInput | boolean
+  connect?: Prisma.AudioAssetWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AudioAssetUpdateToOneWithWhereWithoutAssetInput, Prisma.AudioAssetUpdateWithoutAssetInput>, Prisma.AudioAssetUncheckedUpdateWithoutAssetInput>
 }
 
-export type EnumAudioTypeFieldUpdateOperationsInput = {
-  set?: $Enums.AudioType
+export type AudioAssetCreateWithoutAssetInput = {
+  durationMs: number
+  bpm?: number | null
+  musicalKey?: string | null
+  isLoopable?: boolean
+  sampleRate?: number | null
+  bitrateKbps?: number | null
+  channels?: number | null
 }
 
-export type AudioAssetUpdatetagsInput = {
-  set?: string[]
-  push?: string | string[]
+export type AudioAssetUncheckedCreateWithoutAssetInput = {
+  durationMs: number
+  bpm?: number | null
+  musicalKey?: string | null
+  isLoopable?: boolean
+  sampleRate?: number | null
+  bitrateKbps?: number | null
+  channels?: number | null
 }
 
-export type DateTimeFieldUpdateOperationsInput = {
-  set?: Date | string
+export type AudioAssetCreateOrConnectWithoutAssetInput = {
+  where: Prisma.AudioAssetWhereUniqueInput
+  create: Prisma.XOR<Prisma.AudioAssetCreateWithoutAssetInput, Prisma.AudioAssetUncheckedCreateWithoutAssetInput>
+}
+
+export type AudioAssetUpsertWithoutAssetInput = {
+  update: Prisma.XOR<Prisma.AudioAssetUpdateWithoutAssetInput, Prisma.AudioAssetUncheckedUpdateWithoutAssetInput>
+  create: Prisma.XOR<Prisma.AudioAssetCreateWithoutAssetInput, Prisma.AudioAssetUncheckedCreateWithoutAssetInput>
+  where?: Prisma.AudioAssetWhereInput
+}
+
+export type AudioAssetUpdateToOneWithWhereWithoutAssetInput = {
+  where?: Prisma.AudioAssetWhereInput
+  data: Prisma.XOR<Prisma.AudioAssetUpdateWithoutAssetInput, Prisma.AudioAssetUncheckedUpdateWithoutAssetInput>
+}
+
+export type AudioAssetUpdateWithoutAssetInput = {
+  durationMs?: Prisma.IntFieldUpdateOperationsInput | number
+  bpm?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  musicalKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isLoopable?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sampleRate?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  bitrateKbps?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  channels?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+}
+
+export type AudioAssetUncheckedUpdateWithoutAssetInput = {
+  durationMs?: Prisma.IntFieldUpdateOperationsInput | number
+  bpm?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  musicalKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isLoopable?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  sampleRate?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  bitrateKbps?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  channels?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
 }
 
 
 
 export type AudioAssetSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-  id?: boolean
-  cloudinaryAssetId?: boolean
-  cloudinaryPublicId?: boolean
-  originalFilename?: boolean
-  title?: boolean
-  author?: boolean
-  durationSeconds?: boolean
-  previewUrl?: boolean
-  downloadUrl?: boolean
-  type?: boolean
-  tags?: boolean
-  mimeType?: boolean
-  fileSizeBytes?: boolean
-  uploadedAt?: boolean
-  updatedAt?: boolean
+  assetId?: boolean
+  durationMs?: boolean
+  bpm?: boolean
+  musicalKey?: boolean
+  isLoopable?: boolean
+  sampleRate?: boolean
+  bitrateKbps?: boolean
+  channels?: boolean
+  asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["audioAsset"]>
 
 export type AudioAssetSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-  id?: boolean
-  cloudinaryAssetId?: boolean
-  cloudinaryPublicId?: boolean
-  originalFilename?: boolean
-  title?: boolean
-  author?: boolean
-  durationSeconds?: boolean
-  previewUrl?: boolean
-  downloadUrl?: boolean
-  type?: boolean
-  tags?: boolean
-  mimeType?: boolean
-  fileSizeBytes?: boolean
-  uploadedAt?: boolean
-  updatedAt?: boolean
+  assetId?: boolean
+  durationMs?: boolean
+  bpm?: boolean
+  musicalKey?: boolean
+  isLoopable?: boolean
+  sampleRate?: boolean
+  bitrateKbps?: boolean
+  channels?: boolean
+  asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["audioAsset"]>
 
 export type AudioAssetSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
-  id?: boolean
-  cloudinaryAssetId?: boolean
-  cloudinaryPublicId?: boolean
-  originalFilename?: boolean
-  title?: boolean
-  author?: boolean
-  durationSeconds?: boolean
-  previewUrl?: boolean
-  downloadUrl?: boolean
-  type?: boolean
-  tags?: boolean
-  mimeType?: boolean
-  fileSizeBytes?: boolean
-  uploadedAt?: boolean
-  updatedAt?: boolean
+  assetId?: boolean
+  durationMs?: boolean
+  bpm?: boolean
+  musicalKey?: boolean
+  isLoopable?: boolean
+  sampleRate?: boolean
+  bitrateKbps?: boolean
+  channels?: boolean
+  asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["audioAsset"]>
 
 export type AudioAssetSelectScalar = {
-  id?: boolean
-  cloudinaryAssetId?: boolean
-  cloudinaryPublicId?: boolean
-  originalFilename?: boolean
-  title?: boolean
-  author?: boolean
-  durationSeconds?: boolean
-  previewUrl?: boolean
-  downloadUrl?: boolean
-  type?: boolean
-  tags?: boolean
-  mimeType?: boolean
-  fileSizeBytes?: boolean
-  uploadedAt?: boolean
-  updatedAt?: boolean
+  assetId?: boolean
+  durationMs?: boolean
+  bpm?: boolean
+  musicalKey?: boolean
+  isLoopable?: boolean
+  sampleRate?: boolean
+  bitrateKbps?: boolean
+  channels?: boolean
 }
 
-export type AudioAssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "cloudinaryAssetId" | "cloudinaryPublicId" | "originalFilename" | "title" | "author" | "durationSeconds" | "previewUrl" | "downloadUrl" | "type" | "tags" | "mimeType" | "fileSizeBytes" | "uploadedAt" | "updatedAt", ExtArgs["result"]["audioAsset"]>
+export type AudioAssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"assetId" | "durationMs" | "bpm" | "musicalKey" | "isLoopable" | "sampleRate" | "bitrateKbps" | "channels", ExtArgs["result"]["audioAsset"]>
+export type AudioAssetInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
+}
+export type AudioAssetIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
+}
+export type AudioAssetIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  asset?: boolean | Prisma.AssetDefaultArgs<ExtArgs>
+}
 
 export type $AudioAssetPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "AudioAsset"
-  objects: {}
+  objects: {
+    asset: Prisma.$AssetPayload<ExtArgs>
+  }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
-    id: string
-    cloudinaryAssetId: string | null
-    cloudinaryPublicId: string
-    originalFilename: string
-    title: string
-    author: string
-    durationSeconds: number
-    previewUrl: string
-    downloadUrl: string
-    type: $Enums.AudioType
-    tags: string[]
-    mimeType: string
-    fileSizeBytes: number
-    uploadedAt: Date
-    updatedAt: Date
+    assetId: string
+    durationMs: number
+    bpm: number | null
+    musicalKey: string | null
+    isLoopable: boolean
+    sampleRate: number | null
+    bitrateKbps: number | null
+    channels: number | null
   }, ExtArgs["result"]["audioAsset"]>
   composites: {}
 }
@@ -788,8 +691,8 @@ export interface AudioAssetDelegate<ExtArgs extends runtime.Types.Extensions.Int
    * // Get first 10 AudioAssets
    * const audioAssets = await prisma.audioAsset.findMany({ take: 10 })
    * 
-   * // Only select the `id`
-   * const audioAssetWithIdOnly = await prisma.audioAsset.findMany({ select: { id: true } })
+   * // Only select the `assetId`
+   * const audioAssetWithAssetIdOnly = await prisma.audioAsset.findMany({ select: { assetId: true } })
    * 
    */
   findMany<T extends AudioAssetFindManyArgs>(args?: Prisma.SelectSubset<T, AudioAssetFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AudioAssetPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
@@ -833,9 +736,9 @@ export interface AudioAssetDelegate<ExtArgs extends runtime.Types.Extensions.Int
    *   ]
    * })
    * 
-   * // Create many AudioAssets and only return the `id`
-   * const audioAssetWithIdOnly = await prisma.audioAsset.createManyAndReturn({
-   *   select: { id: true },
+   * // Create many AudioAssets and only return the `assetId`
+   * const audioAssetWithAssetIdOnly = await prisma.audioAsset.createManyAndReturn({
+   *   select: { assetId: true },
    *   data: [
    *     // ... provide data here
    *   ]
@@ -924,9 +827,9 @@ export interface AudioAssetDelegate<ExtArgs extends runtime.Types.Extensions.Int
    *   ]
    * })
    * 
-   * // Update zero or more AudioAssets and only return the `id`
-   * const audioAssetWithIdOnly = await prisma.audioAsset.updateManyAndReturn({
-   *   select: { id: true },
+   * // Update zero or more AudioAssets and only return the `assetId`
+   * const audioAssetWithAssetIdOnly = await prisma.audioAsset.updateManyAndReturn({
+   *   select: { assetId: true },
    *   where: {
    *     // ... provide filter here
    *   },
@@ -1099,6 +1002,7 @@ readonly fields: AudioAssetFieldRefs;
  */
 export interface Prisma__AudioAssetClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  asset<T extends Prisma.AssetDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.AssetDefaultArgs<ExtArgs>>): Prisma.Prisma__AssetClient<runtime.Types.Result.GetResult<Prisma.$AssetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1128,21 +1032,14 @@ export interface Prisma__AudioAssetClient<T, Null = never, ExtArgs extends runti
  * Fields of the AudioAsset model
  */
 export interface AudioAssetFieldRefs {
-  readonly id: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly cloudinaryAssetId: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly cloudinaryPublicId: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly originalFilename: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly title: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly author: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly durationSeconds: Prisma.FieldRef<"AudioAsset", 'Int'>
-  readonly previewUrl: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly downloadUrl: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly type: Prisma.FieldRef<"AudioAsset", 'AudioType'>
-  readonly tags: Prisma.FieldRef<"AudioAsset", 'String[]'>
-  readonly mimeType: Prisma.FieldRef<"AudioAsset", 'String'>
-  readonly fileSizeBytes: Prisma.FieldRef<"AudioAsset", 'Int'>
-  readonly uploadedAt: Prisma.FieldRef<"AudioAsset", 'DateTime'>
-  readonly updatedAt: Prisma.FieldRef<"AudioAsset", 'DateTime'>
+  readonly assetId: Prisma.FieldRef<"AudioAsset", 'String'>
+  readonly durationMs: Prisma.FieldRef<"AudioAsset", 'Int'>
+  readonly bpm: Prisma.FieldRef<"AudioAsset", 'Int'>
+  readonly musicalKey: Prisma.FieldRef<"AudioAsset", 'String'>
+  readonly isLoopable: Prisma.FieldRef<"AudioAsset", 'Boolean'>
+  readonly sampleRate: Prisma.FieldRef<"AudioAsset", 'Int'>
+  readonly bitrateKbps: Prisma.FieldRef<"AudioAsset", 'Int'>
+  readonly channels: Prisma.FieldRef<"AudioAsset", 'Int'>
 }
     
 
@@ -1159,6 +1056,10 @@ export type AudioAssetFindUniqueArgs<ExtArgs extends runtime.Types.Extensions.In
    * Omit specific fields from the AudioAsset
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
   /**
    * Filter, which AudioAsset to fetch.
    */
@@ -1178,6 +1079,10 @@ export type AudioAssetFindUniqueOrThrowArgs<ExtArgs extends runtime.Types.Extens
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
+  /**
    * Filter, which AudioAsset to fetch.
    */
   where: Prisma.AudioAssetWhereUniqueInput
@@ -1195,6 +1100,10 @@ export type AudioAssetFindFirstArgs<ExtArgs extends runtime.Types.Extensions.Int
    * Omit specific fields from the AudioAsset
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
   /**
    * Filter, which AudioAsset to fetch.
    */
@@ -1244,6 +1153,10 @@ export type AudioAssetFindFirstOrThrowArgs<ExtArgs extends runtime.Types.Extensi
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
+  /**
    * Filter, which AudioAsset to fetch.
    */
   where?: Prisma.AudioAssetWhereInput
@@ -1291,6 +1204,10 @@ export type AudioAssetFindManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Omit specific fields from the AudioAsset
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
   /**
    * Filter, which AudioAssets to fetch.
    */
@@ -1340,6 +1257,10 @@ export type AudioAssetCreateArgs<ExtArgs extends runtime.Types.Extensions.Intern
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
   /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
+  /**
    * The data needed to create a AudioAsset.
    */
   data: Prisma.XOR<Prisma.AudioAssetCreateInput, Prisma.AudioAssetUncheckedCreateInput>
@@ -1373,6 +1294,10 @@ export type AudioAssetCreateManyAndReturnArgs<ExtArgs extends runtime.Types.Exte
    */
   data: Prisma.AudioAssetCreateManyInput | Prisma.AudioAssetCreateManyInput[]
   skipDuplicates?: boolean
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetIncludeCreateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1387,6 +1312,10 @@ export type AudioAssetUpdateArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Omit specific fields from the AudioAsset
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
   /**
    * The data needed to update a AudioAsset.
    */
@@ -1439,6 +1368,10 @@ export type AudioAssetUpdateManyAndReturnArgs<ExtArgs extends runtime.Types.Exte
    * Limit how many AudioAssets to update.
    */
   limit?: number
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetIncludeUpdateManyAndReturn<ExtArgs> | null
 }
 
 /**
@@ -1453,6 +1386,10 @@ export type AudioAssetUpsertArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Omit specific fields from the AudioAsset
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
   /**
    * The filter to search for the AudioAsset to update in case it exists.
    */
@@ -1479,6 +1416,10 @@ export type AudioAssetDeleteArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Omit specific fields from the AudioAsset
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
   /**
    * Filter which AudioAsset to delete.
    */
@@ -1511,4 +1452,8 @@ export type AudioAssetDefaultArgs<ExtArgs extends runtime.Types.Extensions.Inter
    * Omit specific fields from the AudioAsset
    */
   omit?: Prisma.AudioAssetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AudioAssetInclude<ExtArgs> | null
 }

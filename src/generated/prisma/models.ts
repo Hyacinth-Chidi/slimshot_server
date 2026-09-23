@@ -8,5 +8,15 @@
  *
  * 🟢 You can import this file directly.
  */
+export type * from './models/Asset'
+export type * from './models/AssetFile'
 export type * from './models/AudioAsset'
+export type * from './models/UploadSession'
+export type * from './models/User'
+export type * from './models/UserEntitlement'
+export type * from './models/SystemSetting'
+export type * from './models/StorageProvider'
+export type * from './models/AuditLog'
+export type * from './models/AdminUser'
+export type * from './models/RefreshToken'
 export type * from './commonInputTypes'
