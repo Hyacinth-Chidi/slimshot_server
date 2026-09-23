@@ -2,10 +2,15 @@ import { ElevationService } from './elevation.service';
 
 function fakeRedis() {
   const store = new Map<string, string>();
+  const ttls = new Map<string, number>();
   return {
     store,
-    set: jest.fn(async (k: string, v: string) => {
+    ttls,
+    set: jest.fn(async (k: string, v: string, mode?: string, seconds?: number) => {
       store.set(k, v);
+      // Record the expiry so a test can assert it. A fake that silently drops
+      // the TTL lets a grant-never-expires bug pass every test.
+      if (mode === 'EX' && typeof seconds === 'number') ttls.set(k, seconds);
       return 'OK';
     }),
     get: jest.fn(async (k: string) => store.get(k) ?? null),
@@ -80,5 +85,43 @@ describe('ElevationService', () => {
     const grant = await svc.issue('admin-1', 'auth.jwtAccessSecret');
 
     expect([...redis.store.keys()].some((k) => k.includes(grant))).toBe(false);
+  });
+
+  it('issues the grant with a 120 second expiry', async () => {
+    const redis = fakeRedis();
+    const svc = new ElevationService(redis as never);
+    await svc.issue('admin-1', 'auth.jwtAccessSecret');
+
+    // Without an expiry a grant is a permanent credential. This asserts the TTL
+    // reaches Redis, which the previous fake silently discarded.
+    const [ttl] = [...redis.ttls.values()];
+    expect(ttl).toBe(120);
+  });
+
+  it('refuses a grant whose Redis entry has expired', async () => {
+    const redis = fakeRedis();
+    const svc = new ElevationService(redis as never);
+    const grant = await svc.issue('admin-1', 'auth.jwtAccessSecret');
+
+    // Simulate Redis evicting the key at TTL. consume must fail closed.
+    redis.store.clear();
+
+    await expect(
+      svc.consume(grant, 'admin-1', 'auth.jwtAccessSecret'),
+    ).resolves.toBe(false);
+  });
+
+  it('denies a grant whose stored value is corrupt rather than throwing', async () => {
+    const redis = fakeRedis();
+    const svc = new ElevationService(redis as never);
+    const grant = await svc.issue('admin-1', 'auth.jwtAccessSecret');
+
+    // Overwrite with junk, as a foreign writer or a partial write would.
+    const [key] = [...redis.store.keys()];
+    redis.store.set(key, 'not-json{{{');
+
+    await expect(
+      svc.consume(grant, 'admin-1', 'auth.jwtAccessSecret'),
+    ).resolves.toBe(false);
   });
 });

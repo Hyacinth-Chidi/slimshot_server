@@ -43,7 +43,8 @@ export class ElevationService {
     const raw = await this.redis.get(redisKey);
     if (!raw) return false;
 
-    const parsed = JSON.parse(raw) as { adminId: string; key: string };
+    const parsed = this.parseGrant(raw);
+    if (!parsed) return false;
     if (parsed.adminId !== adminId || parsed.key !== key) return false;
 
     await this.redis.del(redisKey);
@@ -56,7 +57,8 @@ export class ElevationService {
     for (const k of keys) {
       const raw = await this.redis.get(k);
       if (!raw) continue;
-      const parsed = JSON.parse(raw) as { adminId: string };
+      const parsed = this.parseGrant(raw);
+      if (!parsed) continue;
       if (parsed.adminId === adminId) await this.redis.del(k);
     }
   }
@@ -64,5 +66,27 @@ export class ElevationService {
   /** The grant is stored by hash, so a Redis dump does not yield usable grants. */
   private redisKey(grant: string): string {
     return `elevation:${createHash('sha256').update(grant).digest('hex')}`;
+  }
+
+  /**
+   * Redis content is untrusted input: a corrupt or foreign value under an
+   * elevation:* key must deny access, not throw. A credential check that 500s
+   * tells an attacker something a uniform refusal would not.
+   */
+  private parseGrant(raw: string): { adminId: string; key: string } | null {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (
+        typeof parsed === 'object' &&
+        parsed !== null &&
+        typeof (parsed as { adminId?: unknown }).adminId === 'string' &&
+        typeof (parsed as { key?: unknown }).key === 'string'
+      ) {
+        return parsed as { adminId: string; key: string };
+      }
+      return null;
+    } catch {
+      return null;
+    }
   }
 }
