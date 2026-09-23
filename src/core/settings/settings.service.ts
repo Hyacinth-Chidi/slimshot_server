@@ -75,7 +75,12 @@ export class SettingsService {
 
     let value: unknown;
     if (!row) {
-      value = def.default;
+      // No row: an env fallback may stand in, so a fresh install can reach
+      // infrastructure before anyone has logged in to configure it. A row
+      // always outranks this - otherwise changing the value in the settings
+      // screen would appear to save and silently have no effect.
+      const fromEnv = def.envFallback ? process.env[def.envFallback] : undefined;
+      value = fromEnv !== undefined && fromEnv !== '' ? fromEnv : def.default;
     } else if (def.secret) {
       value = row.valueCipher
         ? this.crypto.decrypt({

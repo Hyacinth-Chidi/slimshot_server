@@ -88,6 +88,7 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     type: 'string',
     default: 'redis://localhost:6379',
     secret: true,
+    envFallback: 'REDIS_URL',
     description: 'Connection URL for Redis (cache, queue, rate limiting).',
   }),
   defineSetting({

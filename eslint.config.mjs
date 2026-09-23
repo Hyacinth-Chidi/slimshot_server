@@ -32,6 +32,10 @@ export default tseslint.config(
       'src/core/crypto/crypto.module.ts',
       'src/modules/auth/auth.service.ts',
       'prisma/seed.ts',
+      // Reads ONLY the env var a setting definition names in `envFallback`,
+      // and only when no database row exists. The registry still decides what
+      // is configurable; this does not reintroduce ad-hoc env reads.
+      'src/core/settings/settings.service.ts',
     ],
     rules: { 'no-restricted-properties': 'off' },
   },

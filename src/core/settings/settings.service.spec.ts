@@ -36,6 +36,42 @@ describe('SettingsService', () => {
     await expect(svc.get('upload.audio.maxBytes')).resolves.toBe(52_428_800);
   });
 
+  it('falls back to an env var when no row exists and the definition names one', async () => {
+    // Local development needs a Redis that is not localhost before any admin
+    // has logged in to set it. The DB row stays authoritative; this only fills
+    // the gap where there is no row at all.
+    process.env.REDIS_URL = 'redis://env-host:6379';
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    await expect(svc.get('redis.url')).resolves.toBe('redis://env-host:6379');
+    delete process.env.REDIS_URL;
+  });
+
+  it('prefers a stored row over the env fallback', async () => {
+    // The whole point of storing settings in the DB is that an admin can
+    // change them at runtime. An env var that outranked the row would make the
+    // settings screen silently ineffective.
+    process.env.REDIS_URL = 'redis://env-host:6379';
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    await svc.set('redis.url', 'redis://db-host:6379', 'admin-1');
+    await expect(svc.get('redis.url')).resolves.toBe('redis://db-host:6379');
+    delete process.env.REDIS_URL;
+  });
+
+  it('uses the registry default when the env var is absent', async () => {
+    delete process.env.REDIS_URL;
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    await expect(svc.get('redis.url')).resolves.toBe('redis://localhost:6379');
+  });
+
+  it('ignores an empty env var rather than treating it as configured', async () => {
+    // An unset var in a .env file often arrives as '' rather than undefined.
+    // Treating that as a value yields an empty connection URL.
+    process.env.REDIS_URL = '';
+    const svc = new SettingsService(prismaMock() as never, crypto);
+    await expect(svc.get('redis.url')).resolves.toBe('redis://localhost:6379');
+    delete process.env.REDIS_URL;
+  });
+
   it('returns a stored non-secret value over the default', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
     await svc.set('upload.audio.maxBytes', 1234, 'admin-1');

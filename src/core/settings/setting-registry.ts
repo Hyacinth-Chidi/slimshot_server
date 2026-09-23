@@ -11,6 +11,13 @@ export interface SettingDefinition<T = unknown> {
   max?: number;
   minLength?: number;
   enum?: readonly string[];
+  /**
+   * Environment variable consulted ONLY when no database row exists for this
+   * key. The row always wins, so an admin changing the value at runtime is
+   * never overridden by the environment; this exists so a fresh install can
+   * reach infrastructure before anyone has logged in to configure it.
+   */
+  envFallback?: string;
 }
 
 export function defineSetting<T>(def: SettingDefinition<T>): SettingDefinition<T> {
