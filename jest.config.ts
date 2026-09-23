@@ -11,7 +11,16 @@ const config: Config = {
   setupFiles: ['<rootDir>/test/setup-env.ts'],
   // `.worktrees/` holds full checkouts of this same repo, so without ignoring it
   // jest discovers every spec twice and reports double the real count.
-  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/\\.worktrees/'],
+  //
+  // Anchored to <rootDir>: an unanchored '/\.worktrees/' also matches when jest
+  // runs from INSIDE a worktree, because every spec's absolute path then
+  // contains that segment — which excludes the whole suite and reports zero
+  // tests as a pass.
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/dist/',
+    '<rootDir>/\\.worktrees/',
+  ],
 };
 
 module.exports = config;
