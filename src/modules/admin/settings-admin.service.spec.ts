@@ -139,6 +139,47 @@ describe('SettingsAdminService.reveal', () => {
       'the-real-secret-value',
     );
   });
+
+  // The defect: reveal() had no upfront key-existence check, so an unknown
+  // key sailed past the audit-before-return write in step 4 and only then
+  // blew up in revealSecret() with a bare 500. That leaves a
+  // 'settings.reveal.succeeded' row on record for a secret that was never
+  // revealed, with no compensating entry after the crash. A 404 for a key
+  // that cannot possibly exist must be decided before any of that side
+  // effect happens.
+  it('reports an unknown setting key as 404, not 500', async () => {
+    const { svc, settings } = await build();
+    await expect(
+      svc.reveal('nope.not.real', 'admin-1', 'correct-password', CTX),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(settings.revealSecret).not.toHaveBeenCalled();
+  });
+
+  it('writes NO audit row at all for an unknown key', async () => {
+    const { svc, audit } = await build();
+    await svc
+      .reveal('nope.not.real', 'admin-1', 'correct-password', CTX)
+      .catch(() => undefined);
+
+    // This is the actual defect: a status-code-only assertion would pass
+    // against the broken version too. The false 'succeeded' row is the bug.
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('still reveals a known key normally: one succeeded row, a grant, no regression', async () => {
+    const { svc, settings, audit } = await build();
+    const out = await svc.reveal('auth.jwtAccessSecret', 'admin-1', 'correct-password', CTX);
+
+    expect(out.value).toBe('the-real-secret-value-1234567890');
+    expect(out.grant).toBe('grant-abc');
+    expect(out.expiresIn).toBe(120);
+    expect(settings.revealSecret).toHaveBeenCalledWith('auth.jwtAccessSecret');
+
+    const actions = audit.record.mock.calls.map(
+      (c) => (c[0] as { action: string }).action,
+    );
+    expect(actions).toEqual(['settings.reveal.succeeded']);
+  });
 });
 
 describe('SettingsAdminService.update', () => {

@@ -50,6 +50,17 @@ export class SettingsAdminService {
     password: string,
     ctx: RequestContext,
   ): Promise<RevealResult> {
+    // A key that does not exist must be rejected before ANY of the steps
+    // below, because step 4 (see the audit-before-return comment there) is
+    // an unconditional write. Without this check, an unknown key would sail
+    // through the password check and the audit write, only to blow up in
+    // revealSecret() below — leaving a false 'settings.reveal.succeeded' row
+    // on record for a secret that was never revealed, with no compensating
+    // entry after the crash. Checking here, before loadAdmin, means a
+    // request that could never succeed never reaches the audit at all. Same
+    // lookup and message shape as update()'s equivalent check.
+    if (!SETTINGS.get(key)) throw new NotFoundException(`Unknown setting: ${key}`);
+
     const admin = await this.loadAdmin(adminId);
     await this.attempts.assertNotLockedOut(admin.email);
 
