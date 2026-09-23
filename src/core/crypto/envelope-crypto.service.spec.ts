@@ -37,7 +37,10 @@ describe('EnvelopeCryptoService', () => {
   });
 
   it('masks a secret for display without revealing it', () => {
-    expect(svc.mask('sk_live_abcdef123456')).toBe('sk_••••456');
+    // Deliberately not shaped like any real provider's key prefix: secret
+    // scanners match on the prefix alone and block the push on a fixture that
+    // was never a credential.
+    expect(svc.mask('tok_sample_abcdef1234')).toBe('tok_••••234');
   });
 
   it('fully masks a short secret', () => {

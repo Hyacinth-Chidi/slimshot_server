@@ -79,23 +79,28 @@ describe('SettingsService', () => {
 
   it('masks secrets when listing a group', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
-    // 32 chars exactly, to satisfy auth.jwtAccessSecret's minLength: 32.
-    const strong = 'sk_live_abcdef123456789012345678';
+    // 35 chars, comfortably over auth.jwtAccessSecret's minLength: 32. The
+    // prefix is deliberately NOT shaped like any real provider's key format:
+    // secret scanners match on the prefix alone and will block a push over a
+    // fixture that was never a credential.
+    const strong = 'tok_sample_abcdef123456789012345678';
     await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
 
     const listed = await svc.getMaskedGroup('auth');
     const secret = listed.find((s) => s.key === 'auth.jwtAccessSecret')!;
-    // EnvelopeCryptoService.mask reveals at most a third of the value, split
-    // between prefix and suffix (fixed for a security bug that used to leak
-    // more). For a 32-char value: revealable = floor(32/3) = 10, suffix =
-    // min(4, floor(10/2)) = 4, prefix = min(8, 10-4) = 6 -> 'sk_liv' + bullets + '5678'.
-    expect(secret.value).toBe('sk_liv••••5678');
+    // mask reveals at most a third, split prefix/suffix (fixed for a security
+    // bug that used to leak more). 35 chars -> 'tok_sam' + bullets + '5678'.
+    expect(secret.value).toBe('tok_sam••••5678');
     expect(secret.isSecret).toBe(true);
   });
 
   it('never returns a raw secret from getMaskedGroup', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
-    await svc.set('auth.jwtAccessSecret', 'sk_live_abcdef123456789012345678', 'admin-1');
+    await svc.set(
+      'auth.jwtAccessSecret',
+      'tok_sample_abcdef123456789012345678',
+      'admin-1',
+    );
     const listed = await svc.getMaskedGroup('auth');
     expect(JSON.stringify(listed)).not.toContain('abcdef12');
   });
