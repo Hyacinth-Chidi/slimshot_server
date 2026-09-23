@@ -126,16 +126,46 @@ Failures increment the same `auth:login:fail:<email>` counter used by login, und
 `auth.loginMaxAttempts` / `auth.loginLockoutSeconds` settings. Without this, `/reveal`
 becomes a password oracle that can be brute-forced without ever touching `/auth/login`.
 
-### 6.6 Writes to secret settings are gated identically
+### 6.6 One unlock authorises both read and write
 
-`PUT /settings/:key` requires re-auth when the target setting declares `secret: true`.
-Non-secret settings update on session auth alone — an upload size cap does not need a
-password.
+The dashboard's interaction (Project B §6.5) is a single unlock that makes the field both
+visible and editable, so changing a key takes one password entry rather than two. The API
+supports that with a short-lived **elevation grant** rather than by asking for the password
+twice.
 
-### 6.7 What the response contains
+`POST /settings/:key/reveal` returns, alongside the value:
 
-The revealed value and nothing else. `Cache-Control: no-store`. The plaintext is never
-logged, never included in an error message, and never written to the audit payload.
+```jsonc
+{ "value": "...", "grant": "<opaque token>", "expiresIn": 120 }
+```
+
+The grant is:
+
+- **Random, 32 bytes**, stored in Redis under `settings:grant:<hash>` with a 120-second TTL
+  matching the dashboard's idle timeout. Never a JWT — nothing about it should be
+  self-describing or verifiable offline.
+- **Scoped to one admin and one setting key.** A grant for `auth.jwtAccessSecret` cannot
+  write `storage.cloudinary.apiSecret`.
+- **Single-use.** Consumed on the write it authorises. A second write needs a new unlock.
+
+`PUT /settings/:key` then accepts EITHER a fresh password OR a valid grant for that exact
+key. Non-secret settings need neither — an upload size cap does not warrant a password.
+
+Rationale for a grant rather than re-sending the password: the alternative is holding the
+password in browser memory for the whole edit, which Project B's §6.5 explicitly forbids.
+A single-use, key-scoped, 120-second token is strictly less dangerous than a password
+lingering in component state.
+
+### 6.7 Grants are revoked, not merely expired
+
+A grant is deleted from Redis on: consumption, logout, and any change to the owning
+admin's `isActive`/`deletedAt`. Expiry is the backstop, not the only control.
+
+### 6.8 What the response contains
+
+The revealed value, the grant, and its TTL — nothing else. `Cache-Control: no-store`. The
+plaintext is never logged, never included in an error message, and never written to the
+audit payload. The grant is logged by its hash, never in full.
 
 ## 7. Endpoints
 
@@ -193,8 +223,8 @@ attempts sits in `delayed` and is currently invisible in the admin view.
 
 ```
 GET   /settings                        settings.read    grouped, secrets masked
-PUT   /settings/:key                   settings.write   re-auth if the setting is secret
-POST  /settings/:key/reveal            settings.write   re-auth always
+PUT   /settings/:key                   settings.write   password OR grant, if secret
+POST  /settings/:key/reveal            settings.write   password always; returns a grant
 GET   /storage-providers               storage.manage   config masked
 POST  /storage-providers               storage.manage   re-auth
 PATCH /storage-providers/:id           storage.manage   re-auth
@@ -225,6 +255,14 @@ restart, which defeats admin-managed providers entirely.
   password, non-owner role, locked-out account, and that an audit row is written on both
   success and failure.
 - A test asserting `revealSecret` has exactly one caller in `src/`.
+- Grant tests, each asserting a refusal rather than a success:
+  - a grant for key A cannot write key B
+  - a grant issued to admin X cannot be used by admin Y
+  - a consumed grant cannot be reused
+  - an expired grant is refused
+  - a grant is destroyed when its owner is deactivated
+  These are the properties that make a grant safer than a lingering password; each needs a
+  test that fails loudly if it regresses.
 - A test asserting `DELETE /categories/:id` refuses when assets reference the category.
 - The `ADMIN_CONTROLLERS` array gains all five new controllers, so the existing
   build-time check covers them.

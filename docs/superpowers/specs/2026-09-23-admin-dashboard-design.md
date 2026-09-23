@@ -120,16 +120,42 @@ Deleting a category in use surfaces the API's 409 with its asset count —
 
 Grouped by the API's `group` field. Non-secret settings edit inline.
 
-Secrets show masked (`sk_••••4f2a`) with a **Reveal** action that opens a password prompt.
-On success the true value is shown once and re-masks on navigate.
+#### The secret field: locked → unlocked → re-locked
 
-**Hard requirements, specified because getting these wrong is how credentials leak:**
+A secret renders as a **faded, read-only input showing a fixed `••••••••••`** — a constant
+placeholder, NOT the API's masked value. The masked form (`sk_••••4f2a`) reveals a prefix
+and suffix; rendering it on a screen that anyone might glance at leaks more than the lock
+implies. The field shows nothing about the real value until unlocked.
+
+Beside it, an **eye icon**. Clicking it opens a small password modal. On success the field
+becomes **clear and editable in one step** — unlock covers both reading and writing, so
+changing a key takes one password entry rather than two.
+
+**Re-locking.** The field returns to `••••••••••` on any of:
+
+1. **Save** — the update succeeds and the field immediately re-masks.
+2. **Tab blur** — `visibilitychange` or `blur` on the window. Switching browser tabs,
+   minimising, or moving to another application all re-lock.
+3. **Navigation** — leaving the Settings route, including to another dashboard page.
+4. **Idle timeout — 2 minutes.** The timer resets on each keystroke in that field, so
+   active editing never locks mid-type. This is the one that matters most: tab blur and
+   navigation catch deliberate movement, but a screen someone walked away from is caught
+   only by a timer.
+
+Unlock is **per field**, not per screen. Unlocking the Cloudinary secret does not unlock
+the JWT signing secret.
+
+#### Hard requirements, specified because getting these wrong is how credentials leak
 
 - The password lives in local component state only. Never in TanStack Query's cache, never
-  in a form library's persisted state, never in `localStorage` or `sessionStorage`.
+  in a form library's persisted state, never in `localStorage` or `sessionStorage`. It is
+  cleared from state the moment the reveal request resolves, success or failure.
 - The revealed value is never written to the query cache — it is returned to the component
-  and held in local state for the life of that view.
+  and held in local state, cleared by every re-lock trigger above.
 - No password or revealed value appears in any URL, including as a query parameter.
+- The unlocked value is not kept in a ref, closure or timer callback that outlives the
+  re-lock. Re-locking must actually drop the string, not merely hide it behind a CSS class
+  — a value still in memory is recoverable from a heap snapshot or React DevTools.
 - The reveal request is not retried automatically on failure; a wrong password must be a
   deliberate second attempt, because failures feed the account lockout.
 
