@@ -55,6 +55,7 @@ export type AssetMinAggregateOutputType = {
   createdAt: Date | null
   updatedAt: Date | null
   deletedAt: Date | null
+  categoryId: string | null
 }
 
 export type AssetMaxAggregateOutputType = {
@@ -76,6 +77,7 @@ export type AssetMaxAggregateOutputType = {
   createdAt: Date | null
   updatedAt: Date | null
   deletedAt: Date | null
+  categoryId: string | null
 }
 
 export type AssetCountAggregateOutputType = {
@@ -98,6 +100,7 @@ export type AssetCountAggregateOutputType = {
   createdAt: number
   updatedAt: number
   deletedAt: number
+  categoryId: number
   _all: number
 }
 
@@ -131,6 +134,7 @@ export type AssetMinAggregateInputType = {
   createdAt?: true
   updatedAt?: true
   deletedAt?: true
+  categoryId?: true
 }
 
 export type AssetMaxAggregateInputType = {
@@ -152,6 +156,7 @@ export type AssetMaxAggregateInputType = {
   createdAt?: true
   updatedAt?: true
   deletedAt?: true
+  categoryId?: true
 }
 
 export type AssetCountAggregateInputType = {
@@ -174,6 +179,7 @@ export type AssetCountAggregateInputType = {
   createdAt?: true
   updatedAt?: true
   deletedAt?: true
+  categoryId?: true
   _all?: true
 }
 
@@ -283,6 +289,7 @@ export type AssetGroupByOutputType = {
   createdAt: Date
   updatedAt: Date
   deletedAt: Date | null
+  categoryId: string | null
   _count: AssetCountAggregateOutputType | null
   _avg: AssetAvgAggregateOutputType | null
   _sum: AssetSumAggregateOutputType | null
@@ -328,12 +335,14 @@ export type AssetWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Asset"> | Date | string | null
+  categoryId?: Prisma.StringNullableFilter<"Asset"> | string | null
   owner?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   createdBy?: Prisma.XOR<Prisma.AdminUserNullableScalarRelationFilter, Prisma.AdminUserWhereInput> | null
   updatedBy?: Prisma.XOR<Prisma.AdminUserNullableScalarRelationFilter, Prisma.AdminUserWhereInput> | null
   files?: Prisma.AssetFileListRelationFilter
   audio?: Prisma.XOR<Prisma.AudioAssetNullableScalarRelationFilter, Prisma.AudioAssetWhereInput> | null
   sessions?: Prisma.UploadSessionListRelationFilter
+  category?: Prisma.XOR<Prisma.CategoryNullableScalarRelationFilter, Prisma.CategoryWhereInput> | null
 }
 
 export type AssetOrderByWithRelationInput = {
@@ -356,12 +365,14 @@ export type AssetOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  categoryId?: Prisma.SortOrderInput | Prisma.SortOrder
   owner?: Prisma.UserOrderByWithRelationInput
   createdBy?: Prisma.AdminUserOrderByWithRelationInput
   updatedBy?: Prisma.AdminUserOrderByWithRelationInput
   files?: Prisma.AssetFileOrderByRelationAggregateInput
   audio?: Prisma.AudioAssetOrderByWithRelationInput
   sessions?: Prisma.UploadSessionOrderByRelationAggregateInput
+  category?: Prisma.CategoryOrderByWithRelationInput
 }
 
 export type AssetWhereUniqueInput = Prisma.AtLeast<{
@@ -388,12 +399,14 @@ export type AssetWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
   deletedAt?: Prisma.DateTimeNullableFilter<"Asset"> | Date | string | null
+  categoryId?: Prisma.StringNullableFilter<"Asset"> | string | null
   owner?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   createdBy?: Prisma.XOR<Prisma.AdminUserNullableScalarRelationFilter, Prisma.AdminUserWhereInput> | null
   updatedBy?: Prisma.XOR<Prisma.AdminUserNullableScalarRelationFilter, Prisma.AdminUserWhereInput> | null
   files?: Prisma.AssetFileListRelationFilter
   audio?: Prisma.XOR<Prisma.AudioAssetNullableScalarRelationFilter, Prisma.AudioAssetWhereInput> | null
   sessions?: Prisma.UploadSessionListRelationFilter
+  category?: Prisma.XOR<Prisma.CategoryNullableScalarRelationFilter, Prisma.CategoryWhereInput> | null
 }, "id" | "kind_slug">
 
 export type AssetOrderByWithAggregationInput = {
@@ -416,6 +429,7 @@ export type AssetOrderByWithAggregationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  categoryId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.AssetCountOrderByAggregateInput
   _avg?: Prisma.AssetAvgOrderByAggregateInput
   _max?: Prisma.AssetMaxOrderByAggregateInput
@@ -446,6 +460,7 @@ export type AssetScalarWhereWithAggregatesInput = {
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Asset"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Asset"> | Date | string
   deletedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Asset"> | Date | string | null
+  categoryId?: Prisma.StringNullableWithAggregatesFilter<"Asset"> | string | null
 }
 
 export type AssetCreateInput = {
@@ -471,6 +486,7 @@ export type AssetCreateInput = {
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
+  category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
 
 export type AssetUncheckedCreateInput = {
@@ -493,6 +509,7 @@ export type AssetUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
@@ -521,6 +538,7 @@ export type AssetUpdateInput = {
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
+  category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
 
 export type AssetUncheckedUpdateInput = {
@@ -543,6 +561,7 @@ export type AssetUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
@@ -568,6 +587,7 @@ export type AssetCreateManyInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
 }
 
 export type AssetUpdateManyMutationInput = {
@@ -609,6 +629,7 @@ export type AssetUncheckedUpdateManyInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type AssetKindSlugCompoundUniqueInput = {
@@ -636,6 +657,7 @@ export type AssetCountOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
 }
 
 export type AssetAvgOrderByAggregateInput = {
@@ -662,6 +684,7 @@ export type AssetMaxOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
 }
 
 export type AssetMinOrderByAggregateInput = {
@@ -683,16 +706,12 @@ export type AssetMinOrderByAggregateInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   deletedAt?: Prisma.SortOrder
+  categoryId?: Prisma.SortOrder
 }
 
 export type AssetSumOrderByAggregateInput = {
   downloadCount?: Prisma.SortOrder
   favoriteCount?: Prisma.SortOrder
-}
-
-export type AssetScalarRelationFilter = {
-  is?: Prisma.AssetWhereInput
-  isNot?: Prisma.AssetWhereInput
 }
 
 export type AssetListRelationFilter = {
@@ -703,6 +722,11 @@ export type AssetListRelationFilter = {
 
 export type AssetOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
+}
+
+export type AssetScalarRelationFilter = {
+  is?: Prisma.AssetWhereInput
+  isNot?: Prisma.AssetWhereInput
 }
 
 export type StringFieldUpdateOperationsInput = {
@@ -743,6 +767,48 @@ export type NullableDateTimeFieldUpdateOperationsInput = {
 
 export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
+}
+
+export type AssetCreateNestedManyWithoutCategoryInput = {
+  create?: Prisma.XOR<Prisma.AssetCreateWithoutCategoryInput, Prisma.AssetUncheckedCreateWithoutCategoryInput> | Prisma.AssetCreateWithoutCategoryInput[] | Prisma.AssetUncheckedCreateWithoutCategoryInput[]
+  connectOrCreate?: Prisma.AssetCreateOrConnectWithoutCategoryInput | Prisma.AssetCreateOrConnectWithoutCategoryInput[]
+  createMany?: Prisma.AssetCreateManyCategoryInputEnvelope
+  connect?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+}
+
+export type AssetUncheckedCreateNestedManyWithoutCategoryInput = {
+  create?: Prisma.XOR<Prisma.AssetCreateWithoutCategoryInput, Prisma.AssetUncheckedCreateWithoutCategoryInput> | Prisma.AssetCreateWithoutCategoryInput[] | Prisma.AssetUncheckedCreateWithoutCategoryInput[]
+  connectOrCreate?: Prisma.AssetCreateOrConnectWithoutCategoryInput | Prisma.AssetCreateOrConnectWithoutCategoryInput[]
+  createMany?: Prisma.AssetCreateManyCategoryInputEnvelope
+  connect?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+}
+
+export type AssetUpdateManyWithoutCategoryNestedInput = {
+  create?: Prisma.XOR<Prisma.AssetCreateWithoutCategoryInput, Prisma.AssetUncheckedCreateWithoutCategoryInput> | Prisma.AssetCreateWithoutCategoryInput[] | Prisma.AssetUncheckedCreateWithoutCategoryInput[]
+  connectOrCreate?: Prisma.AssetCreateOrConnectWithoutCategoryInput | Prisma.AssetCreateOrConnectWithoutCategoryInput[]
+  upsert?: Prisma.AssetUpsertWithWhereUniqueWithoutCategoryInput | Prisma.AssetUpsertWithWhereUniqueWithoutCategoryInput[]
+  createMany?: Prisma.AssetCreateManyCategoryInputEnvelope
+  set?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+  disconnect?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+  delete?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+  connect?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+  update?: Prisma.AssetUpdateWithWhereUniqueWithoutCategoryInput | Prisma.AssetUpdateWithWhereUniqueWithoutCategoryInput[]
+  updateMany?: Prisma.AssetUpdateManyWithWhereWithoutCategoryInput | Prisma.AssetUpdateManyWithWhereWithoutCategoryInput[]
+  deleteMany?: Prisma.AssetScalarWhereInput | Prisma.AssetScalarWhereInput[]
+}
+
+export type AssetUncheckedUpdateManyWithoutCategoryNestedInput = {
+  create?: Prisma.XOR<Prisma.AssetCreateWithoutCategoryInput, Prisma.AssetUncheckedCreateWithoutCategoryInput> | Prisma.AssetCreateWithoutCategoryInput[] | Prisma.AssetUncheckedCreateWithoutCategoryInput[]
+  connectOrCreate?: Prisma.AssetCreateOrConnectWithoutCategoryInput | Prisma.AssetCreateOrConnectWithoutCategoryInput[]
+  upsert?: Prisma.AssetUpsertWithWhereUniqueWithoutCategoryInput | Prisma.AssetUpsertWithWhereUniqueWithoutCategoryInput[]
+  createMany?: Prisma.AssetCreateManyCategoryInputEnvelope
+  set?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+  disconnect?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+  delete?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+  connect?: Prisma.AssetWhereUniqueInput | Prisma.AssetWhereUniqueInput[]
+  update?: Prisma.AssetUpdateWithWhereUniqueWithoutCategoryInput | Prisma.AssetUpdateWithWhereUniqueWithoutCategoryInput[]
+  updateMany?: Prisma.AssetUpdateManyWithWhereWithoutCategoryInput | Prisma.AssetUpdateManyWithWhereWithoutCategoryInput[]
+  deleteMany?: Prisma.AssetScalarWhereInput | Prisma.AssetScalarWhereInput[]
 }
 
 export type AssetCreateNestedOneWithoutFilesInput = {
@@ -913,6 +979,108 @@ export type AssetUncheckedUpdateManyWithoutUpdatedByNestedInput = {
   deleteMany?: Prisma.AssetScalarWhereInput | Prisma.AssetScalarWhereInput[]
 }
 
+export type AssetCreateWithoutCategoryInput = {
+  id?: string
+  kind: $Enums.AssetKind
+  slug: string
+  title: string
+  description?: string | null
+  authorName: string
+  visibility?: $Enums.Visibility
+  status?: $Enums.AssetStatus
+  moderationState?: $Enums.ModerationState
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: number
+  favoriteCount?: number
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  owner?: Prisma.UserCreateNestedOneWithoutAssetsInput
+  createdBy?: Prisma.AdminUserCreateNestedOneWithoutCreatedAssetsInput
+  updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
+  files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
+  audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
+}
+
+export type AssetUncheckedCreateWithoutCategoryInput = {
+  id?: string
+  kind: $Enums.AssetKind
+  slug: string
+  title: string
+  description?: string | null
+  authorName: string
+  ownerId?: string | null
+  visibility?: $Enums.Visibility
+  status?: $Enums.AssetStatus
+  moderationState?: $Enums.ModerationState
+  createdById?: string | null
+  updatedById?: string | null
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: number
+  favoriteCount?: number
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
+  audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
+}
+
+export type AssetCreateOrConnectWithoutCategoryInput = {
+  where: Prisma.AssetWhereUniqueInput
+  create: Prisma.XOR<Prisma.AssetCreateWithoutCategoryInput, Prisma.AssetUncheckedCreateWithoutCategoryInput>
+}
+
+export type AssetCreateManyCategoryInputEnvelope = {
+  data: Prisma.AssetCreateManyCategoryInput | Prisma.AssetCreateManyCategoryInput[]
+  skipDuplicates?: boolean
+}
+
+export type AssetUpsertWithWhereUniqueWithoutCategoryInput = {
+  where: Prisma.AssetWhereUniqueInput
+  update: Prisma.XOR<Prisma.AssetUpdateWithoutCategoryInput, Prisma.AssetUncheckedUpdateWithoutCategoryInput>
+  create: Prisma.XOR<Prisma.AssetCreateWithoutCategoryInput, Prisma.AssetUncheckedCreateWithoutCategoryInput>
+}
+
+export type AssetUpdateWithWhereUniqueWithoutCategoryInput = {
+  where: Prisma.AssetWhereUniqueInput
+  data: Prisma.XOR<Prisma.AssetUpdateWithoutCategoryInput, Prisma.AssetUncheckedUpdateWithoutCategoryInput>
+}
+
+export type AssetUpdateManyWithWhereWithoutCategoryInput = {
+  where: Prisma.AssetScalarWhereInput
+  data: Prisma.XOR<Prisma.AssetUpdateManyMutationInput, Prisma.AssetUncheckedUpdateManyWithoutCategoryInput>
+}
+
+export type AssetScalarWhereInput = {
+  AND?: Prisma.AssetScalarWhereInput | Prisma.AssetScalarWhereInput[]
+  OR?: Prisma.AssetScalarWhereInput[]
+  NOT?: Prisma.AssetScalarWhereInput | Prisma.AssetScalarWhereInput[]
+  id?: Prisma.StringFilter<"Asset"> | string
+  kind?: Prisma.EnumAssetKindFilter<"Asset"> | $Enums.AssetKind
+  slug?: Prisma.StringFilter<"Asset"> | string
+  title?: Prisma.StringFilter<"Asset"> | string
+  description?: Prisma.StringNullableFilter<"Asset"> | string | null
+  authorName?: Prisma.StringFilter<"Asset"> | string
+  ownerId?: Prisma.StringNullableFilter<"Asset"> | string | null
+  visibility?: Prisma.EnumVisibilityFilter<"Asset"> | $Enums.Visibility
+  status?: Prisma.EnumAssetStatusFilter<"Asset"> | $Enums.AssetStatus
+  moderationState?: Prisma.EnumModerationStateFilter<"Asset"> | $Enums.ModerationState
+  createdById?: Prisma.StringNullableFilter<"Asset"> | string | null
+  updatedById?: Prisma.StringNullableFilter<"Asset"> | string | null
+  attributes?: Prisma.JsonNullableFilter<"Asset">
+  downloadCount?: Prisma.IntFilter<"Asset"> | number
+  favoriteCount?: Prisma.IntFilter<"Asset"> | number
+  publishedAt?: Prisma.DateTimeNullableFilter<"Asset"> | Date | string | null
+  createdAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
+  deletedAt?: Prisma.DateTimeNullableFilter<"Asset"> | Date | string | null
+  categoryId?: Prisma.StringNullableFilter<"Asset"> | string | null
+}
+
 export type AssetCreateWithoutFilesInput = {
   id?: string
   kind: $Enums.AssetKind
@@ -935,6 +1103,7 @@ export type AssetCreateWithoutFilesInput = {
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
+  category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
 
 export type AssetUncheckedCreateWithoutFilesInput = {
@@ -957,6 +1126,7 @@ export type AssetUncheckedCreateWithoutFilesInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
@@ -999,6 +1169,7 @@ export type AssetUpdateWithoutFilesInput = {
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
+  category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
 
 export type AssetUncheckedUpdateWithoutFilesInput = {
@@ -1021,6 +1192,7 @@ export type AssetUncheckedUpdateWithoutFilesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
@@ -1047,6 +1219,7 @@ export type AssetCreateWithoutAudioInput = {
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
+  category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
 
 export type AssetUncheckedCreateWithoutAudioInput = {
@@ -1069,6 +1242,7 @@ export type AssetUncheckedCreateWithoutAudioInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
@@ -1111,6 +1285,7 @@ export type AssetUpdateWithoutAudioInput = {
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
+  category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
 
 export type AssetUncheckedUpdateWithoutAudioInput = {
@@ -1133,6 +1308,7 @@ export type AssetUncheckedUpdateWithoutAudioInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
@@ -1159,6 +1335,7 @@ export type AssetCreateWithoutSessionsInput = {
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
 
 export type AssetUncheckedCreateWithoutSessionsInput = {
@@ -1181,6 +1358,7 @@ export type AssetUncheckedCreateWithoutSessionsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
 }
@@ -1223,6 +1401,7 @@ export type AssetUpdateWithoutSessionsInput = {
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
 
 export type AssetUncheckedUpdateWithoutSessionsInput = {
@@ -1245,6 +1424,7 @@ export type AssetUncheckedUpdateWithoutSessionsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
 }
@@ -1271,6 +1451,7 @@ export type AssetCreateWithoutOwnerInput = {
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
+  category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
 
 export type AssetUncheckedCreateWithoutOwnerInput = {
@@ -1292,6 +1473,7 @@ export type AssetUncheckedCreateWithoutOwnerInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
@@ -1323,31 +1505,6 @@ export type AssetUpdateManyWithWhereWithoutOwnerInput = {
   data: Prisma.XOR<Prisma.AssetUpdateManyMutationInput, Prisma.AssetUncheckedUpdateManyWithoutOwnerInput>
 }
 
-export type AssetScalarWhereInput = {
-  AND?: Prisma.AssetScalarWhereInput | Prisma.AssetScalarWhereInput[]
-  OR?: Prisma.AssetScalarWhereInput[]
-  NOT?: Prisma.AssetScalarWhereInput | Prisma.AssetScalarWhereInput[]
-  id?: Prisma.StringFilter<"Asset"> | string
-  kind?: Prisma.EnumAssetKindFilter<"Asset"> | $Enums.AssetKind
-  slug?: Prisma.StringFilter<"Asset"> | string
-  title?: Prisma.StringFilter<"Asset"> | string
-  description?: Prisma.StringNullableFilter<"Asset"> | string | null
-  authorName?: Prisma.StringFilter<"Asset"> | string
-  ownerId?: Prisma.StringNullableFilter<"Asset"> | string | null
-  visibility?: Prisma.EnumVisibilityFilter<"Asset"> | $Enums.Visibility
-  status?: Prisma.EnumAssetStatusFilter<"Asset"> | $Enums.AssetStatus
-  moderationState?: Prisma.EnumModerationStateFilter<"Asset"> | $Enums.ModerationState
-  createdById?: Prisma.StringNullableFilter<"Asset"> | string | null
-  updatedById?: Prisma.StringNullableFilter<"Asset"> | string | null
-  attributes?: Prisma.JsonNullableFilter<"Asset">
-  downloadCount?: Prisma.IntFilter<"Asset"> | number
-  favoriteCount?: Prisma.IntFilter<"Asset"> | number
-  publishedAt?: Prisma.DateTimeNullableFilter<"Asset"> | Date | string | null
-  createdAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"Asset"> | Date | string
-  deletedAt?: Prisma.DateTimeNullableFilter<"Asset"> | Date | string | null
-}
-
 export type AssetCreateWithoutCreatedByInput = {
   id?: string
   kind: $Enums.AssetKind
@@ -1370,6 +1527,7 @@ export type AssetCreateWithoutCreatedByInput = {
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
+  category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
 
 export type AssetUncheckedCreateWithoutCreatedByInput = {
@@ -1391,6 +1549,7 @@ export type AssetUncheckedCreateWithoutCreatedByInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
@@ -1428,6 +1587,7 @@ export type AssetCreateWithoutUpdatedByInput = {
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
+  category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
 
 export type AssetUncheckedCreateWithoutUpdatedByInput = {
@@ -1449,6 +1609,7 @@ export type AssetUncheckedCreateWithoutUpdatedByInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
@@ -1496,6 +1657,100 @@ export type AssetUpdateManyWithWhereWithoutUpdatedByInput = {
   data: Prisma.XOR<Prisma.AssetUpdateManyMutationInput, Prisma.AssetUncheckedUpdateManyWithoutUpdatedByInput>
 }
 
+export type AssetCreateManyCategoryInput = {
+  id?: string
+  kind: $Enums.AssetKind
+  slug: string
+  title: string
+  description?: string | null
+  authorName: string
+  ownerId?: string | null
+  visibility?: $Enums.Visibility
+  status?: $Enums.AssetStatus
+  moderationState?: $Enums.ModerationState
+  createdById?: string | null
+  updatedById?: string | null
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: number
+  favoriteCount?: number
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+}
+
+export type AssetUpdateWithoutCategoryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssetKindFieldUpdateOperationsInput | $Enums.AssetKind
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorName?: Prisma.StringFieldUpdateOperationsInput | string
+  visibility?: Prisma.EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+  status?: Prisma.EnumAssetStatusFieldUpdateOperationsInput | $Enums.AssetStatus
+  moderationState?: Prisma.EnumModerationStateFieldUpdateOperationsInput | $Enums.ModerationState
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: Prisma.IntFieldUpdateOperationsInput | number
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  owner?: Prisma.UserUpdateOneWithoutAssetsNestedInput
+  createdBy?: Prisma.AdminUserUpdateOneWithoutCreatedAssetsNestedInput
+  updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
+  files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
+  audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
+}
+
+export type AssetUncheckedUpdateWithoutCategoryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssetKindFieldUpdateOperationsInput | $Enums.AssetKind
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorName?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  visibility?: Prisma.EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+  status?: Prisma.EnumAssetStatusFieldUpdateOperationsInput | $Enums.AssetStatus
+  moderationState?: Prisma.EnumModerationStateFieldUpdateOperationsInput | $Enums.ModerationState
+  createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: Prisma.IntFieldUpdateOperationsInput | number
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
+  audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
+  sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
+}
+
+export type AssetUncheckedUpdateManyWithoutCategoryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssetKindFieldUpdateOperationsInput | $Enums.AssetKind
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorName?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  visibility?: Prisma.EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+  status?: Prisma.EnumAssetStatusFieldUpdateOperationsInput | $Enums.AssetStatus
+  moderationState?: Prisma.EnumModerationStateFieldUpdateOperationsInput | $Enums.ModerationState
+  createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: Prisma.IntFieldUpdateOperationsInput | number
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+}
+
 export type AssetCreateManyOwnerInput = {
   id?: string
   kind: $Enums.AssetKind
@@ -1515,6 +1770,7 @@ export type AssetCreateManyOwnerInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
 }
 
 export type AssetUpdateWithoutOwnerInput = {
@@ -1539,6 +1795,7 @@ export type AssetUpdateWithoutOwnerInput = {
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
+  category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
 
 export type AssetUncheckedUpdateWithoutOwnerInput = {
@@ -1560,6 +1817,7 @@ export type AssetUncheckedUpdateWithoutOwnerInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1584,6 +1842,7 @@ export type AssetUncheckedUpdateManyWithoutOwnerInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type AssetCreateManyCreatedByInput = {
@@ -1605,6 +1864,7 @@ export type AssetCreateManyCreatedByInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
 }
 
 export type AssetCreateManyUpdatedByInput = {
@@ -1626,6 +1886,7 @@ export type AssetCreateManyUpdatedByInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   deletedAt?: Date | string | null
+  categoryId?: string | null
 }
 
 export type AssetUpdateWithoutCreatedByInput = {
@@ -1650,6 +1911,7 @@ export type AssetUpdateWithoutCreatedByInput = {
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
+  category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
 
 export type AssetUncheckedUpdateWithoutCreatedByInput = {
@@ -1671,6 +1933,7 @@ export type AssetUncheckedUpdateWithoutCreatedByInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1695,6 +1958,7 @@ export type AssetUncheckedUpdateManyWithoutCreatedByInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type AssetUpdateWithoutUpdatedByInput = {
@@ -1719,6 +1983,7 @@ export type AssetUpdateWithoutUpdatedByInput = {
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
+  category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
 
 export type AssetUncheckedUpdateWithoutUpdatedByInput = {
@@ -1740,6 +2005,7 @@ export type AssetUncheckedUpdateWithoutUpdatedByInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
@@ -1764,6 +2030,7 @@ export type AssetUncheckedUpdateManyWithoutUpdatedByInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -1826,12 +2093,14 @@ export type AssetSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
+  categoryId?: boolean
   owner?: boolean | Prisma.Asset$ownerArgs<ExtArgs>
   createdBy?: boolean | Prisma.Asset$createdByArgs<ExtArgs>
   updatedBy?: boolean | Prisma.Asset$updatedByArgs<ExtArgs>
   files?: boolean | Prisma.Asset$filesArgs<ExtArgs>
   audio?: boolean | Prisma.Asset$audioArgs<ExtArgs>
   sessions?: boolean | Prisma.Asset$sessionsArgs<ExtArgs>
+  category?: boolean | Prisma.Asset$categoryArgs<ExtArgs>
   _count?: boolean | Prisma.AssetCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["asset"]>
 
@@ -1855,9 +2124,11 @@ export type AssetSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
+  categoryId?: boolean
   owner?: boolean | Prisma.Asset$ownerArgs<ExtArgs>
   createdBy?: boolean | Prisma.Asset$createdByArgs<ExtArgs>
   updatedBy?: boolean | Prisma.Asset$updatedByArgs<ExtArgs>
+  category?: boolean | Prisma.Asset$categoryArgs<ExtArgs>
 }, ExtArgs["result"]["asset"]>
 
 export type AssetSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1880,9 +2151,11 @@ export type AssetSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
+  categoryId?: boolean
   owner?: boolean | Prisma.Asset$ownerArgs<ExtArgs>
   createdBy?: boolean | Prisma.Asset$createdByArgs<ExtArgs>
   updatedBy?: boolean | Prisma.Asset$updatedByArgs<ExtArgs>
+  category?: boolean | Prisma.Asset$categoryArgs<ExtArgs>
 }, ExtArgs["result"]["asset"]>
 
 export type AssetSelectScalar = {
@@ -1905,9 +2178,10 @@ export type AssetSelectScalar = {
   createdAt?: boolean
   updatedAt?: boolean
   deletedAt?: boolean
+  categoryId?: boolean
 }
 
-export type AssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "kind" | "slug" | "title" | "description" | "authorName" | "ownerId" | "visibility" | "status" | "moderationState" | "createdById" | "updatedById" | "attributes" | "downloadCount" | "favoriteCount" | "publishedAt" | "createdAt" | "updatedAt" | "deletedAt", ExtArgs["result"]["asset"]>
+export type AssetOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "kind" | "slug" | "title" | "description" | "authorName" | "ownerId" | "visibility" | "status" | "moderationState" | "createdById" | "updatedById" | "attributes" | "downloadCount" | "favoriteCount" | "publishedAt" | "createdAt" | "updatedAt" | "deletedAt" | "categoryId", ExtArgs["result"]["asset"]>
 export type AssetInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   owner?: boolean | Prisma.Asset$ownerArgs<ExtArgs>
   createdBy?: boolean | Prisma.Asset$createdByArgs<ExtArgs>
@@ -1915,17 +2189,20 @@ export type AssetInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   files?: boolean | Prisma.Asset$filesArgs<ExtArgs>
   audio?: boolean | Prisma.Asset$audioArgs<ExtArgs>
   sessions?: boolean | Prisma.Asset$sessionsArgs<ExtArgs>
+  category?: boolean | Prisma.Asset$categoryArgs<ExtArgs>
   _count?: boolean | Prisma.AssetCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type AssetIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   owner?: boolean | Prisma.Asset$ownerArgs<ExtArgs>
   createdBy?: boolean | Prisma.Asset$createdByArgs<ExtArgs>
   updatedBy?: boolean | Prisma.Asset$updatedByArgs<ExtArgs>
+  category?: boolean | Prisma.Asset$categoryArgs<ExtArgs>
 }
 export type AssetIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   owner?: boolean | Prisma.Asset$ownerArgs<ExtArgs>
   createdBy?: boolean | Prisma.Asset$createdByArgs<ExtArgs>
   updatedBy?: boolean | Prisma.Asset$updatedByArgs<ExtArgs>
+  category?: boolean | Prisma.Asset$categoryArgs<ExtArgs>
 }
 
 export type $AssetPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1937,6 +2214,7 @@ export type $AssetPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     files: Prisma.$AssetFilePayload<ExtArgs>[]
     audio: Prisma.$AudioAssetPayload<ExtArgs> | null
     sessions: Prisma.$UploadSessionPayload<ExtArgs>[]
+    category: Prisma.$CategoryPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1958,6 +2236,7 @@ export type $AssetPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     createdAt: Date
     updatedAt: Date
     deletedAt: Date | null
+    categoryId: string | null
   }, ExtArgs["result"]["asset"]>
   composites: {}
 }
@@ -2358,6 +2637,7 @@ export interface Prisma__AssetClient<T, Null = never, ExtArgs extends runtime.Ty
   files<T extends Prisma.Asset$filesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$filesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssetFilePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   audio<T extends Prisma.Asset$audioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$audioArgs<ExtArgs>>): Prisma.Prisma__AudioAssetClient<runtime.Types.Result.GetResult<Prisma.$AudioAssetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   sessions<T extends Prisma.Asset$sessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$sessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  category<T extends Prisma.Asset$categoryArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$categoryArgs<ExtArgs>>): Prisma.Prisma__CategoryClient<runtime.Types.Result.GetResult<Prisma.$CategoryPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2406,6 +2686,7 @@ export interface AssetFieldRefs {
   readonly createdAt: Prisma.FieldRef<"Asset", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Asset", 'DateTime'>
   readonly deletedAt: Prisma.FieldRef<"Asset", 'DateTime'>
+  readonly categoryId: Prisma.FieldRef<"Asset", 'String'>
 }
     
 
@@ -2928,6 +3209,25 @@ export type Asset$sessionsArgs<ExtArgs extends runtime.Types.Extensions.Internal
   take?: number
   skip?: number
   distinct?: Prisma.UploadSessionScalarFieldEnum | Prisma.UploadSessionScalarFieldEnum[]
+}
+
+/**
+ * Asset.category
+ */
+export type Asset$categoryArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Category
+   */
+  select?: Prisma.CategorySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Category
+   */
+  omit?: Prisma.CategoryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CategoryInclude<ExtArgs> | null
+  where?: Prisma.CategoryWhereInput
 }
 
 /**

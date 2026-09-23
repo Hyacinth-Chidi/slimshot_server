@@ -9,6 +9,7 @@
  * 🟢 You can import this file directly.
  */
 export type * from './models/Asset'
+export type * from './models/Category'
 export type * from './models/AssetFile'
 export type * from './models/AudioAsset'
 export type * from './models/UploadSession'

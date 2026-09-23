@@ -45,6 +45,11 @@ export { Prisma }
  */
 export type Asset = Prisma.AssetModel
 /**
+ * Model Category
+ * 
+ */
+export type Category = Prisma.CategoryModel
+/**
  * Model AssetFile
  * 
  */

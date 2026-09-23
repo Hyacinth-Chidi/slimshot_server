@@ -677,10 +677,6 @@ export type NullableIntFieldUpdateOperationsInput = {
   divide?: number
 }
 
-export type BoolFieldUpdateOperationsInput = {
-  set?: boolean
-}
-
 export type AssetFileCreateNestedManyWithoutStorageInput = {
   create?: Prisma.XOR<Prisma.AssetFileCreateWithoutStorageInput, Prisma.AssetFileUncheckedCreateWithoutStorageInput> | Prisma.AssetFileCreateWithoutStorageInput[] | Prisma.AssetFileUncheckedCreateWithoutStorageInput[]
   connectOrCreate?: Prisma.AssetFileCreateOrConnectWithoutStorageInput | Prisma.AssetFileCreateOrConnectWithoutStorageInput[]
