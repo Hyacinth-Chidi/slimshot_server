@@ -28,12 +28,20 @@ export class ElevationService {
 
   async issue(adminId: string, key: string): Promise<string> {
     const grant = randomBytes(32).toString('base64url');
-    await this.redis.set(
-      this.redisKey(grant),
-      JSON.stringify({ adminId, key }),
-      'EX',
-      GRANT_TTL_SECONDS,
-    );
+    const redisKey = this.redisKey(grant);
+    const indexKey = this.indexKey(adminId);
+
+    // The index is written in the same round trip as the grant, so a grant is
+    // never briefly live-but-unindexed. EXPIRE is re-applied on every issue:
+    // the set must always outlive its newest member, or it dies while a grant
+    // is still valid and revokeForAdmin silently misses it.
+    await this.redis
+      .pipeline()
+      .set(redisKey, JSON.stringify({ adminId, key }), 'EX', GRANT_TTL_SECONDS)
+      .sadd(indexKey, redisKey)
+      .expire(indexKey, GRANT_TTL_SECONDS)
+      .exec();
+
     return grant;
   }
 
@@ -47,20 +55,44 @@ export class ElevationService {
     if (!parsed) return false;
     if (parsed.adminId !== adminId || parsed.key !== key) return false;
 
-    await this.redis.del(redisKey);
+    // Drop the index entry too, so a busy admin's set does not fill with the
+    // hashes of grants that were spent rather than expired.
+    await this.redis
+      .pipeline()
+      .del(redisKey)
+      .srem(this.indexKey(adminId), redisKey)
+      .exec();
     return true;
   }
 
-  /** Called on logout and on deactivation: expiry is the backstop, not the only control. */
+  /**
+   * Called on logout and on deactivation: expiry is the backstop, not the only
+   * control.
+   *
+   * Reads the admin's own index rather than scanning. KEYS walks the ENTIRE
+   * keyspace and blocks Redis's single thread while it does, and this now runs
+   * on every logout for every role, against a keyspace that grows without bound
+   * (failed BullMQ jobs are retained by design). The number of live grants is
+   * small; the keyspace around them is not, and the grant TTL does not bound it.
+   */
   async revokeForAdmin(adminId: string): Promise<void> {
-    const keys = await this.redis.keys('elevation:*');
-    for (const k of keys) {
-      const raw = await this.redis.get(k);
-      if (!raw) continue;
-      const parsed = this.parseGrant(raw);
-      if (!parsed) continue;
-      if (parsed.adminId === adminId) await this.redis.del(k);
-    }
+    const indexKey = this.indexKey(adminId);
+    const redisKeys = await this.redis.smembers(indexKey);
+
+    // No set: expired, evicted, or never created. Nothing to revoke and
+    // nothing to clean up.
+    if (redisKeys.length === 0) return;
+
+    // A member whose grant key already expired is deleted as a no-op -- DEL
+    // reports it as 0 removed and does not error -- so a stale id costs
+    // nothing and can never resurrect a grant. One variadic DEL, not one
+    // round trip per member.
+    await this.redis.del(...redisKeys, indexKey);
+  }
+
+  /** The per-admin index of live grant keys, so revocation never scans. */
+  private indexKey(adminId: string): string {
+    return `elevation:admin:${adminId}`;
   }
 
   /** The grant is stored by hash, so a Redis dump does not yield usable grants. */
