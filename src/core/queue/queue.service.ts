@@ -24,12 +24,14 @@ export class QueueService {
     waiting: number;
     active: number;
     failed: number;
+    delayed: number;
   }> {
-    const [waiting, active, failed] = await Promise.all([
+    const [waiting, active, failed, delayed] = await Promise.all([
       this.queue.getWaitingCount(),
       this.queue.getActiveCount(),
       this.queue.getFailedCount(),
+      this.queue.getDelayedCount(),
     ]);
-    return { waiting, active, failed };
+    return { waiting, active, failed, delayed };
   }
 }

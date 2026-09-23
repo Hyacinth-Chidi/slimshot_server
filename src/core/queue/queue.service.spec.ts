@@ -10,6 +10,7 @@ function fakeQueue() {
     getWaitingCount: jest.fn(async () => 2),
     getActiveCount: jest.fn(async () => 1),
     getFailedCount: jest.fn(async () => 0),
+    getDelayedCount: jest.fn(async () => 3),
   };
 }
 
@@ -50,6 +51,14 @@ describe('QueueService', () => {
       waiting: 2,
       active: 1,
       failed: 0,
+      delayed: 3,
     });
+  });
+
+  it('reports delayed jobs, where a retrying job actually sits', async () => {
+    const svc = new QueueService(fakeQueue() as never);
+    // A job between retry attempts is neither waiting, active, nor failed —
+    // without this it is invisible in the admin view.
+    await expect(svc.getQueueHealth()).resolves.toMatchObject({ delayed: 3 });
   });
 });
