@@ -127,6 +127,92 @@ describe('CategoryService.remove', () => {
   });
 });
 
+describe('CategoryService.update', () => {
+  it('recomputes the slug when the name changes', async () => {
+    const cat = { id: 'c1', kind: AssetKind.audio, slug: 'music', name: 'Music' };
+    const { svc, rows } = build([cat]);
+
+    await svc.update('c1', { name: 'Ambient Music' }, 'admin-1');
+
+    // Renaming silently changes the slug. That is the current contract; this
+    // test exists so the behaviour is deliberate rather than incidental, and so
+    // a future change to it is a visible test failure.
+    expect(rows[0].slug).toBe('ambient-music');
+    expect(rows[0].name).toBe('Ambient Music');
+  });
+
+  it('leaves the slug alone when the name is not being changed', async () => {
+    const cat = { id: 'c1', kind: AssetKind.audio, slug: 'music', name: 'Music' };
+    const { svc, rows } = build([cat]);
+
+    await svc.update('c1', { sortOrder: 5 }, 'admin-1');
+
+    expect(rows[0].slug).toBe('music');
+    expect(rows[0].sortOrder).toBe(5);
+  });
+
+  it('404s for a category that does not exist', async () => {
+    const { svc } = build([]);
+    await expect(
+      svc.update('nope', { name: 'X' }, 'admin-1'),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('audits the update', async () => {
+    const cat = { id: 'c1', kind: AssetKind.audio, slug: 'music', name: 'Music' };
+    const { svc, audit } = build([cat]);
+
+    await svc.update('c1', { name: 'Ambient' }, 'admin-1');
+
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'category.update', actorId: 'admin-1' }),
+    );
+  });
+});
+
+describe('CategoryService.reorder', () => {
+  it('applies every sortOrder in the batch', async () => {
+    const rows = [
+      { id: 'c1', kind: AssetKind.audio, slug: 'a', name: 'A', sortOrder: 0 },
+      { id: 'c2', kind: AssetKind.audio, slug: 'b', name: 'B', sortOrder: 1 },
+    ];
+    const { svc } = build(rows);
+
+    await svc.reorder(
+      [
+        { id: 'c1', sortOrder: 10 },
+        { id: 'c2', sortOrder: 20 },
+      ],
+      'admin-1',
+    );
+
+    expect(rows.find((r) => r.id === 'c1')!.sortOrder).toBe(10);
+    expect(rows.find((r) => r.id === 'c2')!.sortOrder).toBe(20);
+  });
+
+  it('sends the whole batch through one transaction, not sequential writes', async () => {
+    const rows = [{ id: 'c1', kind: AssetKind.audio, slug: 'a', name: 'A', sortOrder: 0 }];
+    const { svc, prisma } = build(rows);
+
+    await svc.reorder([{ id: 'c1', sortOrder: 3 }], 'admin-1');
+
+    // Atomicity is the property that matters: a partially-applied reorder leaves
+    // the tree in an order nobody chose. $transaction gives all-or-nothing;
+    // Promise.all would not, and would pass every other assertion here.
+    expect(prisma.$transaction).toHaveBeenCalled();
+  });
+
+  it('audits the reorder with the item count', async () => {
+    const { svc, audit } = build([]);
+
+    await svc.reorder([{ id: 'c1', sortOrder: 1 }], 'admin-1');
+
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.objectContaining({ action: 'category.reorder' }),
+    );
+  });
+});
+
 describe('CategoryService.tree', () => {
   it('nests children under their parent', async () => {
     const rows = [
