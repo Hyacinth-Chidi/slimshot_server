@@ -1,6 +1,12 @@
-import { Inject, Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleInit,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type Redis from 'ioredis';
-import { randomBytes, createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 
 import { AdminRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -33,9 +39,13 @@ export class AuthService implements OnModuleInit {
     private readonly audit: AuditService,
     @Inject(REDIS) redis: Redis,
   ) {
-    // Built directly (not injected) so AuthService keeps its existing six-argument
-    // shape: nothing else in Nest needs its own LoginAttemptService instance here,
-    // and this keeps the constructor stable for callers that build it by hand.
+    // Built directly rather than injected: auth.service.spec.ts constructs
+    // AuthService positionally with six arguments, and a seventh DI parameter
+    // would break it. Safe only because LoginAttemptService is stateless - the
+    // failure budget lives in Redis under a key shared with every other caller
+    // (SettingsAdminService injects its own instance), so two instances and one
+    // instance behave identically. If this service ever gains instance state,
+    // this must become a real DI parameter.
     this.attempts = new LoginAttemptService(settings, audit, redis);
   }
 
