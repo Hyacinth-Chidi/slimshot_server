@@ -36,6 +36,10 @@ export class AdminSettingsController {
 
   @Get()
   @RequirePermission('settings.read')
+  // Only masked values are returned here, but a mask still reveals up to a
+  // third of a secret (e.g. a 43-char Redis URL masks to
+  // 'redis://••••6379'), which should not sit in a shared proxy cache.
+  @Header('Cache-Control', 'no-store')
   async list(@Query('group') group = 'upload') {
     return {
       success: true as const,
