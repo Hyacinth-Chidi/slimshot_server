@@ -74,6 +74,20 @@ describe('StatsService.summary', () => {
       60,
     );
   });
+
+  it('excludes files belonging to soft-deleted assets from totalBytes', async () => {
+    const { svc, prisma } = build({ total: 1, bytes: 812_340 });
+    await svc.summary();
+
+    // Without this filter, deleting an asset never reduces reported storage and
+    // the number only ever climbs. It is the most prominent figure on the
+    // overview screen.
+    expect(prisma.assetFile.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { asset: { deletedAt: null } },
+      }),
+    );
+  });
 });
 
 describe('StatsService.uploadsOverTime', () => {
@@ -81,5 +95,14 @@ describe('StatsService.uploadsOverTime', () => {
     const { svc } = build();
     await expect(svc.uploadsOverTime(9_999)).resolves.toEqual([]);
     await expect(svc.uploadsOverTime(0)).resolves.toEqual([]);
+  });
+
+  it('buckets uploads by UTC day, not the database session timezone', async () => {
+    const { svc, prisma } = build();
+    await svc.uploadsOverTime(30);
+
+    const [strings] = (prisma.$queryRaw as jest.Mock).mock.calls[0] as [string[]];
+    const sql = strings.join('');
+    expect(sql).toContain("AT TIME ZONE 'UTC'");
   });
 });

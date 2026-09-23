@@ -44,7 +44,14 @@ export class StatsService {
             where: { deletedAt: null },
             _count: true,
           }),
-          this.prisma.assetFile.aggregate({ _sum: { byteSize: true } }),
+          this.prisma.assetFile.aggregate({
+            _sum: { byteSize: true },
+            // Files of soft-deleted assets still occupy storage until the
+            // deletion worker removes them, but they must not be reported as
+            // live catalogue storage — otherwise deleting an asset never
+            // reduces the number and it only ever climbs.
+            where: { asset: { deletedAt: null } },
+          }),
           this.prisma.asset.count({ where: { status: 'failed', deletedAt: null } }),
         ]);
 
@@ -70,7 +77,7 @@ export class StatsService {
       { view: 'uploads', days },
       async () => {
         const rows = (await this.prisma.$queryRaw`
-          SELECT to_char(date_trunc('day', "createdAt"), 'YYYY-MM-DD') AS date,
+          SELECT to_char(date_trunc('day', "createdAt" AT TIME ZONE 'UTC'), 'YYYY-MM-DD') AS date,
                  COUNT(*)::int AS count
           FROM "Asset"
           WHERE "deletedAt" IS NULL
