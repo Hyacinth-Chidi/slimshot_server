@@ -3,7 +3,12 @@ import { Reflector } from '@nestjs/core';
 import { PERMISSION_KEY } from './permissions';
 import { AuthController } from '../../modules/auth/auth.controller';
 import { AdminAssetsController } from '../../modules/admin/admin-assets.controller';
+import { AdminAuditController } from '../../modules/admin/admin-audit.controller';
+import { AdminCategoriesController } from '../../modules/admin/admin-categories.controller';
+import { AdminJobsController } from '../../modules/admin/admin-jobs.controller';
 import { AdminKindsController } from '../../modules/admin/admin-kinds.controller';
+import { AdminSettingsController } from '../../modules/admin/admin-settings.controller';
+import { AdminStatsController } from '../../modules/admin/admin-stats.controller';
 
 /**
  * Controllers whose routes are deliberately reachable without a declared permission.
@@ -19,6 +24,11 @@ const PUBLIC_BY_DESIGN = new Set<string>(['AuthController']);
 const ADMIN_CONTROLLERS: Array<new (...args: never[]) => object> = [
   AdminAssetsController,
   AdminKindsController,
+  AdminCategoriesController,
+  AdminStatsController,
+  AdminAuditController,
+  AdminJobsController,
+  AdminSettingsController,
 ];
 
 describe('admin route guarding', () => {

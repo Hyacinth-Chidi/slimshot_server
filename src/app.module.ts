@@ -12,6 +12,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { IngestModule } from './modules/ingest/ingest.module';
+import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -31,6 +32,7 @@ import { PrismaModule } from './prisma/prisma.module';
     AuthModule,
     AssetsModule,
     IngestModule,
+    TaxonomyModule,
     AdminModule,
   ],
 })
