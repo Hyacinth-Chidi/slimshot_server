@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
@@ -25,8 +25,12 @@ async function bootstrap(): Promise<void> {
   );
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const port = Number(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT ?? 2700);
   await app.listen(port);
+
+  new Logger('Bootstrap').log(
+    `Application running on port ${port} — http://localhost:${port}/api/admin/v1`,
+  );
 }
 
 void bootstrap();
