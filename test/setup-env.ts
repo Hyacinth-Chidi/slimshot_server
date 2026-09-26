@@ -1,8 +1,11 @@
 process.env.NODE_ENV = 'test';
-process.env.MASTER_ENCRYPTION_KEY =
-  process.env.MASTER_ENCRYPTION_KEY ??
-  '0'.repeat(64); // 32 bytes hex — test-only, never a real key
-process.env.JWT_ACCESS_SECRET =
-  process.env.JWT_ACCESS_SECRET ?? 't'.repeat(48); // test-only, never a real secret
+// Test-only values, never real credentials. Every required variable is set so
+// config namespaces can be built in any spec.
+process.env.MASTER_ENCRYPTION_KEY = process.env.MASTER_ENCRYPTION_KEY ?? '0'.repeat(64);
+process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? 't'.repeat(48);
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://test:test@localhost:5432/test';
+process.env.REDIS_URL = process.env.REDIS_URL ?? 'redis://localhost:6379';
+process.env.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME ?? 'test-cloud';
+process.env.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY ?? 'test-key';
+process.env.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET ?? 'test-secret';

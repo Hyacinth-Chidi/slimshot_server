@@ -1,6 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
+import {
+  appConfig,
+  authConfig,
+  cloudinaryConfig,
+  databaseConfig,
+  redisConfig,
+  uploadConfig,
+  validate,
+} from './config';
 import { AuditModule } from './core/audit/audit.module';
 import { RedisModule } from './core/cache/redis.module';
 import { CryptoModule } from './core/crypto/crypto.module';
@@ -20,6 +29,8 @@ import { PrismaModule } from './prisma/prisma.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
+      validate,
+      load: [appConfig, databaseConfig, redisConfig, authConfig, uploadConfig, cloudinaryConfig],
     }),
     PrismaModule,
     CryptoModule,

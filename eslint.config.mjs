@@ -16,14 +16,15 @@ export default tseslint.config(
         {
           object: 'process',
           property: 'env',
-          message:
-            'Only DATABASE_URL, MASTER_ENCRYPTION_KEY, JWT_*, PORT and NODE_ENV may come from env. Everything else reads from SettingsService.',
+          message: 'Read configuration by injecting a src/config namespace, not process.env.',
         },
       ],
     },
   },
   {
     files: [
+      // The one place configuration is parsed and validated.
+      'src/config/**',
       'src/prisma/prisma.service.ts',
       'src/main.ts',
       'prisma.config.ts',
