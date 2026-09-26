@@ -1,11 +1,10 @@
-import { Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
 
+import { authConfig, type AuthConfig } from '../../config';
 import { AdminRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
-import { ElevationService } from '../../core/auth/elevation.service';
-import { SettingsService } from '../../core/settings/settings.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { LoginAttemptService } from './login-attempt.service';
@@ -27,10 +26,9 @@ export class AuthService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordService,
     private readonly tokens: TokenService,
-    private readonly settings: SettingsService,
     private readonly audit: AuditService,
     private readonly attempts: LoginAttemptService,
-    private readonly elevation: ElevationService,
+    @Inject(authConfig.KEY) private readonly config: AuthConfig,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -93,9 +91,6 @@ export class AuthService implements OnModuleInit {
     if (!row) return;
 
     await this.tokens.revokeFamily(row.familyId);
-    // Spec 6.7: grants are revoked, not merely expired. Without this a
-    // 120-second write authorisation outlives the session that earned it.
-    await this.elevation.revokeForAdmin(row.adminUserId);
   }
 
   async me(adminId: string): Promise<AdminProfile> {
@@ -113,20 +108,16 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Runs once at boot. Creates the first owner from env if no admin exists.
-   * Self-disabling. The JWT signing secret is not generated here: it comes from
-   * JWT_ACCESS_SECRET in the environment (see jwt-config.ts).
+   * Runs once at boot. Creates the first owner from ADMIN_BOOTSTRAP_EMAIL /
+   * ADMIN_BOOTSTRAP_PASSWORD if no admin exists yet. Self-disabling: once an
+   * admin exists this does nothing, so the variables can be removed.
    */
   async bootstrap(): Promise<void> {
-    const adminCount = await this.prisma.adminUser.count({
-      where: { deletedAt: null },
-    });
+    const adminCount = await this.prisma.adminUser.count({ where: { deletedAt: null } });
     if (adminCount > 0) return;
 
-    const email = process.env.ADMIN_BOOTSTRAP_EMAIL;
-    const password = process.env.ADMIN_BOOTSTRAP_PASSWORD;
-
-    if (!email || !password) {
+    const credentials = this.config.bootstrap;
+    if (!credentials) {
       this.logger.warn(
         'No admin accounts exist. Set ADMIN_BOOTSTRAP_EMAIL and ' +
           'ADMIN_BOOTSTRAP_PASSWORD, then restart, to create the first owner.',
@@ -134,19 +125,17 @@ export class AuthService implements OnModuleInit {
       return;
     }
 
+    const email = credentials.email.trim().toLowerCase();
     await this.prisma.adminUser.create({
       data: {
-        email: email.trim().toLowerCase(),
+        email,
         name: 'Owner',
         role: AdminRole.owner,
-        passwordHash: await this.passwords.hash(password),
+        passwordHash: await this.passwords.hash(credentials.password),
       },
     });
-
-    await this.settings.set('auth.bootstrapCompleted', true, 'system');
     this.logger.log(`Bootstrapped first owner account: ${email}`);
   }
-
 }
 
 function hashFor(token: string): string {

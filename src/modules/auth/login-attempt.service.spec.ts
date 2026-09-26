@@ -4,16 +4,13 @@ import { LoginAttemptService } from './login-attempt.service';
 
 const CTX = { ip: '1.2.3.4', userAgent: 'jest' };
 
-function build(opts: { attempts?: number } = {}) {
-  const settingsValues: Record<string, unknown> = {
-    'auth.loginMaxAttempts': 5,
-    'auth.loginLockoutSeconds': 900,
-  };
+const CONFIG = {
+  jwt: { accessSecret: 'x'.repeat(40), accessTtlSeconds: 900, refreshTtlSeconds: 604_800 },
+  login: { maxAttempts: 5, lockoutSeconds: 900 },
+  bootstrap: null,
+};
 
-  const settings = {
-    get: jest.fn(async (k: string) => settingsValues[k]),
-  };
-
+function build(opts: { attempts?: number; login?: { maxAttempts: number; lockoutSeconds: number } } = {}) {
   let counter = opts.attempts ?? 0;
   const redis = {
     incr: jest.fn(async () => (counter += 1)),
@@ -27,9 +24,10 @@ function build(opts: { attempts?: number } = {}) {
 
   const audit = { record: jest.fn(async () => undefined) };
 
-  const svc = new LoginAttemptService(settings as never, audit as never, redis as never);
+  const config = { ...CONFIG, login: opts.login ?? CONFIG.login };
+  const svc = new LoginAttemptService(config, audit as never, redis as never);
 
-  return { svc, settings, redis, audit };
+  return { svc, redis, audit };
 }
 
 describe('LoginAttemptService', () => {
@@ -72,20 +70,32 @@ describe('LoginAttemptService', () => {
     const { svc, audit } = build();
     await svc.recordFailure(
       'a@example.com',
-      { action: 'settings.reveal.failed', entityType: 'SystemSetting', entityId: 'redis.url' },
+      { action: 'auth.login.failed', entityType: 'AdminUser', entityId: 'admin-1' },
       CTX,
     );
 
     expect(audit.record).toHaveBeenCalledWith(
       expect.objectContaining({
-        action: 'settings.reveal.failed',
-        entityType: 'SystemSetting',
-        entityId: 'redis.url',
+        action: 'auth.login.failed',
+        entityType: 'AdminUser',
+        entityId: 'admin-1',
         after: { email: 'a@example.com' },
         ip: CTX.ip,
         userAgent: CTX.userAgent,
       }),
     );
+  });
+
+  it('uses the configured attempt limit and lockout window', async () => {
+    const { svc, redis } = build({ attempts: 2, login: { maxAttempts: 2, lockoutSeconds: 60 } });
+    await expect(svc.assertNotLockedOut('a@example.com')).rejects.toThrow(/too many/i);
+
+    await svc.recordFailure(
+      'a@example.com',
+      { action: 'auth.login.failed', entityType: 'AdminUser' },
+      CTX,
+    );
+    expect(redis.expire).toHaveBeenCalledWith('auth:login:fail:a@example.com', 60);
   });
 
   it('clears the counter', async () => {

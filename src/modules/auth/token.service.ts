@@ -2,10 +2,9 @@ import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
+import { authConfig, type AuthConfig } from '../../config';
 import { AdminRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ElevationService } from '../../core/auth/elevation.service';
-import { JWT_CONFIG, JwtConfig } from './jwt-config';
 
 export interface TokenPair {
   accessToken: string;
@@ -34,9 +33,8 @@ interface AdminLike {
 export class TokenService {
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(JWT_CONFIG) private readonly config: JwtConfig,
+    @Inject(authConfig.KEY) private readonly config: AuthConfig,
     private readonly jwt: JwtService,
-    private readonly elevation: ElevationService,
   ) {}
 
   async issuePair(
@@ -45,7 +43,7 @@ export class TokenService {
     familyId: string = randomUUID(),
   ): Promise<TokenPair> {
     const { accessSecret, accessTtlSeconds: accessTtl, refreshTtlSeconds: refreshTtl } =
-      this.config;
+      this.config.jwt;
 
     const accessToken = await this.jwt.signAsync(
       { sub: admin.id, email: admin.email, role: admin.role },
@@ -103,11 +101,6 @@ export class TokenService {
     const account = admin as AdminLike & { isActive?: boolean; deletedAt?: Date | null };
     if (account.isActive === false || account.deletedAt) {
       await this.revokeFamily(row.familyId);
-      // Spec 6.7: any change to isActive/deletedAt revokes the admin's grants.
-      // This is the one place the server observes a deactivation, so grant
-      // revocation stays beside the refresh-token revocation rather than
-      // drifting apart from it.
-      await this.elevation.revokeForAdmin(admin.id);
       throw new UnauthorizedException('Account is no longer active.');
     }
 
@@ -124,7 +117,7 @@ export class TokenService {
   async verifyAccessToken(token: string): Promise<AccessTokenClaims> {
     try {
       return await this.jwt.verifyAsync<AccessTokenClaims>(token, {
-        secret: this.config.accessSecret,
+        secret: this.config.jwt.accessSecret,
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired access token.');

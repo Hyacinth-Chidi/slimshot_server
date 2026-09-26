@@ -1,9 +1,9 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import type Redis from 'ioredis';
 
+import { authConfig, type AuthConfig } from '../../config';
 import { AuditService } from '../../core/audit/audit.service';
 import { REDIS } from '../../core/cache/cache.service';
-import { SettingsService } from '../../core/settings/settings.service';
 
 interface RequestContext {
   ip?: string;
@@ -17,20 +17,19 @@ interface FailureAudit {
 }
 
 /**
- * Shared login-failure budget, extracted out of AuthService so any other path
- * that re-checks a password (e.g. the settings reveal/update step-up) spends
- * against the SAME counter as a failed login rather than getting its own.
+ * Login-failure budget: counts failed logins per email and locks the email out
+ * for a configured window (AUTH_LOGIN_MAX_ATTEMPTS / AUTH_LOGIN_LOCKOUT_SECONDS).
  */
 @Injectable()
 export class LoginAttemptService {
   constructor(
-    private readonly settings: SettingsService,
+    @Inject(authConfig.KEY) private readonly config: AuthConfig,
     private readonly audit: AuditService,
     @Inject(REDIS) private readonly redis: Redis,
   ) {}
 
   async assertNotLockedOut(email: string): Promise<void> {
-    const max = await this.settings.get<number>('auth.loginMaxAttempts');
+    const max = this.config.login.maxAttempts;
     const current = Number((await this.redis.get(this.attemptKey(email))) ?? '0');
 
     if (current >= max) {
@@ -46,10 +45,9 @@ export class LoginAttemptService {
     ctx: RequestContext,
   ): Promise<void> {
     const key = this.attemptKey(email);
-    const lockout = await this.settings.get<number>('auth.loginLockoutSeconds');
 
     await this.redis.incr(key);
-    await this.redis.expire(key, lockout);
+    await this.redis.expire(key, this.config.login.lockoutSeconds);
 
     await this.audit.record({
       actorType: 'system',
@@ -67,10 +65,7 @@ export class LoginAttemptService {
   }
 
   private attemptKey(email: string): string {
-    // Deliberately the SAME key every caller that re-checks a password uses
-    // (login, and the settings reveal/update step-up): a failed attempt on any
-    // of those paths must count against one shared budget, or whichever path
-    // does NOT share this key becomes an unthrottled password oracle.
+    // One counter per email, shared by every login attempt.
     return `auth:login:fail:${email.toLowerCase()}`;
   }
 }

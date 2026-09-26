@@ -10,9 +10,13 @@ const ADMIN = {
 };
 
 const CONFIG = {
-  accessSecret: 'test-signing-secret-that-is-long-enough',
-  accessTtlSeconds: 900,
-  refreshTtlSeconds: 604_800,
+  jwt: {
+    accessSecret: 'test-signing-secret-that-is-long-enough',
+    accessTtlSeconds: 900,
+    refreshTtlSeconds: 604_800,
+  },
+  login: { maxAttempts: 5, lockoutSeconds: 900 },
+  bootstrap: null,
 };
 
 function prismaMock() {
@@ -50,9 +54,8 @@ function prismaMock() {
 
 function build() {
   const prisma = prismaMock();
-  const elevation = { revokeForAdmin: jest.fn(async () => undefined) };
-  const svc = new TokenService(prisma as never, CONFIG, new JwtService({}), elevation as never);
-  return { svc, prisma, elevation };
+  const svc = new TokenService(prisma as never, CONFIG, new JwtService({}));
+  return { svc, prisma };
 }
 
 const CTX = { ip: '1.2.3.4', userAgent: 'jest' };
@@ -162,30 +165,25 @@ describe('TokenService', () => {
     expect(prisma.rows.every((r) => r.revokedAt)).toBe(true);
   });
 
-  // Spec 6.7: any change to isActive/deletedAt revokes the admin's grants.
-  // This is the one place the server observes a deactivation, so grant
-  // revocation belongs alongside the refresh-token revocation already here.
-  it('revokes the deactivated admin elevation grants alongside the family', async () => {
-    const { svc, prisma, elevation } = build();
-    const pair = await svc.issuePair(ADMIN, CTX);
-    prisma.refreshToken.findUnique = jest.fn(async () => ({
-      ...prisma.rows[0],
-      admin: { ...ADMIN, isActive: false },
-    })) as never;
-
-    await svc.rotate(pair.refreshToken, CTX).catch(() => undefined);
-    expect(elevation.revokeForAdmin).toHaveBeenCalledWith(ADMIN.id);
-  });
-
-  it('revokes grants for a soft-deleted admin too', async () => {
-    const { svc, prisma, elevation } = build();
+  it('refuses to rotate for a soft-deleted account and revokes the family', async () => {
+    const { svc, prisma } = build();
     const pair = await svc.issuePair(ADMIN, CTX);
     prisma.refreshToken.findUnique = jest.fn(async () => ({
       ...prisma.rows[0],
       admin: { ...ADMIN, deletedAt: new Date() },
     })) as never;
 
-    await svc.rotate(pair.refreshToken, CTX).catch(() => undefined);
-    expect(elevation.revokeForAdmin).toHaveBeenCalledWith(ADMIN.id);
+    await expect(svc.rotate(pair.refreshToken, CTX)).rejects.toThrow(/no longer active/);
+    expect(prisma.rows.every((r) => r.revokedAt)).toBe(true);
+  });
+
+  it('signs with the configured secret and lifetime', async () => {
+    const { svc } = build();
+    const { accessToken, expiresIn } = await svc.issuePair(ADMIN, CTX);
+    expect(expiresIn).toBe(900);
+    const claims = await new JwtService({}).verifyAsync(accessToken, {
+      secret: CONFIG.jwt.accessSecret,
+    });
+    expect(claims.exp - claims.iat).toBe(900);
   });
 });

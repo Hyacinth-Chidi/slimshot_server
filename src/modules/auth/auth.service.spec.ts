@@ -6,7 +6,13 @@ import { PasswordService } from './password.service';
 
 const CTX = { ip: '1.2.3.4', userAgent: 'jest' };
 
-function build(opts: { admin?: Record<string, unknown> | null; attempts?: number } = {}) {
+function build(
+  opts: {
+    admin?: Record<string, unknown> | null;
+    attempts?: number;
+    bootstrap?: { email: string; password: string } | null;
+  } = {},
+) {
   const passwords = new PasswordService();
 
   const prisma = {
@@ -25,24 +31,10 @@ function build(opts: { admin?: Record<string, unknown> | null; attempts?: number
     },
   };
 
-  const settingsValues: Record<string, unknown> = {
-    'auth.loginMaxAttempts': 5,
-    'auth.loginLockoutSeconds': 900,
-    'auth.bootstrapCompleted': false,
-  };
-
-  const settings = {
-    get: jest.fn(async (k: string) => settingsValues[k]),
-    // Mirrors the real SettingsService: `get` THROWS for an unset minLength
-    // setting, so bootstrap must ask via isConfigured instead. A mock without
-    // this method is what let the fresh-database boot failure ship unnoticed.
-    isConfigured: jest.fn(async (k: string) => {
-      const v = settingsValues[k];
-      return typeof v === 'string' ? v.length > 0 : v !== undefined;
-    }),
-    set: jest.fn(async (k: string, v: unknown) => {
-      settingsValues[k] = v;
-    }),
+  const config = {
+    jwt: { accessSecret: 'x'.repeat(40), accessTtlSeconds: 900, refreshTtlSeconds: 604_800 },
+    login: { maxAttempts: 5, lockoutSeconds: 900 },
+    bootstrap: opts.bootstrap ?? null,
   };
 
   let counter = opts.attempts ?? 0;
@@ -72,25 +64,18 @@ function build(opts: { admin?: Record<string, unknown> | null; attempts?: number
 
   const audit = { record: jest.fn(async () => undefined) };
 
-  const attempts = new LoginAttemptService(
-    settings as never,
-    audit as never,
-    redis as never,
-  );
-
-  const elevation = { revokeForAdmin: jest.fn(async () => undefined) };
+  const attempts = new LoginAttemptService(config, audit as never, redis as never);
 
   const svc = new AuthService(
     prisma as never,
     passwords,
     tokens as never,
-    settings as never,
     audit as never,
     attempts,
-    elevation as never,
+    config,
   );
 
-  return { svc, prisma, settings, redis, tokens, audit, passwords, elevation };
+  return { svc, prisma, redis, tokens, audit, passwords };
 }
 
 describe('AuthService.login', () => {
@@ -201,11 +186,11 @@ describe('AuthService.login', () => {
 });
 
 describe('AuthService.bootstrap', () => {
-  it('creates the first owner when no admin exists', async () => {
-    process.env.ADMIN_BOOTSTRAP_EMAIL = 'owner@example.com';
-    process.env.ADMIN_BOOTSTRAP_PASSWORD = 'bootstrap-password-1';
-
-    const { svc, prisma, settings } = build({ admin: null });
+  it('creates the first owner from the configured credentials when no admin exists', async () => {
+    const { svc, prisma } = build({
+      admin: null,
+      bootstrap: { email: 'Owner@Example.com', password: 'bootstrap-password-1' },
+    });
     await svc.bootstrap();
 
     expect(prisma.adminUser.create).toHaveBeenCalledWith(
@@ -213,24 +198,12 @@ describe('AuthService.bootstrap', () => {
         data: expect.objectContaining({ email: 'owner@example.com', role: 'owner' }),
       }),
     );
-    expect(settings.set).toHaveBeenCalledWith(
-      'auth.bootstrapCompleted',
-      true,
-      'system',
-    );
-
-    delete process.env.ADMIN_BOOTSTRAP_EMAIL;
-    delete process.env.ADMIN_BOOTSTRAP_PASSWORD;
   });
 
-  it('never writes a jwt signing secret into settings', async () => {
-    // The secret is JWT_ACCESS_SECRET in the environment. A bootstrap that
-    // still generated one would silently put a second, unused copy in the DB.
-    const { svc, settings } = build({ admin: null });
+  it('creates nothing when no bootstrap credentials are configured', async () => {
+    const { svc, prisma } = build({ admin: null, bootstrap: null });
     await svc.bootstrap();
-
-    const keys = settings.set.mock.calls.map(([k]: [string, unknown]) => k);
-    expect(keys.some((k: string) => k.toLowerCase().includes('jwt'))).toBe(false);
+    expect(prisma.adminUser.create).not.toHaveBeenCalled();
   });
 
   it('does nothing when an admin already exists', async () => {
@@ -241,10 +214,7 @@ describe('AuthService.bootstrap', () => {
 });
 
 describe('AuthService.logout', () => {
-  // Spec 6.7: a grant is revoked on logout, not merely left to expire. Without
-  // this, a 120-second write authorisation outlives the session that earned it
-  // and expiry becomes the only control.
-  it('revokes outstanding elevation grants as well as the token family', async () => {
+  it('revokes the token family', async () => {
     const admin = {
       id: 'admin-1',
       email: 'a@example.com',
@@ -253,7 +223,7 @@ describe('AuthService.logout', () => {
       isActive: true,
       deletedAt: null,
     };
-    const { svc, prisma, tokens, elevation } = build({ admin });
+    const { svc, prisma, tokens } = build({ admin });
     prisma.refreshToken.findUnique.mockResolvedValue({
       familyId: 'fam-1',
       adminUserId: 'admin-1',
@@ -262,6 +232,5 @@ describe('AuthService.logout', () => {
     await svc.logout('some-refresh-token');
 
     expect(tokens.revokeFamily).toHaveBeenCalledWith('fam-1');
-    expect(elevation.revokeForAdmin).toHaveBeenCalledWith('admin-1');
   });
 });
