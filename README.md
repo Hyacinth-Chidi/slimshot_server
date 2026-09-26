@@ -69,16 +69,12 @@ npm install
 copy .env.example .env
 ```
 
-3. Fill in `.env` with your Neon and Cloudinary credentials:
-
-```env
-PORT=3000
-DATABASE_URL="postgresql://username:password@your-neon-pooler-host/database?sslmode=require&channel_binding=require"
-CLOUDINARY_CLOUD_NAME=your_cloud_name
-CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
-CLOUDINARY_AUDIO_FOLDER=slimshot/audio
-```
+3. Fill in `.env`. Every variable is documented in `.env.example`. The required ones
+   are `DATABASE_URL`, `REDIS_URL`, `JWT_ACCESS_SECRET` (at least 32 characters) and
+   the three `CLOUDINARY_*` credentials; everything else has a default. All
+   configuration comes from `.env` and is validated at startup — a missing or
+   invalid value stops the server with a message naming every problem. Change a value
+   by editing `.env` and restarting.
 
 4. Generate the Prisma client:
 

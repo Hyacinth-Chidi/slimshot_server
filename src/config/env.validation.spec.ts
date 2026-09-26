@@ -56,6 +56,13 @@ describe('parseEnv', () => {
     expect(env.CLOUDINARY_CLOUD_NAME).toBe('dtdvob79f');
   });
 
+  it('strips trailing slashes from CORS origins, which browsers never send', () => {
+    // A browser's Origin header is scheme + host + port, no path; an entry with
+    // a trailing slash would never match and would silently block that site.
+    const env = parseEnv({ ...BASE, CORS_ALLOWED_ORIGINS: 'https://a.example.com/, http://localhost:3001//' });
+    expect(env.CORS_ALLOWED_ORIGINS).toEqual(['https://a.example.com', 'http://localhost:3001']);
+  });
+
   it('strips a trailing slash from ADMIN_BASE_URL', () => {
     expect(parseEnv({ ...BASE, ADMIN_BASE_URL: 'http://localhost:3001/' }).ADMIN_BASE_URL).toBe(
       'http://localhost:3001',

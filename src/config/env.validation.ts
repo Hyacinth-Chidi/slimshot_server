@@ -69,7 +69,11 @@ export class Env {
   @IsUrl(URL_OPTIONS)
   ADMIN_BASE_URL?: string;
 
-  @Transform(list([]))
+  // Browsers send Origin without a path, so a trailing slash could never match.
+  @Transform((params) => {
+    const origins = list([])(params);
+    return Array.isArray(origins) ? origins.map((o: string) => o.replace(/\/+$/, '')) : origins;
+  })
   @IsArray()
   @IsUrl(URL_OPTIONS, { each: true })
   CORS_ALLOWED_ORIGINS: string[] = [];
@@ -181,5 +185,13 @@ export function parseEnv(raw: Record<string, unknown>): Env {
   return env;
 }
 
-/** The `validate` hook for `ConfigModule.forRoot`. */
-export const validate = parseEnv;
+/**
+ * The `validate` hook for `ConfigModule.forRoot`: checks everything, then
+ * returns the RAW values. forRoot copies the returned object into process.env
+ * but only primitive values — a parsed list (string[]) would be dropped, and
+ * the namespaces, which re-parse process.env, would silently see defaults.
+ */
+export function validate(config: Record<string, unknown>): Record<string, unknown> {
+  parseEnv(config);
+  return config;
+}
