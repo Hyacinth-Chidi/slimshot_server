@@ -14,24 +14,15 @@ import type * as Prisma from "../internal/prismaNamespace"
 
 /**
  * Model StorageProvider
- * 
+ * Identity only: which provider an asset file lives on. Credentials come from
+ * the environment (CLOUDINARY_*), never from this table.
  */
 export type StorageProviderModel = runtime.Types.Result.DefaultSelection<Prisma.$StorageProviderPayload>
 
 export type AggregateStorageProvider = {
   _count: StorageProviderCountAggregateOutputType | null
-  _avg: StorageProviderAvgAggregateOutputType | null
-  _sum: StorageProviderSumAggregateOutputType | null
   _min: StorageProviderMinAggregateOutputType | null
   _max: StorageProviderMaxAggregateOutputType | null
-}
-
-export type StorageProviderAvgAggregateOutputType = {
-  keyVersion: number | null
-}
-
-export type StorageProviderSumAggregateOutputType = {
-  keyVersion: number | null
 }
 
 export type StorageProviderMinAggregateOutputType = {
@@ -40,8 +31,6 @@ export type StorageProviderMinAggregateOutputType = {
   name: string | null
   isDefault: boolean | null
   isActive: boolean | null
-  configCipher: runtime.Bytes | null
-  keyVersion: number | null
   lastTestedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -53,8 +42,6 @@ export type StorageProviderMaxAggregateOutputType = {
   name: string | null
   isDefault: boolean | null
   isActive: boolean | null
-  configCipher: runtime.Bytes | null
-  keyVersion: number | null
   lastTestedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -66,8 +53,6 @@ export type StorageProviderCountAggregateOutputType = {
   name: number
   isDefault: number
   isActive: number
-  configCipher: number
-  keyVersion: number
   publicConfig: number
   lastTestedAt: number
   createdAt: number
@@ -76,22 +61,12 @@ export type StorageProviderCountAggregateOutputType = {
 }
 
 
-export type StorageProviderAvgAggregateInputType = {
-  keyVersion?: true
-}
-
-export type StorageProviderSumAggregateInputType = {
-  keyVersion?: true
-}
-
 export type StorageProviderMinAggregateInputType = {
   id?: true
   kind?: true
   name?: true
   isDefault?: true
   isActive?: true
-  configCipher?: true
-  keyVersion?: true
   lastTestedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -103,8 +78,6 @@ export type StorageProviderMaxAggregateInputType = {
   name?: true
   isDefault?: true
   isActive?: true
-  configCipher?: true
-  keyVersion?: true
   lastTestedAt?: true
   createdAt?: true
   updatedAt?: true
@@ -116,8 +89,6 @@ export type StorageProviderCountAggregateInputType = {
   name?: true
   isDefault?: true
   isActive?: true
-  configCipher?: true
-  keyVersion?: true
   publicConfig?: true
   lastTestedAt?: true
   createdAt?: true
@@ -163,18 +134,6 @@ export type StorageProviderAggregateArgs<ExtArgs extends runtime.Types.Extension
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
-   * Select which fields to average
-  **/
-  _avg?: StorageProviderAvgAggregateInputType
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-   * 
-   * Select which fields to sum
-  **/
-  _sum?: StorageProviderSumAggregateInputType
-  /**
-   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-   * 
    * Select which fields to find the minimum value
   **/
   _min?: StorageProviderMinAggregateInputType
@@ -205,8 +164,6 @@ export type StorageProviderGroupByArgs<ExtArgs extends runtime.Types.Extensions.
   take?: number
   skip?: number
   _count?: StorageProviderCountAggregateInputType | true
-  _avg?: StorageProviderAvgAggregateInputType
-  _sum?: StorageProviderSumAggregateInputType
   _min?: StorageProviderMinAggregateInputType
   _max?: StorageProviderMaxAggregateInputType
 }
@@ -217,15 +174,11 @@ export type StorageProviderGroupByOutputType = {
   name: string
   isDefault: boolean
   isActive: boolean
-  configCipher: runtime.Bytes
-  keyVersion: number
   publicConfig: runtime.JsonValue | null
   lastTestedAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: StorageProviderCountAggregateOutputType | null
-  _avg: StorageProviderAvgAggregateOutputType | null
-  _sum: StorageProviderSumAggregateOutputType | null
   _min: StorageProviderMinAggregateOutputType | null
   _max: StorageProviderMaxAggregateOutputType | null
 }
@@ -254,8 +207,6 @@ export type StorageProviderWhereInput = {
   name?: Prisma.StringFilter<"StorageProvider"> | string
   isDefault?: Prisma.BoolFilter<"StorageProvider"> | boolean
   isActive?: Prisma.BoolFilter<"StorageProvider"> | boolean
-  configCipher?: Prisma.BytesFilter<"StorageProvider"> | runtime.Bytes
-  keyVersion?: Prisma.IntFilter<"StorageProvider"> | number
   publicConfig?: Prisma.JsonNullableFilter<"StorageProvider">
   lastTestedAt?: Prisma.DateTimeNullableFilter<"StorageProvider"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"StorageProvider"> | Date | string
@@ -269,8 +220,6 @@ export type StorageProviderOrderByWithRelationInput = {
   name?: Prisma.SortOrder
   isDefault?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
-  configCipher?: Prisma.SortOrder
-  keyVersion?: Prisma.SortOrder
   publicConfig?: Prisma.SortOrderInput | Prisma.SortOrder
   lastTestedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -287,8 +236,6 @@ export type StorageProviderWhereUniqueInput = Prisma.AtLeast<{
   kind?: Prisma.EnumStorageKindFilter<"StorageProvider"> | $Enums.StorageKind
   isDefault?: Prisma.BoolFilter<"StorageProvider"> | boolean
   isActive?: Prisma.BoolFilter<"StorageProvider"> | boolean
-  configCipher?: Prisma.BytesFilter<"StorageProvider"> | runtime.Bytes
-  keyVersion?: Prisma.IntFilter<"StorageProvider"> | number
   publicConfig?: Prisma.JsonNullableFilter<"StorageProvider">
   lastTestedAt?: Prisma.DateTimeNullableFilter<"StorageProvider"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"StorageProvider"> | Date | string
@@ -302,17 +249,13 @@ export type StorageProviderOrderByWithAggregationInput = {
   name?: Prisma.SortOrder
   isDefault?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
-  configCipher?: Prisma.SortOrder
-  keyVersion?: Prisma.SortOrder
   publicConfig?: Prisma.SortOrderInput | Prisma.SortOrder
   lastTestedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.StorageProviderCountOrderByAggregateInput
-  _avg?: Prisma.StorageProviderAvgOrderByAggregateInput
   _max?: Prisma.StorageProviderMaxOrderByAggregateInput
   _min?: Prisma.StorageProviderMinOrderByAggregateInput
-  _sum?: Prisma.StorageProviderSumOrderByAggregateInput
 }
 
 export type StorageProviderScalarWhereWithAggregatesInput = {
@@ -324,8 +267,6 @@ export type StorageProviderScalarWhereWithAggregatesInput = {
   name?: Prisma.StringWithAggregatesFilter<"StorageProvider"> | string
   isDefault?: Prisma.BoolWithAggregatesFilter<"StorageProvider"> | boolean
   isActive?: Prisma.BoolWithAggregatesFilter<"StorageProvider"> | boolean
-  configCipher?: Prisma.BytesWithAggregatesFilter<"StorageProvider"> | runtime.Bytes
-  keyVersion?: Prisma.IntWithAggregatesFilter<"StorageProvider"> | number
   publicConfig?: Prisma.JsonNullableWithAggregatesFilter<"StorageProvider">
   lastTestedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"StorageProvider"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"StorageProvider"> | Date | string
@@ -338,8 +279,6 @@ export type StorageProviderCreateInput = {
   name: string
   isDefault?: boolean
   isActive?: boolean
-  configCipher: runtime.Bytes
-  keyVersion?: number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Date | string | null
   createdAt?: Date | string
@@ -353,8 +292,6 @@ export type StorageProviderUncheckedCreateInput = {
   name: string
   isDefault?: boolean
   isActive?: boolean
-  configCipher: runtime.Bytes
-  keyVersion?: number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Date | string | null
   createdAt?: Date | string
@@ -368,8 +305,6 @@ export type StorageProviderUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  configCipher?: Prisma.BytesFieldUpdateOperationsInput | runtime.Bytes
-  keyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -383,8 +318,6 @@ export type StorageProviderUncheckedUpdateInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  configCipher?: Prisma.BytesFieldUpdateOperationsInput | runtime.Bytes
-  keyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -398,8 +331,6 @@ export type StorageProviderCreateManyInput = {
   name: string
   isDefault?: boolean
   isActive?: boolean
-  configCipher: runtime.Bytes
-  keyVersion?: number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Date | string | null
   createdAt?: Date | string
@@ -412,8 +343,6 @@ export type StorageProviderUpdateManyMutationInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  configCipher?: Prisma.BytesFieldUpdateOperationsInput | runtime.Bytes
-  keyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -426,8 +355,6 @@ export type StorageProviderUncheckedUpdateManyInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  configCipher?: Prisma.BytesFieldUpdateOperationsInput | runtime.Bytes
-  keyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -445,16 +372,10 @@ export type StorageProviderCountOrderByAggregateInput = {
   name?: Prisma.SortOrder
   isDefault?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
-  configCipher?: Prisma.SortOrder
-  keyVersion?: Prisma.SortOrder
   publicConfig?: Prisma.SortOrder
   lastTestedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
-}
-
-export type StorageProviderAvgOrderByAggregateInput = {
-  keyVersion?: Prisma.SortOrder
 }
 
 export type StorageProviderMaxOrderByAggregateInput = {
@@ -463,8 +384,6 @@ export type StorageProviderMaxOrderByAggregateInput = {
   name?: Prisma.SortOrder
   isDefault?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
-  configCipher?: Prisma.SortOrder
-  keyVersion?: Prisma.SortOrder
   lastTestedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -476,15 +395,9 @@ export type StorageProviderMinOrderByAggregateInput = {
   name?: Prisma.SortOrder
   isDefault?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
-  configCipher?: Prisma.SortOrder
-  keyVersion?: Prisma.SortOrder
   lastTestedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
-}
-
-export type StorageProviderSumOrderByAggregateInput = {
-  keyVersion?: Prisma.SortOrder
 }
 
 export type StorageProviderCreateNestedOneWithoutFilesInput = {
@@ -505,18 +418,12 @@ export type EnumStorageKindFieldUpdateOperationsInput = {
   set?: $Enums.StorageKind
 }
 
-export type BytesFieldUpdateOperationsInput = {
-  set?: runtime.Bytes
-}
-
 export type StorageProviderCreateWithoutFilesInput = {
   id?: string
   kind: $Enums.StorageKind
   name: string
   isDefault?: boolean
   isActive?: boolean
-  configCipher: runtime.Bytes
-  keyVersion?: number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Date | string | null
   createdAt?: Date | string
@@ -529,8 +436,6 @@ export type StorageProviderUncheckedCreateWithoutFilesInput = {
   name: string
   isDefault?: boolean
   isActive?: boolean
-  configCipher: runtime.Bytes
-  keyVersion?: number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Date | string | null
   createdAt?: Date | string
@@ -559,8 +464,6 @@ export type StorageProviderUpdateWithoutFilesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  configCipher?: Prisma.BytesFieldUpdateOperationsInput | runtime.Bytes
-  keyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -573,8 +476,6 @@ export type StorageProviderUncheckedUpdateWithoutFilesInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   isDefault?: Prisma.BoolFieldUpdateOperationsInput | boolean
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
-  configCipher?: Prisma.BytesFieldUpdateOperationsInput | runtime.Bytes
-  keyVersion?: Prisma.IntFieldUpdateOperationsInput | number
   publicConfig?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   lastTestedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -618,8 +519,6 @@ export type StorageProviderSelect<ExtArgs extends runtime.Types.Extensions.Inter
   name?: boolean
   isDefault?: boolean
   isActive?: boolean
-  configCipher?: boolean
-  keyVersion?: boolean
   publicConfig?: boolean
   lastTestedAt?: boolean
   createdAt?: boolean
@@ -634,8 +533,6 @@ export type StorageProviderSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   name?: boolean
   isDefault?: boolean
   isActive?: boolean
-  configCipher?: boolean
-  keyVersion?: boolean
   publicConfig?: boolean
   lastTestedAt?: boolean
   createdAt?: boolean
@@ -648,8 +545,6 @@ export type StorageProviderSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   name?: boolean
   isDefault?: boolean
   isActive?: boolean
-  configCipher?: boolean
-  keyVersion?: boolean
   publicConfig?: boolean
   lastTestedAt?: boolean
   createdAt?: boolean
@@ -662,15 +557,13 @@ export type StorageProviderSelectScalar = {
   name?: boolean
   isDefault?: boolean
   isActive?: boolean
-  configCipher?: boolean
-  keyVersion?: boolean
   publicConfig?: boolean
   lastTestedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type StorageProviderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "kind" | "name" | "isDefault" | "isActive" | "configCipher" | "keyVersion" | "publicConfig" | "lastTestedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["storageProvider"]>
+export type StorageProviderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "kind" | "name" | "isDefault" | "isActive" | "publicConfig" | "lastTestedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["storageProvider"]>
 export type StorageProviderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   files?: boolean | Prisma.StorageProvider$filesArgs<ExtArgs>
   _count?: boolean | Prisma.StorageProviderCountOutputTypeDefaultArgs<ExtArgs>
@@ -689,8 +582,6 @@ export type $StorageProviderPayload<ExtArgs extends runtime.Types.Extensions.Int
     name: string
     isDefault: boolean
     isActive: boolean
-    configCipher: runtime.Bytes
-    keyVersion: number
     publicConfig: runtime.JsonValue | null
     lastTestedAt: Date | null
     createdAt: Date
@@ -1124,8 +1015,6 @@ export interface StorageProviderFieldRefs {
   readonly name: Prisma.FieldRef<"StorageProvider", 'String'>
   readonly isDefault: Prisma.FieldRef<"StorageProvider", 'Boolean'>
   readonly isActive: Prisma.FieldRef<"StorageProvider", 'Boolean'>
-  readonly configCipher: Prisma.FieldRef<"StorageProvider", 'Bytes'>
-  readonly keyVersion: Prisma.FieldRef<"StorageProvider", 'Int'>
   readonly publicConfig: Prisma.FieldRef<"StorageProvider", 'Json'>
   readonly lastTestedAt: Prisma.FieldRef<"StorageProvider", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"StorageProvider", 'DateTime'>

@@ -28,15 +28,7 @@ export default tseslint.config(
       'prisma.config.ts',
       'test/**',
       '**/*.spec.ts',
-      'src/core/crypto/crypto.module.ts',
-      // JWT secret and token lifetimes are deployment config, read once at boot.
-      'src/modules/auth/jwt-config.ts',
-      'src/modules/auth/auth.service.ts',
       'prisma/seed.ts',
-      // Reads ONLY the env var a setting definition names in `envFallback`,
-      // and only when no database row exists. The registry still decides what
-      // is configurable; this does not reintroduce ad-hoc env reads.
-      'src/core/settings/settings.service.ts',
     ],
     rules: { 'no-restricted-properties': 'off' },
   },

@@ -202,19 +202,6 @@ model UserEntitlement {
   @@index([userId, sku])
 }
 
-model SystemSetting {
-  key         String   @id
-  group       String
-  valueJson   Json?
-  valueCipher Bytes?
-  keyVersion  Int?
-  isSecret    Boolean  @default(false)
-  updatedById String?
-  updatedAt   DateTime @updatedAt
-
-  @@index([group])
-}
-
 enum StorageKind {
   cloudinary
   s3
@@ -222,14 +209,14 @@ enum StorageKind {
   bunny
 }
 
+/// Identity only: which provider an asset file lives on. Credentials come from
+/// the environment (CLOUDINARY_*), never from this table.
 model StorageProvider {
   id           String      @id @default(cuid())
   kind         StorageKind
   name         String      @unique
   isDefault    Boolean     @default(false)
   isActive     Boolean     @default(true)
-  configCipher Bytes
-  keyVersion   Int         @default(1)
   publicConfig Json?
   lastTestedAt DateTime?
   createdAt    DateTime    @default(now())

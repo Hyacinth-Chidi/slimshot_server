@@ -58,7 +58,6 @@ export const ModelName = {
   UploadSession: 'UploadSession',
   User: 'User',
   UserEntitlement: 'UserEntitlement',
-  SystemSetting: 'SystemSetting',
   StorageProvider: 'StorageProvider',
   AuditLog: 'AuditLog',
   AdminUser: 'AdminUser',
@@ -205,28 +204,12 @@ export const UserEntitlementScalarFieldEnum = {
 export type UserEntitlementScalarFieldEnum = (typeof UserEntitlementScalarFieldEnum)[keyof typeof UserEntitlementScalarFieldEnum]
 
 
-export const SystemSettingScalarFieldEnum = {
-  key: 'key',
-  group: 'group',
-  valueJson: 'valueJson',
-  valueCipher: 'valueCipher',
-  keyVersion: 'keyVersion',
-  isSecret: 'isSecret',
-  updatedById: 'updatedById',
-  updatedAt: 'updatedAt'
-} as const
-
-export type SystemSettingScalarFieldEnum = (typeof SystemSettingScalarFieldEnum)[keyof typeof SystemSettingScalarFieldEnum]
-
-
 export const StorageProviderScalarFieldEnum = {
   id: 'id',
   kind: 'kind',
   name: 'name',
   isDefault: 'isDefault',
   isActive: 'isActive',
-  configCipher: 'configCipher',
-  keyVersion: 'keyVersion',
   publicConfig: 'publicConfig',
   lastTestedAt: 'lastTestedAt',
   createdAt: 'createdAt',

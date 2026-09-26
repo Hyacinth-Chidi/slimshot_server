@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 
-import { ElevationModule } from '../../core/auth/elevation.module';
 import { AssetsModule } from '../assets/assets.module';
 import { AuthModule } from '../auth/auth.module';
 import { IngestModule } from '../ingest/ingest.module';
@@ -10,13 +9,11 @@ import { AdminAuditController } from './admin-audit.controller';
 import { AdminCategoriesController } from './admin-categories.controller';
 import { AdminJobsController } from './admin-jobs.controller';
 import { AdminKindsController } from './admin-kinds.controller';
-import { AdminSettingsController } from './admin-settings.controller';
 import { AdminStatsController } from './admin-stats.controller';
-import { SettingsAdminService } from './settings-admin.service';
 import { StatsService } from './stats.service';
 
 @Module({
-  imports: [AssetsModule, IngestModule, AuthModule, TaxonomyModule, ElevationModule],
+  imports: [AssetsModule, IngestModule, AuthModule, TaxonomyModule],
   controllers: [
     AdminAssetsController,
     AdminKindsController,
@@ -24,8 +21,7 @@ import { StatsService } from './stats.service';
     AdminStatsController,
     AdminAuditController,
     AdminJobsController,
-    AdminSettingsController,
   ],
-  providers: [StatsService, SettingsAdminService],
+  providers: [StatsService],
 })
 export class AdminModule {}

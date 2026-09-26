@@ -1,7 +1,6 @@
 process.env.NODE_ENV = 'test';
 // Test-only values, never real credentials. Every required variable is set so
 // config namespaces can be built in any spec.
-process.env.MASTER_ENCRYPTION_KEY = process.env.MASTER_ENCRYPTION_KEY ?? '0'.repeat(64);
 process.env.JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET ?? 't'.repeat(48);
 process.env.DATABASE_URL =
   process.env.DATABASE_URL ?? 'postgresql://test:test@localhost:5432/test';

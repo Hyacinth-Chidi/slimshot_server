@@ -43,7 +43,7 @@ describe('PermissionsGuard', () => {
 
   it('names the missing permission in the error', () => {
     expect(() =>
-      guardRequiring('settings.write').canActivate(ctxFor({ role: AdminRole.admin })),
-    ).toThrow(/settings\.write/);
+      guardRequiring('admin.manage').canActivate(ctxFor({ role: AdminRole.admin })),
+    ).toThrow(/admin\.manage/);
   });
 });

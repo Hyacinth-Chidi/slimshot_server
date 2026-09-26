@@ -53,13 +53,9 @@ export type User = Prisma.UserModel
  */
 export type UserEntitlement = Prisma.UserEntitlementModel
 /**
- * Model SystemSetting
- * 
- */
-export type SystemSetting = Prisma.SystemSettingModel
-/**
  * Model StorageProvider
- * 
+ * Identity only: which provider an asset file lives on. Credentials come from
+ * the environment (CLOUDINARY_*), never from this table.
  */
 export type StorageProvider = Prisma.StorageProviderModel
 /**

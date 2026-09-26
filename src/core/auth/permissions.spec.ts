@@ -1,5 +1,5 @@
 import { AdminRole } from '../../generated/prisma/enums';
-import { ROLE_PERMISSIONS, roleHas } from './permissions';
+import { PERMISSIONS, ROLE_PERMISSIONS, roleHas } from './permissions';
 
 describe('permissions', () => {
   it('owner has every permission any other role has', () => {
@@ -11,10 +11,15 @@ describe('permissions', () => {
     }
   });
 
-  it('only owner may write system settings', () => {
-    expect(roleHas(AdminRole.owner, 'settings.write')).toBe(true);
-    expect(roleHas(AdminRole.admin, 'settings.write')).toBe(false);
-    expect(roleHas(AdminRole.editor, 'settings.write')).toBe(false);
+  it('only owner may manage admins', () => {
+    expect(roleHas(AdminRole.owner, 'admin.manage')).toBe(true);
+    expect(roleHas(AdminRole.admin, 'admin.manage')).toBe(false);
+    expect(roleHas(AdminRole.editor, 'admin.manage')).toBe(false);
+  });
+
+  it('has no settings permissions — configuration lives in the environment', () => {
+    expect(PERMISSIONS as readonly string[]).not.toContain('settings.read');
+    expect(PERMISSIONS as readonly string[]).not.toContain('settings.write');
   });
 
   it('editor may upload and edit but not delete', () => {

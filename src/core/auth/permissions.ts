@@ -10,8 +10,6 @@ export const PERMISSIONS = [
   'asset.delete',
   'taxonomy.read',
   'taxonomy.write',
-  'settings.read',
-  'settings.write',
   'storage.manage',
   'admin.manage',
   'audit.read',
@@ -23,7 +21,6 @@ export type Permission = (typeof PERMISSIONS)[number];
 const VIEWER: readonly Permission[] = [
   'asset.read',
   'taxonomy.read',
-  'settings.read',
   'audit.read',
   'jobs.read',
 ];
@@ -40,7 +37,6 @@ const ADMIN: readonly Permission[] = [...EDITOR, 'asset.delete'];
 
 const OWNER: readonly Permission[] = [
   ...ADMIN,
-  'settings.write',
   'storage.manage',
   'admin.manage',
 ];
