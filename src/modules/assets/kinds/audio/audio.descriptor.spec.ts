@@ -10,9 +10,12 @@ describe('AUDIO_DESCRIPTOR', () => {
     expect(original?.required).toBe(true);
   });
 
-  it('points at settings keys rather than hardcoding limits', () => {
-    expect(AUDIO_DESCRIPTOR.accepts.maxBytesSetting).toBe('upload.audio.maxBytes');
-    expect(AUDIO_DESCRIPTOR.accepts.mimeTypesSetting).toBe('upload.audio.mimeTypes');
+  it('lists the file extensions the picker accepts', () => {
+    expect(AUDIO_DESCRIPTOR.accepts.extensions).toEqual(['.mp3', '.wav', '.aac', '.ogg', '.flac']);
+  });
+
+  it('does not name size or MIME limits itself — those come from upload config', () => {
+    expect(Object.keys(AUDIO_DESCRIPTOR.accepts)).toEqual(['extensions']);
   });
 
   it('builds the detail row from provider-verified duration', () => {

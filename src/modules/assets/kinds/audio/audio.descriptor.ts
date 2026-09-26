@@ -20,8 +20,6 @@ export const AUDIO_DESCRIPTOR: AssetKindDescriptor = {
   label: 'Audio',
 
   accepts: {
-    mimeTypesSetting: 'upload.audio.mimeTypes',
-    maxBytesSetting: 'upload.audio.maxBytes',
     extensions: ['.mp3', '.wav', '.aac', '.ogg', '.flac'],
   },
 

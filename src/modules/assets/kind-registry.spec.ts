@@ -8,8 +8,6 @@ const FAKE: AssetKindDescriptor = {
   kind: AssetKind.audio,
   label: 'Audio',
   accepts: {
-    mimeTypesSetting: 'upload.audio.mimeTypes',
-    maxBytesSetting: 'upload.audio.maxBytes',
     extensions: ['.mp3', '.wav'],
   },
   fileRoles: [

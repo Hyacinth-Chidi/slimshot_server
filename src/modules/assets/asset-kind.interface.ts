@@ -10,8 +10,7 @@ export interface KindFileRole {
 }
 
 export interface KindAccepts {
-  mimeTypesSetting: string;
-  maxBytesSetting: string;
+  /** File extensions the dashboard's picker accepts. Size and MIME limits come from upload config. */
   extensions: string[];
 }
 

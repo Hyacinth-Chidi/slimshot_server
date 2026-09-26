@@ -1,16 +1,17 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
+import { uploadConfig, type UploadConfig, type UploadLimits } from '../../config';
 import { AssetKind, AssetStatus, FileRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { QueueService } from '../../core/queue/queue.service';
-import { SettingsService } from '../../core/settings/settings.service';
 import { StorageRegistry } from '../../core/storage/storage.registry';
 import { KindRegistry } from '../assets/kind-registry';
 import { CreateUploadTicketDto } from './dto/create-upload-ticket.dto';
@@ -39,23 +40,23 @@ export class IngestService {
     private readonly prisma: PrismaService,
     private readonly kinds: KindRegistry,
     private readonly storage: StorageRegistry,
-    private readonly settings: SettingsService,
+    @Inject(uploadConfig.KEY) private readonly upload: UploadConfig,
     private readonly queue: QueueService,
     private readonly audit: AuditService,
   ) {}
+
+  private limitsFor(kind: AssetKind): UploadLimits {
+    const limits = this.upload.limits[kind];
+    if (!limits) throw new BadRequestException(`Uploads are not configured for ${kind}.`);
+    return limits;
+  }
 
   async createTicket(
     dto: CreateUploadTicketDto,
     actorId: string,
   ): Promise<TicketResponse> {
     const descriptor = this.kinds.get(dto.kind);
-
-    const allowedMimeTypes = await this.settings.get<string[]>(
-      descriptor.accepts.mimeTypesSetting,
-    );
-    const maxBytes = await this.settings.get<number>(
-      descriptor.accepts.maxBytesSetting,
-    );
+    const { mimeTypes: allowedMimeTypes, maxBytes } = this.limitsFor(dto.kind);
 
     this.kinds.assertAccepts(
       dto.kind,
@@ -67,7 +68,7 @@ export class IngestService {
 
     const title = dto.title?.trim() || titleFromFilename(dto.filename);
     const adapter = await this.storage.getDefault();
-    const ttlSeconds = await this.settings.get<number>('upload.ticketTtlSeconds');
+    const ttlSeconds = this.upload.ticketTtlSeconds;
 
     const ticket = await adapter.createUploadTicket({
       folder: `slimshot/${dto.kind}`,
@@ -173,14 +174,12 @@ export class IngestService {
 
     const kind = (session as { asset: { kind: AssetKind } }).asset.kind;
     const descriptor = this.kinds.get(kind);
+    const { mimeTypes: allowedMimeTypes } = this.limitsFor(kind);
 
     // createTicket validated the DECLARED mime type; this validates what actually
     // landed. Without it an admin could declare audio/mpeg, upload an MP4, and
     // have it stored and catalogued — the provider is the source of truth, so the
     // allowlist has to be applied to the provider's answer too.
-    const allowedMimeTypes = await this.settings.get<string[]>(
-      descriptor.accepts.mimeTypesSetting,
-    );
     if (!allowedMimeTypes.includes(remote.mimeType)) {
       await this.prisma.asset.update({
         where: { id: session.assetId },

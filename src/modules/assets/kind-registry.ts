@@ -42,8 +42,8 @@ export class KindRegistry {
   }
 
   /**
-   * Allowed mime types and the size cap are passed in rather than read here,
-   * because they live in SettingsService and this class stays synchronous.
+   * Allowed mime types and the size cap come from upload config and are passed
+   * in, so this class stays synchronous and config-free.
    */
   assertAccepts(
     kind: AssetKind,

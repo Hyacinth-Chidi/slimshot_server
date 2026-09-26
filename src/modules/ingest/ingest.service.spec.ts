@@ -75,10 +75,9 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
     ),
   };
 
-  const settingsValues: Record<string, unknown> = {
-    'upload.audio.mimeTypes': ['audio/mpeg', 'audio/wav'],
-    'upload.audio.maxBytes': 52_428_800,
-    'upload.ticketTtlSeconds': 900,
+  const upload = {
+    ticketTtlSeconds: 900,
+    limits: { audio: { maxBytes: 52_428_800, mimeTypes: ['audio/mpeg', 'audio/wav'] } },
   };
 
   const queue = { enqueueAssetProcessing: jest.fn(async () => 'job-1') };
@@ -87,7 +86,7 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
     prisma as never,
     new KindRegistry([AUDIO_DESCRIPTOR]),
     { getDefault: jest.fn(async () => adapter), get: jest.fn(async () => adapter) } as never,
-    { get: jest.fn(async (k: string) => settingsValues[k]) } as never,
+    upload,
     queue as never,
     { record: jest.fn(async () => undefined) } as never,
   );
@@ -102,6 +101,19 @@ describe('IngestService.createTicket', () => {
     mimeType: 'audio/mpeg',
     byteSize: 812_340,
   };
+
+  it('refuses a kind with no configured upload limits', async () => {
+    const { svc } = build();
+    (svc as unknown as { upload: { limits: Record<string, unknown> } }).upload.limits = {};
+    await expect(svc.createTicket(DTO, 'admin-1')).rejects.toThrow(/not configured/i);
+  });
+
+  it('enforces the configured size limit', async () => {
+    const { svc } = build();
+    await expect(
+      svc.createTicket({ ...DTO, byteSize: 52_428_801 }, 'admin-1'),
+    ).rejects.toThrow(/exceeds the configured maximum/);
+  });
 
   it('creates a draft asset and an upload session', async () => {
     const { svc, prisma } = build();

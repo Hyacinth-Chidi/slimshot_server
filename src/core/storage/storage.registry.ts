@@ -1,19 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
+import { cloudinaryConfig, type CloudinaryEnvConfig } from '../../config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { EnvelopeCryptoService } from '../crypto/envelope-crypto.service';
 import { CloudinaryAdapter } from './adapters/cloudinary.adapter';
-import {
-  CloudinaryConfig,
-  StorageProviderAdapter,
-} from './storage-adapter.interface';
+import { StorageProviderAdapter } from './storage-adapter.interface';
 
+/** Provider rows are identity only (what asset files point at); credentials come from env. */
 interface ProviderRow {
   id: string;
   kind: string;
-  configCipher: Uint8Array;
-  keyVersion: number;
 }
+
+const IDENTITY = { id: true, kind: true } as const;
 
 @Injectable()
 export class StorageRegistry {
@@ -22,7 +20,7 @@ export class StorageRegistry {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly crypto: EnvelopeCryptoService,
+    @Inject(cloudinaryConfig.KEY) private readonly cloudinary: CloudinaryEnvConfig,
   ) {}
 
   async getDefault(): Promise<StorageProviderAdapter> {
@@ -33,12 +31,11 @@ export class StorageRegistry {
 
     const row = (await this.prisma.storageProvider.findFirst({
       where: { isDefault: true, isActive: true },
+      select: IDENTITY,
     })) as ProviderRow | null;
 
     if (!row) {
-      throw new Error(
-        'No default storage provider is configured. Create one via the admin API.',
-      );
+      throw new Error('No default storage provider is configured. Run `npx prisma db seed`.');
     }
 
     const adapter = this.build(row);
@@ -53,6 +50,7 @@ export class StorageRegistry {
 
     const row = (await this.prisma.storageProvider.findUnique({
       where: { id },
+      select: IDENTITY,
     })) as ProviderRow | null;
 
     if (!row) throw new Error(`Storage provider not found: ${id}`);
@@ -62,7 +60,7 @@ export class StorageRegistry {
     return adapter;
   }
 
-  /** Drop cached clients after an admin edits provider config. */
+  /** Drop cached clients (used by tests; config only changes on restart). */
   invalidate(id?: string): void {
     if (id) {
       this.adapters.delete(id);
@@ -74,14 +72,9 @@ export class StorageRegistry {
   }
 
   private build(row: ProviderRow): StorageProviderAdapter {
-    const json = this.crypto.decrypt({
-      cipher: Buffer.from(row.configCipher),
-      keyVersion: row.keyVersion,
-    });
-
     switch (row.kind) {
       case 'cloudinary':
-        return new CloudinaryAdapter(row.id, JSON.parse(json) as CloudinaryConfig);
+        return new CloudinaryAdapter(row.id, this.cloudinary);
       default:
         throw new Error(`Unsupported storage kind: ${row.kind}`);
     }
