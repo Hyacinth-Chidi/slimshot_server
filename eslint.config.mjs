@@ -25,8 +25,6 @@ export default tseslint.config(
     files: [
       // The one place configuration is parsed and validated.
       'src/config/**',
-      'src/prisma/prisma.service.ts',
-      'src/main.ts',
       'prisma.config.ts',
       'test/**',
       '**/*.spec.ts',

@@ -1,7 +1,7 @@
 import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import { Redis } from 'ioredis';
 
-import { SettingsService } from '../settings/settings.service';
+import { redisConfig, type RedisConfig } from '../../config';
 import { CacheService, REDIS } from './cache.service';
 
 @Global()
@@ -9,11 +9,9 @@ import { CacheService, REDIS } from './cache.service';
   providers: [
     {
       provide: REDIS,
-      inject: [SettingsService],
-      useFactory: async (settings: SettingsService): Promise<Redis> => {
-        const url = await settings.get<string>('redis.url');
-        return new Redis(url, { maxRetriesPerRequest: null });
-      },
+      inject: [redisConfig.KEY],
+      useFactory: (redis: RedisConfig): Redis =>
+        new Redis(redis.url, { maxRetriesPerRequest: null }),
     },
     CacheService,
   ],

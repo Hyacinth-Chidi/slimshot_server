@@ -1,7 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Global, Module } from '@nestjs/common';
 
-import { SettingsService } from '../settings/settings.service';
+import { redisConfig, type RedisConfig } from '../../config';
 import { QUEUE_ASSET_PROCESSING } from './queue.constants';
 import { QueueService } from './queue.service';
 
@@ -9,10 +9,8 @@ import { QueueService } from './queue.service';
 @Module({
   imports: [
     BullModule.forRootAsync({
-      inject: [SettingsService],
-      useFactory: async (settings: SettingsService) => ({
-        connection: { url: await settings.get<string>('redis.url') },
-      }),
+      inject: [redisConfig.KEY],
+      useFactory: (redis: RedisConfig) => ({ connection: { url: redis.url } }),
     }),
     BullModule.registerQueue({ name: QUEUE_ASSET_PROCESSING }),
   ],
