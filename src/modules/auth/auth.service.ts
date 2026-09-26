@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit, UnauthorizedException } from '@nestjs/common';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 
 import { AdminRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -113,22 +113,11 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Runs once at boot. Generates the JWT signing secret if absent, and creates
-   * the first owner from env if no admin exists. Self-disabling.
+   * Runs once at boot. Creates the first owner from env if no admin exists.
+   * Self-disabling. The JWT signing secret is not generated here: it comes from
+   * JWT_ACCESS_SECRET in the environment (see jwt-config.ts).
    */
   async bootstrap(): Promise<void> {
-    // Must NOT use get() here: it throws for an unset minLength setting, so the
-    // read meant to detect "no secret yet" could not survive a fresh database.
-    const hasSecret = await this.settings.isConfigured('auth.jwtAccessSecret');
-    if (!hasSecret) {
-      await this.settings.set(
-        'auth.jwtAccessSecret',
-        randomBytes(48).toString('base64url'),
-        'system',
-      );
-      this.logger.log('Generated auth.jwtAccessSecret on first boot.');
-    }
-
     const adminCount = await this.prisma.adminUser.count({
       where: { deletedAt: null },
     });

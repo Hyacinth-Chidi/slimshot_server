@@ -54,9 +54,8 @@ export class SettingsService {
    *
    * Exists because `get` THROWS for a setting that declares a `minLength` and is
    * unset — which is correct for callers about to use the value, but makes it
-   * impossible to ask "does this exist yet?". Bootstrap needs exactly that
-   * question: it generates `auth.jwtAccessSecret` when absent, and using `get`
-   * to detect absence meant the check could not survive the case it detects.
+   * impossible to ask "does this exist yet?" — using `get` to detect absence
+   * could not survive the case it detects.
    */
   async isConfigured(key: string): Promise<boolean> {
     try {
@@ -153,8 +152,8 @@ export class SettingsService {
     return Promise.all(
       defs.map(async (def) => {
         // get() THROWS for a setting that declares a minLength and is unset
-        // or too short (e.g. auth.jwtAccessSecret before bootstrap generates
-        // it, or redis.url if never configured). Without this guard, one
+        // or too short (e.g. a newly added credential nobody has entered
+        // yet). Without this guard, one
         // unconfigured field would 500 the entire group — exactly the page an
         // operator needs in order to set it. Only that specific, typed
         // failure is tolerated here (not a bare isConfigured()-style catch-all)

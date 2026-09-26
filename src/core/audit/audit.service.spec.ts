@@ -30,7 +30,7 @@ describe('AuditService', () => {
       actorType: 'admin',
       action: 'settings.update',
       entityType: 'SystemSetting',
-      after: { key: 'auth.jwtAccessSecret', apiSecret: 'hunter2', password: 'p' },
+      after: { key: 'redis.url', apiSecret: 'hunter2', password: 'p' },
     });
 
     const written = prisma.auditLog.create.mock.calls[0][0].data as {

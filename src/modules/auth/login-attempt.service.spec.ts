@@ -72,7 +72,7 @@ describe('LoginAttemptService', () => {
     const { svc, audit } = build();
     await svc.recordFailure(
       'a@example.com',
-      { action: 'settings.reveal.failed', entityType: 'SystemSetting', entityId: 'auth.jwtAccessSecret' },
+      { action: 'settings.reveal.failed', entityType: 'SystemSetting', entityId: 'redis.url' },
       CTX,
     );
 
@@ -80,7 +80,7 @@ describe('LoginAttemptService', () => {
       expect.objectContaining({
         action: 'settings.reveal.failed',
         entityType: 'SystemSetting',
-        entityId: 'auth.jwtAccessSecret',
+        entityId: 'redis.url',
         after: { email: 'a@example.com' },
         ip: CTX.ip,
         userAgent: CTX.userAgent,

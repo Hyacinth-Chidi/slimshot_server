@@ -9,14 +9,11 @@ const ADMIN = {
   role: 'admin' as const,
 };
 
-function settingsMock() {
-  const values: Record<string, unknown> = {
-    'auth.accessTokenTtlSeconds': 900,
-    'auth.refreshTokenTtlSeconds': 604_800,
-    'auth.jwtAccessSecret': 'test-signing-secret-that-is-long-enough',
-  };
-  return { get: jest.fn(async (k: string) => values[k]) };
-}
+const CONFIG = {
+  accessSecret: 'test-signing-secret-that-is-long-enough',
+  accessTtlSeconds: 900,
+  refreshTtlSeconds: 604_800,
+};
 
 function prismaMock() {
   const rows: Array<Record<string, unknown>> = [];
@@ -53,15 +50,9 @@ function prismaMock() {
 
 function build() {
   const prisma = prismaMock();
-  const settings = settingsMock();
   const elevation = { revokeForAdmin: jest.fn(async () => undefined) };
-  const svc = new TokenService(
-    prisma as never,
-    settings as never,
-    new JwtService({}),
-    elevation as never,
-  );
-  return { svc, prisma, settings, elevation };
+  const svc = new TokenService(prisma as never, CONFIG, new JwtService({}), elevation as never);
+  return { svc, prisma, elevation };
 }
 
 const CTX = { ip: '1.2.3.4', userAgent: 'jest' };

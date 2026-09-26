@@ -29,33 +29,8 @@ export const SETTING_DEFINITIONS: readonly SettingDefinition[] = [
     max: 86_400,
     description: 'How long a signed upload ticket stays valid.',
   }),
-  defineSetting({
-    key: 'auth.accessTokenTtlSeconds',
-    group: 'auth',
-    type: 'int',
-    default: 900,
-    secret: false,
-    min: 60,
-    max: 3_600,
-  }),
-  defineSetting({
-    key: 'auth.refreshTokenTtlSeconds',
-    group: 'auth',
-    type: 'int',
-    default: 604_800,
-    secret: false,
-    min: 3_600,
-    max: 7_776_000,
-  }),
-  defineSetting({
-    key: 'auth.jwtAccessSecret',
-    group: 'auth',
-    type: 'string',
-    default: '',
-    secret: true,
-    minLength: 32,
-    description: 'Signing secret for access tokens. Generated on first boot.',
-  }),
+  // JWT signing secret and token lifetimes are deliberately NOT settings: they
+  // are deployment config read from JWT_* env vars (modules/auth/jwt-config.ts).
   defineSetting({
     key: 'auth.loginMaxAttempts',
     group: 'auth',

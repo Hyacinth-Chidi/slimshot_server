@@ -8,6 +8,25 @@ import {
 import { PasswordService } from '../auth/password.service';
 import { SettingsAdminService } from './settings-admin.service';
 
+// A test-only secret with a minLength: the real registry has none since the
+// JWT secret moved to the environment, but reveal/update must still handle one.
+jest.mock('../../core/settings/setting-definitions', () => {
+  const actual = jest.requireActual('../../core/settings/setting-definitions');
+  const { defineSetting } = jest.requireActual('../../core/settings/setting-registry');
+  const fixture = defineSetting({
+    key: 'test.signingSecret',
+    group: 'auth',
+    type: 'string',
+    default: '',
+    secret: true,
+    minLength: 32,
+  });
+  return {
+    SETTING_DEFINITIONS: [...actual.SETTING_DEFINITIONS, fixture],
+    SETTINGS: new Map([...actual.SETTINGS, [fixture.key, fixture]]),
+  };
+});
+
 const CTX = { ip: '1.2.3.4', userAgent: 'test' };
 const passwords = new PasswordService();
 
@@ -77,7 +96,7 @@ async function build(
 describe('SettingsAdminService.reveal', () => {
   it('returns the value and a grant for a correct password', async () => {
     const { svc } = await build();
-    const out = await svc.reveal('auth.jwtAccessSecret', 'admin-1', 'correct-password', CTX);
+    const out = await svc.reveal('test.signingSecret', 'admin-1', 'correct-password', CTX);
 
     expect(out.value).toBe('the-real-secret-value-1234567890');
     expect(out.grant).toBe('grant-abc');
@@ -87,14 +106,14 @@ describe('SettingsAdminService.reveal', () => {
   it('refuses a wrong password', async () => {
     const { svc } = await build();
     await expect(
-      svc.reveal('auth.jwtAccessSecret', 'admin-1', 'wrong-password', CTX),
+      svc.reveal('test.signingSecret', 'admin-1', 'wrong-password', CTX),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('never calls revealSecret when the password is wrong', async () => {
     const { svc, settings } = await build();
     await svc
-      .reveal('auth.jwtAccessSecret', 'admin-1', 'wrong-password', CTX)
+      .reveal('test.signingSecret', 'admin-1', 'wrong-password', CTX)
       .catch(() => undefined);
 
     expect(settings.revealSecret).not.toHaveBeenCalled();
@@ -103,7 +122,7 @@ describe('SettingsAdminService.reveal', () => {
   it('refuses when the account is locked out, before checking the password', async () => {
     const { svc, settings, attempts } = await build({ attempts: 5 });
     await expect(
-      svc.reveal('auth.jwtAccessSecret', 'admin-1', 'correct-password', CTX),
+      svc.reveal('test.signingSecret', 'admin-1', 'correct-password', CTX),
     ).rejects.toThrow(/too many/i);
     expect(settings.revealSecret).not.toHaveBeenCalled();
     expect(attempts.assertNotLockedOut).toHaveBeenCalledWith('owner@example.com');
@@ -112,7 +131,7 @@ describe('SettingsAdminService.reveal', () => {
   it('counts a failed reveal against the same lockout as login', async () => {
     const { svc, attempts } = await build();
     await svc
-      .reveal('auth.jwtAccessSecret', 'admin-1', 'wrong-password', CTX)
+      .reveal('test.signingSecret', 'admin-1', 'wrong-password', CTX)
       .catch(() => undefined);
 
     // Without this, /reveal is an unthrottled password oracle against a known
@@ -126,9 +145,9 @@ describe('SettingsAdminService.reveal', () => {
 
   it('audits both success and failure, never recording the value', async () => {
     const { svc, audit } = await build();
-    await svc.reveal('auth.jwtAccessSecret', 'admin-1', 'correct-password', CTX);
+    await svc.reveal('test.signingSecret', 'admin-1', 'correct-password', CTX);
     await svc
-      .reveal('auth.jwtAccessSecret', 'admin-1', 'wrong-password', CTX)
+      .reveal('test.signingSecret', 'admin-1', 'wrong-password', CTX)
       .catch(() => undefined);
 
     const actions = audit.record.mock.calls.map(
@@ -168,12 +187,12 @@ describe('SettingsAdminService.reveal', () => {
 
   it('still reveals a known key normally: one succeeded row, a grant, no regression', async () => {
     const { svc, settings, audit } = await build();
-    const out = await svc.reveal('auth.jwtAccessSecret', 'admin-1', 'correct-password', CTX);
+    const out = await svc.reveal('test.signingSecret', 'admin-1', 'correct-password', CTX);
 
     expect(out.value).toBe('the-real-secret-value-1234567890');
     expect(out.grant).toBe('grant-abc');
     expect(out.expiresIn).toBe(120);
-    expect(settings.revealSecret).toHaveBeenCalledWith('auth.jwtAccessSecret');
+    expect(settings.revealSecret).toHaveBeenCalledWith('test.signingSecret');
 
     const actions = audit.record.mock.calls.map(
       (c) => (c[0] as { action: string }).action,
@@ -186,7 +205,7 @@ describe('SettingsAdminService.update', () => {
   it('accepts a valid grant without a password', async () => {
     const { svc, settings } = await build();
     await svc.update(
-      'auth.jwtAccessSecret',
+      'test.signingSecret',
       'new-value-12345678901234567890123',
       'admin-1',
       { grant: 'grant-abc' },
@@ -198,7 +217,7 @@ describe('SettingsAdminService.update', () => {
   it('refuses when neither a password nor a grant is supplied for a secret', async () => {
     const { svc } = await build();
     await expect(
-      svc.update('auth.jwtAccessSecret', 'x'.repeat(40), 'admin-1', {}, CTX),
+      svc.update('test.signingSecret', 'x'.repeat(40), 'admin-1', {}, CTX),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -207,7 +226,7 @@ describe('SettingsAdminService.update', () => {
     (elevation.consume as jest.Mock).mockResolvedValue(false);
 
     await expect(
-      svc.update('auth.jwtAccessSecret', 'x'.repeat(40), 'admin-1', { grant: 'stale' }, CTX),
+      svc.update('test.signingSecret', 'x'.repeat(40), 'admin-1', { grant: 'stale' }, CTX),
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
@@ -239,7 +258,7 @@ describe('SettingsAdminService.update', () => {
 
     await expect(
       svc.update(
-        'auth.jwtAccessSecret',
+        'test.signingSecret',
         'x'.repeat(40),
         'admin-1',
         { grant: 'grant-abc' },
@@ -255,7 +274,7 @@ describe('SettingsAdminService.update', () => {
     (elevation.consume as jest.Mock).mockResolvedValue(true);
 
     await svc
-      .update('auth.jwtAccessSecret', 'x'.repeat(40), 'admin-1', { grant: 'grant-abc' }, CTX)
+      .update('test.signingSecret', 'x'.repeat(40), 'admin-1', { grant: 'grant-abc' }, CTX)
       .catch(() => undefined);
 
     // Standing is checked BEFORE the grant is spent: a rejected attempt must
@@ -269,7 +288,7 @@ describe('SettingsAdminService.update', () => {
 
     await expect(
       svc.update(
-        'auth.jwtAccessSecret',
+        'test.signingSecret',
         'x'.repeat(40),
         'admin-1',
         { grant: 'grant-abc' },
@@ -292,7 +311,7 @@ describe('SettingsAdminService.update value validation', () => {
     const { svc, elevation, settings } = await build();
 
     await expect(
-      svc.update('auth.jwtAccessSecret', 'too-short', 'admin-1', { grant: 'grant-abc' }, CTX),
+      svc.update('test.signingSecret', 'too-short', 'admin-1', { grant: 'grant-abc' }, CTX),
     ).rejects.toBeInstanceOf(UnprocessableEntityException);
 
     expect(elevation.consume).not.toHaveBeenCalled();
@@ -305,7 +324,7 @@ describe('SettingsAdminService.update value validation', () => {
     // validateSetting threw a bare Error, which Nest renders as a 500 - an
     // ordinary input mistake presented as a server fault.
     await expect(
-      svc.update('auth.jwtAccessSecret', 'too-short', 'admin-1', { grant: 'grant-abc' }, CTX),
+      svc.update('test.signingSecret', 'too-short', 'admin-1', { grant: 'grant-abc' }, CTX),
     ).rejects.toThrow(/at least 32 characters/);
   });
 
@@ -322,7 +341,7 @@ describe('SettingsAdminService.update value validation', () => {
     const { svc, elevation, settings } = await build();
 
     await svc.update(
-      'auth.jwtAccessSecret',
+      'test.signingSecret',
       'x'.repeat(40),
       'admin-1',
       { grant: 'grant-abc' },

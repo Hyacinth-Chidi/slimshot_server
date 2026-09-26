@@ -29,7 +29,6 @@ function build(opts: { admin?: Record<string, unknown> | null; attempts?: number
     'auth.loginMaxAttempts': 5,
     'auth.loginLockoutSeconds': 900,
     'auth.bootstrapCompleted': false,
-    'auth.jwtAccessSecret': 'seeded-secret-value-long-enough',
   };
 
   const settings = {
@@ -224,30 +223,14 @@ describe('AuthService.bootstrap', () => {
     delete process.env.ADMIN_BOOTSTRAP_PASSWORD;
   });
 
-  it('generates a jwt signing secret on first boot when none is set', async () => {
+  it('never writes a jwt signing secret into settings', async () => {
+    // The secret is JWT_ACCESS_SECRET in the environment. A bootstrap that
+    // still generated one would silently put a second, unused copy in the DB.
     const { svc, settings } = build({ admin: null });
-    // A fresh database: the secret is absent. The real SettingsService THROWS
-    // from `get` here rather than returning '', so bootstrap must detect absence
-    // via isConfigured. Modelling it as `get -> ''` is what hid a boot failure.
-    (settings.isConfigured as jest.Mock).mockImplementation(async (k: string) =>
-      k === 'auth.jwtAccessSecret' ? false : true,
-    );
-    (settings.get as jest.Mock).mockImplementation(async (k: string) => {
-      if (k === 'auth.jwtAccessSecret') {
-        throw new Error(
-          'auth.jwtAccessSecret is unset or too short (needs >= 32 characters).',
-        );
-      }
-      return false;
-    });
-
     await svc.bootstrap();
 
-    const call = settings.set.mock.calls.find(
-      ([k]: [string, unknown]) => k === 'auth.jwtAccessSecret',
-    );
-    expect(call).toBeDefined();
-    expect(String(call![1]).length).toBeGreaterThanOrEqual(32);
+    const keys = settings.set.mock.calls.map(([k]: [string, unknown]) => k);
+    expect(keys.some((k: string) => k.toLowerCase().includes('jwt'))).toBe(false);
   });
 
   it('does nothing when an admin already exists', async () => {

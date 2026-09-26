@@ -13,7 +13,13 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   const settings = app.get(SettingsService);
-  const origins = await settings.get<string[]>('cors.allowedOrigins');
+  const adminOrigin = process.env.ADMIN_BASE_URL?.trim().replace(/\/+$/, '');
+  const origins = [
+    ...new Set([
+      ...(await settings.get<string[]>('cors.allowedOrigins')),
+      ...(adminOrigin ? [adminOrigin] : []),
+    ]),
+  ];
   app.enableCors(origins.length > 0 ? { origin: origins, credentials: true } : {});
 
   app.useGlobalPipes(

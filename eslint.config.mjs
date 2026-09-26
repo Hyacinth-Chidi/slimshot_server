@@ -17,7 +17,7 @@ export default tseslint.config(
           object: 'process',
           property: 'env',
           message:
-            'Only DATABASE_URL, MASTER_ENCRYPTION_KEY, PORT and NODE_ENV may come from env. Everything else reads from SettingsService.',
+            'Only DATABASE_URL, MASTER_ENCRYPTION_KEY, JWT_*, PORT and NODE_ENV may come from env. Everything else reads from SettingsService.',
         },
       ],
     },
@@ -30,6 +30,8 @@ export default tseslint.config(
       'test/**',
       '**/*.spec.ts',
       'src/core/crypto/crypto.module.ts',
+      // JWT secret and token lifetimes are deployment config, read once at boot.
+      'src/modules/auth/jwt-config.ts',
       'src/modules/auth/auth.service.ts',
       'prisma/seed.ts',
       // Reads ONLY the env var a setting definition names in `envFallback`,

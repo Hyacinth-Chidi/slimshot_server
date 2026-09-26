@@ -1,11 +1,11 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import { AdminRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ElevationService } from '../../core/auth/elevation.service';
-import { SettingsService } from '../../core/settings/settings.service';
+import { JWT_CONFIG, JwtConfig } from './jwt-config';
 
 export interface TokenPair {
   accessToken: string;
@@ -34,7 +34,7 @@ interface AdminLike {
 export class TokenService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly settings: SettingsService,
+    @Inject(JWT_CONFIG) private readonly config: JwtConfig,
     private readonly jwt: JwtService,
     private readonly elevation: ElevationService,
   ) {}
@@ -44,13 +44,12 @@ export class TokenService {
     context: TokenContext,
     familyId: string = randomUUID(),
   ): Promise<TokenPair> {
-    const accessTtl = await this.settings.get<number>('auth.accessTokenTtlSeconds');
-    const refreshTtl = await this.settings.get<number>('auth.refreshTokenTtlSeconds');
-    const secret = await this.signingSecret();
+    const { accessSecret, accessTtlSeconds: accessTtl, refreshTtlSeconds: refreshTtl } =
+      this.config;
 
     const accessToken = await this.jwt.signAsync(
       { sub: admin.id, email: admin.email, role: admin.role },
-      { secret, expiresIn: accessTtl },
+      { secret: accessSecret, expiresIn: accessTtl },
     );
 
     const refreshToken = randomBytes(48).toString('base64url');
@@ -125,22 +124,11 @@ export class TokenService {
   async verifyAccessToken(token: string): Promise<AccessTokenClaims> {
     try {
       return await this.jwt.verifyAsync<AccessTokenClaims>(token, {
-        secret: await this.signingSecret(),
+        secret: this.config.accessSecret,
       });
     } catch {
       throw new UnauthorizedException('Invalid or expired access token.');
     }
-  }
-
-  private async signingSecret(): Promise<string> {
-    const secret = await this.settings.get<string>('auth.jwtAccessSecret');
-    if (!secret) {
-      throw new Error(
-        'auth.jwtAccessSecret is empty. It is generated on first boot by the ' +
-          'admin bootstrap; see Task 14.',
-      );
-    }
-    return secret;
   }
 }
 

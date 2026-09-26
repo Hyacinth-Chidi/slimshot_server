@@ -58,7 +58,7 @@ describe('setting registry', () => {
 
   it('rejects a string shorter than the declared minLength', () => {
     const secret = defineSetting({
-      key: 'auth.jwtAccessSecret',
+      key: 'test.signingSecret',
       group: 'auth',
       type: 'string',
       default: '',

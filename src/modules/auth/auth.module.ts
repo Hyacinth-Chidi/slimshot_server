@@ -6,6 +6,7 @@ import { JwtAuthGuard } from '../../core/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../core/auth/permissions.guard';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { JWT_CONFIG, loadJwtConfig } from './jwt-config';
 import { LoginAttemptService } from './login-attempt.service';
 import { PasswordService } from './password.service';
 import { TokenService } from './token.service';
@@ -14,6 +15,8 @@ import { TokenService } from './token.service';
   imports: [JwtModule.register({}), ElevationModule],
   controllers: [AuthController],
   providers: [
+    // Evaluated once at boot: an invalid JWT_* variable stops the server here.
+    { provide: JWT_CONFIG, useFactory: () => loadJwtConfig() },
     AuthService,
     PasswordService,
     TokenService,

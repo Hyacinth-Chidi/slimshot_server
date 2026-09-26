@@ -2,6 +2,26 @@ import { Prisma } from '../../generated/prisma/client';
 import { EnvelopeCryptoService } from '../crypto/envelope-crypto.service';
 import { SettingsService } from './settings.service';
 
+// The real registry has no secret with a minLength today (the JWT secret moved
+// to the environment). The service still supports one, so these tests add a
+// test-only definition rather than lose coverage of that behaviour.
+jest.mock('./setting-definitions', () => {
+  const actual = jest.requireActual('./setting-definitions');
+  const { defineSetting } = jest.requireActual('./setting-registry');
+  const fixture = defineSetting({
+    key: 'test.signingSecret',
+    group: 'auth',
+    type: 'string',
+    default: '',
+    secret: true,
+    minLength: 32,
+  });
+  return {
+    SETTING_DEFINITIONS: [...actual.SETTING_DEFINITIONS, fixture],
+    SETTINGS: new Map([...actual.SETTINGS, [fixture.key, fixture]]),
+  };
+});
+
 const KEY = 'b'.repeat(64);
 
 function prismaMock() {
@@ -81,12 +101,12 @@ describe('SettingsService', () => {
   it('encrypts a secret on write and decrypts it on read', async () => {
     const prisma = prismaMock();
     const svc = new SettingsService(prisma as never, crypto);
-    // auth.jwtAccessSecret now declares minLength: 32 (Finding 1, fix round 1) —
-    // this value must satisfy it or `set` will reject it before writing anything.
+    // test.signingSecret declares minLength: 32 — this value must satisfy it
+    // or `set` will reject it before writing anything.
     const strong = 'super-secret-value-that-is-long-enough';
-    await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
+    await svc.set('test.signingSecret', strong, 'admin-1');
 
-    const row = prisma.rows.get('auth.jwtAccessSecret')!;
+    const row = prisma.rows.get('test.signingSecret')!;
     // Prisma's typed client requires the Prisma.DbNull sentinel (not plain
     // `null`) to set a nullable Json column to a real SQL NULL — see
     // settings.service.ts's `sealed()`. It serializes to NULL at the database;
@@ -94,7 +114,7 @@ describe('SettingsService', () => {
     expect(row.valueJson).toBe(Prisma.DbNull);
     expect((row.valueCipher as Buffer).toString('utf8')).not.toContain(strong);
 
-    await expect(svc.get('auth.jwtAccessSecret')).resolves.toBe(strong);
+    await expect(svc.get('test.signingSecret')).resolves.toBe(strong);
   });
 
   it('rejects a value that fails the registry validator and writes nothing', async () => {
@@ -115,15 +135,15 @@ describe('SettingsService', () => {
 
   it('masks secrets when listing a group', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
-    // 35 chars, comfortably over auth.jwtAccessSecret's minLength: 32. The
+    // 35 chars, comfortably over test.signingSecret's minLength: 32. The
     // prefix is deliberately NOT shaped like any real provider's key format:
     // secret scanners match on the prefix alone and will block a push over a
     // fixture that was never a credential.
     const strong = 'tok_sample_abcdef123456789012345678';
-    await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
+    await svc.set('test.signingSecret', strong, 'admin-1');
 
     const listed = await svc.getMaskedGroup('auth');
-    const secret = listed.find((s) => s.key === 'auth.jwtAccessSecret')!;
+    const secret = listed.find((s) => s.key === 'test.signingSecret')!;
     // mask reveals at most a third, split prefix/suffix (fixed for a security
     // bug that used to leak more). 35 chars -> 'tok_sam' + bullets + '5678'.
     expect(secret.value).toBe('tok_sam••••5678');
@@ -132,13 +152,12 @@ describe('SettingsService', () => {
 
   it('marks an unconfigured minLength secret as configured: false instead of throwing', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
-    // auth.jwtAccessSecret defaults to '' and has minLength: 32, so get() would
-    // throw for it alone. Before bootstrap generates it (or for any future
-    // secret that gains a minLength), the whole group must still render so an
-    // operator can see the page and set the value.
+    // test.signingSecret defaults to '' and has minLength: 32, so get() would
+    // throw for it alone. Until someone sets it, the whole group must still
+    // render so an operator can see the page and set the value.
     const listed = await svc.getMaskedGroup('auth');
 
-    const unset = listed.find((s) => s.key === 'auth.jwtAccessSecret')!;
+    const unset = listed.find((s) => s.key === 'test.signingSecret')!;
     expect(unset.configured).toBe(false);
     expect(unset.value).toBeNull();
 
@@ -152,10 +171,10 @@ describe('SettingsService', () => {
   it('marks a configured secret as configured: true and still masks its value', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
     const strong = 'tok_sample_abcdef123456789012345678';
-    await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
+    await svc.set('test.signingSecret', strong, 'admin-1');
 
     const listed = await svc.getMaskedGroup('auth');
-    const secret = listed.find((s) => s.key === 'auth.jwtAccessSecret')!;
+    const secret = listed.find((s) => s.key === 'test.signingSecret')!;
     expect(secret.configured).toBe(true);
     expect(secret.value).toBe('tok_sam••••5678');
   });
@@ -182,7 +201,7 @@ describe('SettingsService', () => {
   it('never returns a raw secret from getMaskedGroup', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
     await svc.set(
-      'auth.jwtAccessSecret',
+      'test.signingSecret',
       'tok_sample_abcdef123456789012345678',
       'admin-1',
     );
@@ -207,7 +226,7 @@ describe('SettingsService', () => {
 
   it('refuses to return an unset secret that has a minLength', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
-    await expect(svc.get('auth.jwtAccessSecret')).rejects.toThrow(
+    await expect(svc.get('test.signingSecret')).rejects.toThrow(
       /unset or too short/,
     );
   });
@@ -215,8 +234,8 @@ describe('SettingsService', () => {
   it('returns the secret once it is long enough', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
     const strong = 'k'.repeat(48);
-    await svc.set('auth.jwtAccessSecret', strong, 'admin-1');
-    await expect(svc.get('auth.jwtAccessSecret')).resolves.toBe(strong);
+    await svc.set('test.signingSecret', strong, 'admin-1');
+    await expect(svc.get('test.signingSecret')).resolves.toBe(strong);
   });
 
   it('throws when a stored value does not match its declared type', async () => {
@@ -238,9 +257,9 @@ describe('SettingsService', () => {
   it('reveals the true value of a secret setting', async () => {
     const svc = new SettingsService(prismaMock() as never, crypto);
     const real = 'tok_sample_abcdef123456789012345678';
-    await svc.set('auth.jwtAccessSecret', real, 'admin-1');
+    await svc.set('test.signingSecret', real, 'admin-1');
 
-    await expect(svc.revealSecret('auth.jwtAccessSecret')).resolves.toBe(real);
+    await expect(svc.revealSecret('test.signingSecret')).resolves.toBe(real);
   });
 
   it('refuses to reveal a setting that is not marked secret', async () => {
