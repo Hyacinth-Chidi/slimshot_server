@@ -20,6 +20,7 @@ import { StorageModule } from './core/storage/storage.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { CaptionsModule } from './modules/captions/captions.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { IngestModule } from './modules/ingest/ingest.module';
 import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
@@ -54,6 +55,7 @@ import { PrismaModule } from './prisma/prisma.module';
     TaxonomyModule,
     AdminModule,
     DevicesModule,
+    CaptionsModule,
   ],
 })
 export class AppModule {}

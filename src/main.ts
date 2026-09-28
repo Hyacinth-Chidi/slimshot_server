@@ -1,11 +1,11 @@
 import 'reflect-metadata';
 
-import { Logger, ValidationPipe } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from './app.module';
+import { configureHttp } from './app.setup';
 import { appConfig, type AppConfig } from './config';
-import { AllExceptionsFilter } from './core/errors/http-exception.filter';
 
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
@@ -18,14 +18,7 @@ async function bootstrap(): Promise<void> {
     config.corsOrigins.length > 0 ? { origin: config.corsOrigins, credentials: true } : {},
   );
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-    }),
-  );
-  app.useGlobalFilters(new AllExceptionsFilter());
+  configureHttp(app);
 
   await app.listen(config.port);
 
