@@ -61,7 +61,9 @@ export const ModelName = {
   StorageProvider: 'StorageProvider',
   AuditLog: 'AuditLog',
   AdminUser: 'AdminUser',
-  RefreshToken: 'RefreshToken'
+  RefreshToken: 'RefreshToken',
+  ProviderCredential: 'ProviderCredential',
+  Device: 'Device'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -265,6 +267,33 @@ export const RefreshTokenScalarFieldEnum = {
 } as const
 
 export type RefreshTokenScalarFieldEnum = (typeof RefreshTokenScalarFieldEnum)[keyof typeof RefreshTokenScalarFieldEnum]
+
+
+export const ProviderCredentialScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  capability: 'capability',
+  apiKeyCipher: 'apiKeyCipher',
+  keyVersion: 'keyVersion',
+  isActive: 'isActive',
+  updatedById: 'updatedById',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProviderCredentialScalarFieldEnum = (typeof ProviderCredentialScalarFieldEnum)[keyof typeof ProviderCredentialScalarFieldEnum]
+
+
+export const DeviceScalarFieldEnum = {
+  id: 'id',
+  tokenHash: 'tokenHash',
+  platform: 'platform',
+  appVersion: 'appVersion',
+  createdAt: 'createdAt',
+  lastSeenAt: 'lastSeenAt'
+} as const
+
+export type DeviceScalarFieldEnum = (typeof DeviceScalarFieldEnum)[keyof typeof DeviceScalarFieldEnum]
 
 
 export const SortOrder = {

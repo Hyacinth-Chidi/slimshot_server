@@ -283,3 +283,39 @@ model RefreshToken {
   @@index([adminUserId, revokedAt])
   @@index([familyId])
 }
+
+enum ProviderKind {
+  deepgram
+  elevenlabs
+}
+
+enum ProviderCapability {
+  speech_to_text
+}
+
+/// An AI provider's API key, encrypted with MASTER_ENCRYPTION_KEY. At most one
+/// row per capability may be active; the migration adds a partial unique index
+/// for that, which the schema language cannot express.
+model ProviderCredential {
+  id           String             @id @default(cuid())
+  provider     ProviderKind
+  capability   ProviderCapability
+  apiKeyCipher Bytes
+  keyVersion   Int                @default(1)
+  isActive     Boolean            @default(false)
+  updatedById  String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([provider, capability])
+}
+
+/// An anonymous app install. The app holds the token; only its SHA-256 is kept.
+model Device {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  platform   String?
+  appVersion String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+}

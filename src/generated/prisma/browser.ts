@@ -73,3 +73,15 @@ export type AdminUser = Prisma.AdminUserModel
  * 
  */
 export type RefreshToken = Prisma.RefreshTokenModel
+/**
+ * Model ProviderCredential
+ * An AI provider's API key, encrypted with MASTER_ENCRYPTION_KEY. At most one
+ * row per capability may be active; the migration adds a partial unique index
+ * for that, which the schema language cannot express.
+ */
+export type ProviderCredential = Prisma.ProviderCredentialModel
+/**
+ * Model Device
+ * An anonymous app install. The app holds the token; only its SHA-256 is kept.
+ */
+export type Device = Prisma.DeviceModel

@@ -100,3 +100,18 @@ export const AdminRole = {
 } as const
 
 export type AdminRole = (typeof AdminRole)[keyof typeof AdminRole]
+
+
+export const ProviderKind = {
+  deepgram: 'deepgram',
+  elevenlabs: 'elevenlabs'
+} as const
+
+export type ProviderKind = (typeof ProviderKind)[keyof typeof ProviderKind]
+
+
+export const ProviderCapability = {
+  speech_to_text: 'speech_to_text'
+} as const
+
+export type ProviderCapability = (typeof ProviderCapability)[keyof typeof ProviderCapability]
