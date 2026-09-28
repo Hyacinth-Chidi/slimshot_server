@@ -12,6 +12,7 @@ export const PERMISSIONS = [
   'taxonomy.write',
   'storage.manage',
   'admin.manage',
+  'providers.manage',
   'audit.read',
   'jobs.read',
 ] as const;
@@ -39,6 +40,7 @@ const OWNER: readonly Permission[] = [
   ...ADMIN,
   'storage.manage',
   'admin.manage',
+  'providers.manage',
 ];
 
 export const ROLE_PERMISSIONS: Record<AdminRole, readonly Permission[]> = {

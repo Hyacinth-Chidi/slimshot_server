@@ -34,6 +34,13 @@ describe('permissions', () => {
     expect(roleHas(AdminRole.viewer, 'asset.publish')).toBe(false);
   });
 
+  it('only owner may manage AI provider keys', () => {
+    expect(roleHas(AdminRole.owner, 'providers.manage')).toBe(true);
+    expect(roleHas(AdminRole.admin, 'providers.manage')).toBe(false);
+    expect(roleHas(AdminRole.editor, 'providers.manage')).toBe(false);
+    expect(roleHas(AdminRole.viewer, 'providers.manage')).toBe(false);
+  });
+
   it('only owner may manage other admins', () => {
     expect(roleHas(AdminRole.owner, 'admin.manage')).toBe(true);
     expect(roleHas(AdminRole.admin, 'admin.manage')).toBe(false);

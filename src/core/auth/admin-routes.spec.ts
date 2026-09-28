@@ -7,6 +7,7 @@ import { AdminAuditController } from '../../modules/admin/admin-audit.controller
 import { AdminCategoriesController } from '../../modules/admin/admin-categories.controller';
 import { AdminJobsController } from '../../modules/admin/admin-jobs.controller';
 import { AdminKindsController } from '../../modules/admin/admin-kinds.controller';
+import { AdminProvidersController } from '../../modules/admin/admin-providers.controller';
 import { AdminStatsController } from '../../modules/admin/admin-stats.controller';
 
 /**
@@ -27,6 +28,7 @@ const ADMIN_CONTROLLERS: Array<new (...args: never[]) => object> = [
   AdminStatsController,
   AdminAuditController,
   AdminJobsController,
+  AdminProvidersController,
 ];
 
 describe('admin route guarding', () => {
