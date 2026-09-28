@@ -6,11 +6,18 @@ import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nest
 import type { Queue } from 'bullmq';
 
 import { captionConfig, type CaptionConfig } from '../../config';
-import { type CaptionJobData, QUEUE_CAPTIONS } from './captions.constants';
+import { CAPTION_JOB_ID, type CaptionJobData, QUEUE_CAPTIONS } from './captions.constants';
 
 const SWEEP_INTERVAL_MS = 60_000;
 const AUDIO_SUFFIX = '.audio';
 const FINISHED_STATES = new Set(['completed', 'failed', 'unknown']);
+
+/** Only files CaptionsService wrote: `<jobId>.audio`. Anything else in the directory is not ours. */
+function jobIdOf(name: string): string | null {
+  if (!name.endsWith(AUDIO_SUFFIX)) return null;
+  const jobId = name.slice(0, -AUDIO_SUFFIX.length);
+  return CAPTION_JOB_ID.test(jobId) ? jobId : null;
+}
 
 /**
  * The backstop behind the worker's own cleanup. On boot and every minute it
@@ -31,7 +38,9 @@ export class CaptionSweeper implements OnModuleInit, OnModuleDestroy {
   async onModuleInit(): Promise<void> {
     // Failing here (bad path, no permission) should stop the boot: uploads would fail anyway.
     await mkdir(this.cfg.tmpDir, { recursive: true, mode: 0o700 });
-    await this.sweep();
+    // Not awaited: BullMQ calls wait for Redis indefinitely, and a Redis outage
+    // must not stop the whole API from starting.
+    void this.sweep();
     this.timer = setInterval(() => void this.sweep(), SWEEP_INTERVAL_MS);
     this.timer.unref();
   }
@@ -61,15 +70,16 @@ export class CaptionSweeper implements OnModuleInit, OnModuleDestroy {
     }
 
     for (const name of names) {
+      const jobId = jobIdOf(name);
+      if (!jobId) continue;
+
       const path = join(this.cfg.tmpDir, name);
       const info = await stat(path).catch(() => null);
       if (!info?.isFile() || now - info.mtimeMs <= maxAgeMs) continue;
 
       // Old is not enough: a job still waiting behind a long queue needs its audio.
-      if (name.endsWith(AUDIO_SUFFIX)) {
-        const job = await this.queue.getJob(name.slice(0, -AUDIO_SUFFIX.length));
-        if (job && !FINISHED_STATES.has(await job.getState())) continue;
-      }
+      const job = await this.queue.getJob(jobId);
+      if (job && !FINISHED_STATES.has(await job.getState())) continue;
 
       await rm(path, { force: true });
     }

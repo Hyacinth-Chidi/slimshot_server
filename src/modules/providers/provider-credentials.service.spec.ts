@@ -124,6 +124,19 @@ describe('ProviderCredentialsService.setKey', () => {
     expect(rows).toHaveLength(0);
   });
 
+  it('rejects a key with whitespace inside it', async () => {
+    // A pasted key split across lines would fail as an HTTP header, and the
+    // header error would carry the key into the server log.
+    const { svc, rows } = build();
+    await expect(svc.setKey(ProviderKind.deepgram, STT, 'dg-secret\nkey-123', 'admin-1')).rejects.toBeInstanceOf(
+      UnprocessableEntityException,
+    );
+    await expect(svc.setKey(ProviderKind.deepgram, STT, 'dg-secret key-123', 'admin-1')).rejects.toBeInstanceOf(
+      UnprocessableEntityException,
+    );
+    expect(rows).toHaveLength(0);
+  });
+
   it('replaces an existing key and keeps the provider active', async () => {
     const { svc, rows, crypto } = build([{ provider: ProviderKind.deepgram, key: 'dg-old-key-123', isActive: true }]);
     await svc.setKey(ProviderKind.deepgram, STT, 'dg-new-key-456', 'admin-1');

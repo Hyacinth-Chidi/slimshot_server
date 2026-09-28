@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { Logger } from '@nestjs/common';
 import { UnrecoverableError } from 'bullmq';
 
 import { ProviderKind } from '../../generated/prisma/enums';
@@ -78,6 +79,22 @@ describe('CaptionWorker.process', () => {
     const error = await worker.process(job(1)).catch((e: unknown) => e);
     expect((error as Error).message).toBe('PROVIDER_FAILED: The caption provider could not be reached.');
     expect(existsSync(filePath)).toBe(false);
+    cleanup();
+  });
+
+  it('never writes the key to the log, even when an error message carries it', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const transcribe = jest.fn(async () => {
+      throw new TypeError('Headers.append: "Token dg-key-123" is an invalid header value.');
+    });
+    const { worker, job, cleanup } = build(transcribe);
+
+    await worker.process(job(1)).catch(() => undefined);
+
+    const logged = warn.mock.calls.map((args) => String(args[0])).join('\n');
+    expect(logged).toContain('[redacted]');
+    expect(logged).not.toContain('dg-key-123');
+    warn.mockRestore();
     cleanup();
   });
 

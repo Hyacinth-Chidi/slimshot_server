@@ -8,7 +8,7 @@ import { captionConfig, type CaptionConfig } from '../../config';
 import { ErrorCode } from '../../core/errors/error-codes';
 import { ProviderCapability } from '../../generated/prisma/enums';
 import { ProviderCredentialsService } from '../providers/provider-credentials.service';
-import { ProviderError } from '../providers/provider-error';
+import { ProviderError, scrub } from '../providers/provider-error';
 import type { CaptionResult } from '../providers/speech-to-text.provider';
 import { type CaptionJobData, encodeFailure, QUEUE_CAPTIONS } from './captions.constants';
 
@@ -33,11 +33,14 @@ export class CaptionWorker extends WorkerHost implements OnApplicationBootstrap 
     // The audio goes the moment it cannot be needed again: after an answer,
     // after a failure no retry can fix, or after the last attempt.
     let audioDone = false;
+    // Kept outside the try so the catch can scrub it from anything it logs.
+    let apiKey = '';
 
     try {
       // Resolved per job, not per upload: a provider switched or turned off
       // while the job waited applies to it.
       const active = await this.credentials.getActive(ProviderCapability.speech_to_text);
+      apiKey = active?.apiKey ?? '';
       if (!active) {
         audioDone = true;
         throw new UnrecoverableError(
@@ -63,9 +66,9 @@ export class CaptionWorker extends WorkerHost implements OnApplicationBootstrap 
 
       const attempt = job.attemptsMade + 1;
       audioDone = attempt >= (job.opts.attempts ?? 1);
-      this.logger.warn(
-        `Caption job ${job.id} attempt ${attempt} failed: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      // Network and header errors from fetch can quote request details, key included.
+      const reason = scrub(err instanceof Error ? err.message : String(err), apiKey);
+      this.logger.warn(`Caption job ${job.id} attempt ${attempt} failed: ${reason}`);
       throw new Error(
         encodeFailure(
           ErrorCode.PROVIDER_FAILED,

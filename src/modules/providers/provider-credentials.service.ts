@@ -75,6 +75,11 @@ export class ProviderCredentialsService {
         `apiKey must be ${MIN_KEY_LENGTH}–${MAX_KEY_LENGTH} characters.`,
       );
     }
+    // Provider keys never contain whitespace; one that does is a paste mistake,
+    // and would fail as an HTTP header with the key quoted in the error.
+    if (/\s/.test(key)) {
+      throw new UnprocessableEntityException('apiKey must not contain spaces or line breaks.');
+    }
 
     const sealed = this.crypto.encrypt(key);
     const row = await this.prisma.providerCredential.upsert({
