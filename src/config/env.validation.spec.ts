@@ -1,5 +1,10 @@
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { appConfig } from './app.config';
 import { authConfig } from './auth.config';
+import { captionConfig } from './caption.config';
+import { cryptoConfig } from './crypto.config';
 import { parseEnv } from './env.validation';
 import { uploadConfig } from './upload.config';
 
@@ -10,6 +15,7 @@ const BASE = {
   CLOUDINARY_CLOUD_NAME: 'demo',
   CLOUDINARY_API_KEY: 'key',
   CLOUDINARY_API_SECRET: 'secret',
+  MASTER_ENCRYPTION_KEY: 'ab'.repeat(32),
 };
 
 describe('parseEnv', () => {
@@ -76,6 +82,7 @@ describe('parseEnv', () => {
     'CLOUDINARY_CLOUD_NAME',
     'CLOUDINARY_API_KEY',
     'CLOUDINARY_API_SECRET',
+    'MASTER_ENCRYPTION_KEY',
   ])('rejects a missing or empty %s', (name) => {
     const without: Record<string, unknown> = { ...BASE };
     delete without[name];
@@ -93,6 +100,14 @@ describe('parseEnv', () => {
     ['UPLOAD_AUDIO_MAX_BYTES', '0'],
     ['UPLOAD_TICKET_TTL_SECONDS', '59'],
     ['PORT', '15m'],
+    ['CAPTION_MAX_UPLOAD_BYTES', '1000'],
+    ['CAPTION_MAX_UPLOAD_BYTES', '209715201'],
+    ['CAPTION_RESULT_TTL_SECONDS', '29'],
+    ['CAPTION_RESULT_TTL_SECONDS', '3601'],
+    ['CAPTION_CONCURRENCY', '0'],
+    ['CAPTION_CONCURRENCY', '21'],
+    ['MASTER_ENCRYPTION_KEY', 'a'.repeat(63)],
+    ['MASTER_ENCRYPTION_KEY', 'g'.repeat(64)],
   ])('rejects %s=%s', (name, value) => {
     expect(() => parseEnv({ ...BASE, [name]: value })).toThrow(name);
   });
@@ -110,6 +125,17 @@ describe('parseEnv', () => {
     expect(() =>
       parseEnv({ ...BASE, ADMIN_BOOTSTRAP_EMAIL: 'not-an-email', ADMIN_BOOTSTRAP_PASSWORD: 'x' }),
     ).toThrow('ADMIN_BOOTSTRAP_EMAIL');
+  });
+
+  it('applies the auto caption defaults', () => {
+    expect(parseEnv(BASE)).toMatchObject({
+      CAPTION_TMP_DIR: join(tmpdir(), 'slimshot-captions'),
+      CAPTION_MAX_UPLOAD_BYTES: 52_428_800,
+      CAPTION_RESULT_TTL_SECONDS: 180,
+      CAPTION_CONCURRENCY: 4,
+      CAPTION_DEEPGRAM_MODEL: 'nova-3',
+      CAPTION_ELEVENLABS_MODEL: 'scribe_v2',
+    });
   });
 
   it('reports every problem in one error', () => {
@@ -145,6 +171,25 @@ describe('config namespaces', () => {
   it('exposes no bootstrap credentials unless both are set', () => {
     process.env = { ...original, ...BASE, ADMIN_BOOTSTRAP_EMAIL: '', ADMIN_BOOTSTRAP_PASSWORD: '' };
     expect(authConfig().bootstrap).toBeNull();
+  });
+
+  it('exposes caption settings', () => {
+    // Not spread over the real environment: a CAPTION_* in the developer's
+    // shell must not change what this asserts.
+    process.env = { ...BASE, CAPTION_CONCURRENCY: '2', CAPTION_TMP_DIR: ' /var/tmp/captions ' };
+    expect(captionConfig()).toEqual({
+      tmpDir: '/var/tmp/captions',
+      maxUploadBytes: 52_428_800,
+      resultTtlSeconds: 180,
+      concurrency: 2,
+      deepgramModel: 'nova-3',
+      elevenlabsModel: 'scribe_v2',
+    });
+  });
+
+  it('exposes the master encryption key', () => {
+    process.env = { ...BASE };
+    expect(cryptoConfig().masterKey).toBe('ab'.repeat(32));
   });
 
   it('keys upload limits by asset kind', () => {

@@ -18,6 +18,8 @@ import {
   ValidationError,
   validateSync,
 } from 'class-validator';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /** A `.env` line with nothing after `=` arrives as ''. Treat it as unset. */
 function blank(value: unknown): boolean {
@@ -52,6 +54,8 @@ const origin = ({ value }: TransformFnParams): unknown =>
 const URL_OPTIONS = { require_tld: false, require_protocol: true, protocols: ['http', 'https'] };
 
 const DEFAULT_MIME_TYPES = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/ogg', 'audio/flac'];
+
+const DEFAULT_CAPTION_TMP_DIR = join(tmpdir(), 'slimshot-captions');
 
 export class Env {
   @Transform(({ value }) => (blank(value) ? 'development' : String(value).trim()))
@@ -166,6 +170,45 @@ export class Env {
   @Transform(({ value }) => (blank(value) ? 'slimshot/audio' : String(value).trim()))
   @IsString()
   CLOUDINARY_AUDIO_FOLDER = 'slimshot/audio';
+
+  // Encrypts the provider API keys stored in the database. It cannot live
+  // there itself: it is what decrypts them.
+  @Transform(text)
+  @IsDefined({ message: 'MASTER_ENCRYPTION_KEY is required' })
+  @Matches(/^[0-9a-fA-F]{64}$/, {
+    message: 'MASTER_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)',
+  })
+  MASTER_ENCRYPTION_KEY!: string;
+
+  @Transform(({ value }) => (blank(value) ? DEFAULT_CAPTION_TMP_DIR : String(value).trim()))
+  @IsString()
+  CAPTION_TMP_DIR = DEFAULT_CAPTION_TMP_DIR;
+
+  @Transform(int(52_428_800))
+  @IsInt()
+  @Min(1_048_576)
+  @Max(209_715_200)
+  CAPTION_MAX_UPLOAD_BYTES = 52_428_800;
+
+  @Transform(int(180))
+  @IsInt()
+  @Min(30)
+  @Max(3_600)
+  CAPTION_RESULT_TTL_SECONDS = 180;
+
+  @Transform(int(4))
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  CAPTION_CONCURRENCY = 4;
+
+  @Transform(({ value }) => (blank(value) ? 'nova-3' : String(value).trim()))
+  @IsString()
+  CAPTION_DEEPGRAM_MODEL = 'nova-3';
+
+  @Transform(({ value }) => (blank(value) ? 'scribe_v2' : String(value).trim()))
+  @IsString()
+  CAPTION_ELEVENLABS_MODEL = 'scribe_v2';
 }
 
 function problemsOf(errors: ValidationError[]): string[] {
