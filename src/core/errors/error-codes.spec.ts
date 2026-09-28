@@ -8,6 +8,10 @@ describe('ErrorCode', () => {
     expect(ErrorCode.UNAUTHENTICATED).toBe('UNAUTHENTICATED');
     expect(ErrorCode.FORBIDDEN).toBe('FORBIDDEN');
     expect(ErrorCode.INTERNAL).toBe('INTERNAL');
+    expect(ErrorCode.CAPTIONS_UNAVAILABLE).toBe('CAPTIONS_UNAVAILABLE');
+    expect(ErrorCode.PROVIDER_FAILED).toBe('PROVIDER_FAILED');
+    expect(ErrorCode.PAYLOAD_TOO_LARGE).toBe('PAYLOAD_TOO_LARGE');
+    expect(ErrorCode.UNSUPPORTED_MEDIA).toBe('UNSUPPORTED_MEDIA');
   });
 
   it('has no duplicate values', () => {

@@ -4,6 +4,9 @@ import {
   HttpException,
   Logger,
   NotFoundException,
+  PayloadTooLargeException,
+  ServiceUnavailableException,
+  UnsupportedMediaTypeException,
 } from '@nestjs/common';
 import { AllExceptionsFilter } from './http-exception.filter';
 import { ErrorCode } from './error-codes';
@@ -144,5 +147,55 @@ describe('AllExceptionsFilter', () => {
     filter.catch(new HttpException('Payment required', 402), host);
     expect(status).toHaveBeenCalledWith(402);
     expect(json.mock.calls[0][0].error.code).toBe(ErrorCode.REQUEST_FAILED);
+  });
+
+  it('maps multer\'s size error (413) to PAYLOAD_TOO_LARGE', () => {
+    const { host, json, status } = hostFor();
+    filter.catch(new PayloadTooLargeException('File too large'), host);
+    expect(status).toHaveBeenCalledWith(413);
+    expect(json.mock.calls[0][0].error.code).toBe(ErrorCode.PAYLOAD_TOO_LARGE);
+  });
+
+  it('maps 415 to UNSUPPORTED_MEDIA', () => {
+    const { host, json, status } = hostFor();
+    filter.catch(new UnsupportedMediaTypeException('not audio'), host);
+    expect(status).toHaveBeenCalledWith(415);
+    expect(json.mock.calls[0][0].error.code).toBe(ErrorCode.UNSUPPORTED_MEDIA);
+  });
+
+  it('keeps an explicit error code from the exception body', () => {
+    const { host, json, status } = hostFor();
+    filter.catch(
+      new ServiceUnavailableException({
+        code: ErrorCode.CAPTIONS_UNAVAILABLE,
+        message: 'Auto caption is not available right now.',
+      }),
+      host,
+    );
+    expect(status).toHaveBeenCalledWith(503);
+    expect(json.mock.calls[0][0].error).toMatchObject({
+      code: ErrorCode.CAPTIONS_UNAVAILABLE,
+      message: 'Auto caption is not available right now.',
+    });
+  });
+
+  it('ignores a body code it does not know', () => {
+    const { host, json } = hostFor();
+    filter.catch(new BadRequestException({ code: 'MADE_UP', message: 'x' }), host);
+    expect(json.mock.calls[0][0].error.code).toBe(ErrorCode.REQUEST_FAILED);
+  });
+
+  it('logs a caption outage as one warning, not an error with a stack', () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const { host } = hostFor();
+    filter.catch(
+      new ServiceUnavailableException({ code: ErrorCode.CAPTIONS_UNAVAILABLE, message: 'off' }),
+      host,
+    );
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    error.mockRestore();
+    warn.mockRestore();
   });
 });

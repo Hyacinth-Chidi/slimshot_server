@@ -49,6 +49,10 @@ function firstLine(exception: unknown): string {
   return text.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? '';
 }
 
+function isErrorCode(value: unknown): value is ErrorCode {
+  return typeof value === 'string' && (Object.values(ErrorCode) as string[]).includes(value);
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
@@ -67,6 +71,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (code === ErrorCode.DATABASE_UNAVAILABLE) {
       // An outage is not a bug: one line, no stack, so it doesn't drown the log.
       this.logger.error(`${where} database unreachable: ${firstLine(exception)}`);
+    } else if (code === ErrorCode.CAPTIONS_UNAVAILABLE) {
+      // Expected until the owner makes a provider active; not a server fault.
+      this.logger.warn(`${where} auto caption requested but no provider is active`);
     } else if (status >= 500) {
       this.logger.error(where, exception instanceof Error ? exception.stack : String(exception));
     }
@@ -127,9 +134,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
         };
       }
 
+      // A thrower that knows the precise failure says so in the body, e.g.
+      // new ServiceUnavailableException({ code: CAPTIONS_UNAVAILABLE, message }).
+      const bodyCode =
+        typeof body === 'object' && body !== null ? (body as { code?: unknown }).code : undefined;
+
       return {
         status,
-        code: this.codeForStatus(status),
+        code: isErrorCode(bodyCode) ? bodyCode : this.codeForStatus(status),
         message: Array.isArray(raw) ? raw.join(', ') : raw ?? exception.message,
       };
     }
@@ -155,6 +167,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
         return ErrorCode.RATE_LIMITED;
       case HttpStatus.UNPROCESSABLE_ENTITY:
         return ErrorCode.VALIDATION_FAILED;
+      case HttpStatus.PAYLOAD_TOO_LARGE:
+        return ErrorCode.PAYLOAD_TOO_LARGE;
+      case HttpStatus.UNSUPPORTED_MEDIA_TYPE:
+        return ErrorCode.UNSUPPORTED_MEDIA;
       default:
         return status >= 500 ? ErrorCode.INTERNAL : ErrorCode.REQUEST_FAILED;
     }
