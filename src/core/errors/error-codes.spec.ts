@@ -18,4 +18,14 @@ describe('ErrorCode', () => {
     const values = Object.values(ErrorCode);
     expect(new Set(values).size).toBe(values.length);
   });
+
+  it.each([
+    'SIGN_IN_REQUIRED', 'DEVICE_NOT_REGISTERED', 'GOOGLE_TOKEN_INVALID', 'GOOGLE_EMAIL_UNVERIFIED',
+    'SIGN_IN_METHOD_UNAVAILABLE', 'EMAIL_DOMAIN_NOT_ALLOWED', 'ACCOUNT_LINK_CONFLICT', 'OTP_INVALID',
+    'OTP_EXPIRED', 'OTP_ATTEMPTS_EXCEEDED', 'OTP_RESEND_TOO_SOON', 'USERNAME_INVALID', 'USERNAME_TAKEN',
+    'ALREADY_CLAIMED', 'REFERRAL_CODE_INVALID', 'INSUFFICIENT_CREDITS', 'ACCOUNT_SUSPENDED',
+    'INVALID_AUDIO', 'AD_DAILY_CAP_REACHED',
+  ])('has %s', (code) => {
+    expect((ErrorCode as Record<string, string>)[code]).toBe(code);
+  });
 });

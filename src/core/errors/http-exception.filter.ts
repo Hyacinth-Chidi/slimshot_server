@@ -139,10 +139,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
       const bodyCode =
         typeof body === 'object' && body !== null ? (body as { code?: unknown }).code : undefined;
 
+      const bodyDetails =
+        typeof body === 'object' && body !== null ? (body as { details?: unknown }).details : undefined;
+
       return {
         status,
         code: isErrorCode(bodyCode) ? bodyCode : this.codeForStatus(status),
         message: Array.isArray(raw) ? raw.join(', ') : raw ?? exception.message,
+        ...(bodyDetails !== undefined ? { details: bodyDetails } : {}),
       };
     }
 

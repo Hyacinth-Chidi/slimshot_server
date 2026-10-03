@@ -8,6 +8,7 @@ import {
   ServiceUnavailableException,
   UnsupportedMediaTypeException,
 } from '@nestjs/common';
+import { appError } from './app-error';
 import { AllExceptionsFilter } from './http-exception.filter';
 import { ErrorCode } from './error-codes';
 
@@ -176,6 +177,20 @@ describe('AllExceptionsFilter', () => {
     expect(json.mock.calls[0][0].error).toMatchObject({
       code: ErrorCode.CAPTIONS_UNAVAILABLE,
       message: 'Auto caption is not available right now.',
+    });
+  });
+
+  it('passes on the details an app error carries', () => {
+    const { host, json, status } = hostFor();
+    filter.catch(
+      appError(402, ErrorCode.INSUFFICIENT_CREDITS, 'Not enough credits.', { required: 6, balance: 2 }),
+      host,
+    );
+    expect(status).toHaveBeenCalledWith(402);
+    expect(json.mock.calls[0][0].error).toMatchObject({
+      code: 'INSUFFICIENT_CREDITS',
+      message: 'Not enough credits.',
+      details: { required: 6, balance: 2 },
     });
   });
 

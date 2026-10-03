@@ -4,7 +4,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 export interface AuditEntry {
   actorId?: string;
-  actorType: 'admin' | 'system';
+  actorType: 'admin' | 'system' | 'user';
   action: string;
   entityType: string;
   entityId?: string;
