@@ -41,6 +41,15 @@ describe('permissions', () => {
     expect(roleHas(AdminRole.viewer, 'providers.manage')).toBe(false);
   });
 
+  it('lets every role read app users, admins manage them, and only the owner change credit settings', () => {
+    expect(roleHas(AdminRole.viewer, 'users.read')).toBe(true);
+    expect(roleHas(AdminRole.viewer, 'users.manage')).toBe(false);
+    expect(roleHas(AdminRole.editor, 'users.manage')).toBe(false);
+    expect(roleHas(AdminRole.admin, 'users.manage')).toBe(true);
+    expect(roleHas(AdminRole.admin, 'credits.manage')).toBe(false);
+    expect(roleHas(AdminRole.owner, 'credits.manage')).toBe(true);
+  });
+
   it('only owner may manage other admins', () => {
     expect(roleHas(AdminRole.owner, 'admin.manage')).toBe(true);
     expect(roleHas(AdminRole.admin, 'admin.manage')).toBe(false);

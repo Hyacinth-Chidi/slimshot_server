@@ -15,6 +15,9 @@ export const PERMISSIONS = [
   'providers.manage',
   'audit.read',
   'jobs.read',
+  'users.read',
+  'users.manage',
+  'credits.manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -24,6 +27,7 @@ const VIEWER: readonly Permission[] = [
   'taxonomy.read',
   'audit.read',
   'jobs.read',
+  'users.read',
 ];
 
 const EDITOR: readonly Permission[] = [
@@ -34,13 +38,14 @@ const EDITOR: readonly Permission[] = [
   'taxonomy.write',
 ];
 
-const ADMIN: readonly Permission[] = [...EDITOR, 'asset.delete'];
+const ADMIN: readonly Permission[] = [...EDITOR, 'asset.delete', 'users.manage'];
 
 const OWNER: readonly Permission[] = [
   ...ADMIN,
   'storage.manage',
   'admin.manage',
   'providers.manage',
+  'credits.manage',
 ];
 
 export const ROLE_PERMISSIONS: Record<AdminRole, readonly Permission[]> = {
