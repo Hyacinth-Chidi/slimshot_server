@@ -244,13 +244,15 @@ Captions need a signed-in user with enough credits. The flow:
    ```
 
    The credits are taken now, before the provider is called. `charged` is absent for a free job
-   and for a resend of an upload the server already has.
+   and for a resend of an upload the server still has.
 4. Poll `GET /captions/{jobId}` (same `Authorization`) every `pollAfterMs` until `completed` or
    `failed`. A finished result is deleted after **3 minutes**, so use it right away.
 
 **Retrying an upload.** If the upload times out or the connection drops, send it again with the
 **same** `Idempotency-Key`: the server answers with the job it already has and charges nothing
-more. Use a new key only for a new attempt after a `failed` result.
+more. Use a new key for every new upload, including a new attempt after a `failed` result.
+A key is good for one upload only: once its job's result has expired, or after the server
+answered `409 IDEMPOTENCY_KEY_REUSED`, send the upload again with a **new** key.
 
 **Failed jobs are refunded automatically.** The refund appears in the history and in `/me`.
 
@@ -335,7 +337,8 @@ tells our server directly (server-side verification, SSV), and the app only asks
 **AdMob setup (once, in the AdMob console):** on every rewarded ad unit the app uses, turn on
 server-side verification and set the callback URL to
 `https://<server>/api/app/v1/rewards/admob/ssv`. The server only accepts callbacks from the ad
-units listed in its `ADMOB_AD_UNIT_IDS`, so send those IDs to whoever runs the server.
+units listed in its `ADMOB_AD_UNIT_IDS`, so send those IDs to whoever runs the server (the full
+`ca-app-pub-…/1234567890` form from the console is fine).
 
 **The flow:**
 
@@ -393,7 +396,8 @@ units listed in its `ADMOB_AD_UNIT_IDS`, so send those IDs to whoever runs the s
 | 422 | `REFERRAL_CODE_INVALID` | unknown, own or suspended referral code | let the user fix or remove it |
 | 402 | `INSUFFICIENT_CREDITS` | not enough credits; `details.required`, `details.balance` | offer ways to earn credits |
 | 415 | `UNSUPPORTED_MEDIA` | the `audio` part is not WAV | upload `audio/wav` |
-| 422 | `INVALID_AUDIO` | the WAV cannot be read (not PCM, empty, broken header) | extract it again (§12) |
+| 422 | `INVALID_AUDIO` | the WAV cannot be read (not PCM or float, empty, broken header) | extract it again (§12) |
+| 409 | `IDEMPOTENCY_KEY_REUSED` | this `Idempotency-Key` already paid for an earlier upload whose job is gone; nothing was charged | resend the upload with a new key |
 | 413 | `PAYLOAD_TOO_LARGE` | the audio is over the size limit | split the video's audio |
 | 503 | `CAPTIONS_UNAVAILABLE` | Auto caption is switched off or has no price set | show "Auto caption is unavailable right now" |
 | 404 | `NOT_FOUND` | unknown, someone else's, or expired caption job or ad session | start again |
