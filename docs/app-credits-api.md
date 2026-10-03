@@ -4,8 +4,8 @@ The contract between the SlimShot Android app and the server for accounts, sign-
 rewarded ads and account deletion. The app is built from this file, so it is kept exact and
 current.
 
-> **Status:** accounts, sign-in, credits, paid Auto captions, the signup bonus and referrals are
-> live. Rewarded ads are added to this file when they ship.
+> **Status:** accounts, sign-in, credits, paid Auto captions, the signup bonus, referrals and
+> rewarded ads are live.
 
 ## Basics
 
@@ -327,7 +327,49 @@ curl -s -X POST http://localhost:2700/api/app/v1/captions \
   -F "audio=@audio.wav;type=audio/wav" -F "language=en"
 ```
 
-## 13. Errors
+## 13. Rewarded ads
+
+The user watches a rewarded ad to earn credits. **The app never grants credits itself:** AdMob
+tells our server directly (server-side verification, SSV), and the app only asks how it went.
+
+**AdMob setup (once, in the AdMob console):** on every rewarded ad unit the app uses, turn on
+server-side verification and set the callback URL to
+`https://<server>/api/app/v1/rewards/admob/ssv`. The server only accepts callbacks from the ad
+units listed in its `ADMOB_AD_UNIT_IDS`, so send those IDs to whoever runs the server.
+
+**The flow:**
+
+1. When the user taps "Watch an ad" (for example after `402 INSUFFICIENT_CREDITS`, or from the
+   credits screen):
+
+   `POST /rewards/ads/session` (signed in) →
+
+   ```json
+   { "nonce": "q1w2…", "ssvUserId": "cmg…", "rewardCredits": 5, "adsRemainingToday": 7 }
+   ```
+
+   `409 AD_DAILY_CAP_REACHED` with `details.resetsAt` (UTC midnight) means no more rewarded ads
+   today: hide the button until then. `/me.ads` gives the same numbers for drawing the button.
+2. Load the rewarded ad and, **before showing it**, set its server-side verification options:
+   `userId = ssvUserId` and `customData = nonce` (Flutter `google_mobile_ads`:
+   `ServerSideVerificationOptions(userId: ssvUserId, customData: nonce)` on the rewarded ad).
+   A new session (and nonce) for every ad.
+3. Show the ad. When it closes (whether or not the app's `onUserEarnedReward` fired), poll
+   `GET /rewards/ads/session/{nonce}` about once a second for up to 30 seconds:
+
+   ```json
+   { "status": "granted", "credits": 5, "balance": 99 }
+   ```
+
+   - `pending`: AdMob has not called the server yet; keep polling.
+   - `granted`: show "+5 credits"; `balance` is the new balance.
+   - `capped`: the daily limit was reached while the ad played; no credits.
+   - `rejected`: the reward was refused (for example the account is suspended).
+
+   If it is still `pending` after 30 seconds, stop and refresh `/me` later: a late callback still
+   lands. A nonce lasts one hour; another user's nonce answers `404 NOT_FOUND`.
+
+## 14. Errors
 
 | Status | `error.code` | When | What the app does |
 |---|---|---|---|
@@ -354,5 +396,6 @@ curl -s -X POST http://localhost:2700/api/app/v1/captions \
 | 422 | `INVALID_AUDIO` | the WAV cannot be read (not PCM, empty, broken header) | extract it again (§12) |
 | 413 | `PAYLOAD_TOO_LARGE` | the audio is over the size limit | split the video's audio |
 | 503 | `CAPTIONS_UNAVAILABLE` | Auto caption is switched off or has no price set | show "Auto caption is unavailable right now" |
-| 404 | `NOT_FOUND` | unknown, someone else's, or expired caption job | start a new caption with a new key |
+| 404 | `NOT_FOUND` | unknown, someone else's, or expired caption job or ad session | start again |
+| 409 | `AD_DAILY_CAP_REACHED` | today's rewarded ads are used up; `details.resetsAt` | hide "Watch an ad" until then |
 | 422 | `VALIDATION_FAILED` | a malformed request; `details` lists the problems | fix the request |
