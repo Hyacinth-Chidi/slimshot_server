@@ -30,6 +30,7 @@ import { CreditsModule } from './modules/credits/credits.module';
 import { DevicesModule } from './modules/devices/devices.module';
 import { IngestModule } from './modules/ingest/ingest.module';
 import { TaxonomyModule } from './modules/taxonomy/taxonomy.module';
+import { RewardsModule } from './modules/rewards/rewards.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -67,6 +68,7 @@ import { PrismaModule } from './prisma/prisma.module';
     DevicesModule,
     AccountsModule,
     CreditsModule,
+    RewardsModule,
     CaptionsModule,
   ],
 })
