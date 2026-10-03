@@ -7,16 +7,19 @@ import { CreditSettingsModule } from '../credits/credit-settings.module';
 import { DevicesModule } from '../devices/devices.module';
 import { AccountsService } from './accounts.service';
 import { AppAuthController } from './app-auth.controller';
+import { ClaimService } from './claim.service';
 import { createEmailSender, EMAIL_SENDER } from './email-sender';
 import { GOOGLE_OAUTH, GoogleVerifier } from './google-verifier';
+import { MeController } from './me.controller';
 import { MeService } from './me.service';
 import { OtpService } from './otp.service';
 import { UserAuthGuard } from './user-auth.guard';
 import { UserTokensService } from './user-tokens.service';
+import { UsernameService } from './username.service';
 
 @Module({
   imports: [JwtModule.register({}), DevicesModule, CreditSettingsModule],
-  controllers: [AppAuthController],
+  controllers: [AppAuthController, MeController],
   providers: [
     AccountsService,
     MeService,
@@ -24,6 +27,8 @@ import { UserTokensService } from './user-tokens.service';
     GoogleVerifier,
     UserTokensService,
     UserAuthGuard,
+    UsernameService,
+    ClaimService,
     { provide: GOOGLE_OAUTH, useFactory: () => new OAuth2Client() },
     { provide: EMAIL_SENDER, inject: [emailConfig.KEY], useFactory: (cfg: EmailConfig) => createEmailSender(cfg) },
   ],
