@@ -1,9 +1,10 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { RateLimiter } from '../../core/rate-limit/rate-limiter';
+import { AccountDeletionService } from './account-deletion.service';
 import { ClaimService } from './claim.service';
 import { CurrentAppUser } from './current-app-user.decorator';
-import { ClaimDto, UsernameDto } from './dto/me.dto';
+import { ClaimDto, DeleteMeDto, UsernameDto } from './dto/me.dto';
 import { MeService } from './me.service';
 import { type AuthenticatedAppUser, UserAuthGuard } from './user-auth.guard';
 import { UsernameService } from './username.service';
@@ -16,6 +17,7 @@ export class MeController {
     private readonly usernames: UsernameService,
     private readonly claims: ClaimService,
     private readonly limiter: RateLimiter,
+    private readonly deletion: AccountDeletionService,
   ) {}
 
   @Get('me')
@@ -39,5 +41,11 @@ export class MeController {
   @HttpCode(200)
   async claim(@CurrentAppUser() user: AuthenticatedAppUser, @Body() dto: ClaimDto) {
     return { success: true as const, data: await this.claims.claim(user, dto) };
+  }
+
+  @Delete('me')
+  async remove(@CurrentAppUser() user: AuthenticatedAppUser, @Body() _dto: DeleteMeDto) {
+    await this.deletion.deleteAccount(user.id, { type: 'user', id: user.id });
+    return { success: true as const, data: { deleted: true } };
   }
 }
