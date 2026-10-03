@@ -6,11 +6,12 @@ import { CreditsController } from './credits.controller';
 import { CreditsService } from './credits.service';
 import { LedgerModule } from './ledger.module';
 import { PricingService } from './pricing.service';
+import { ReconciliationService } from './reconciliation.service';
 
 @Module({
   imports: [LedgerModule, CreditSettingsModule, AccountsModule],
   controllers: [CreditsController],
-  providers: [PricingService, CreditsService],
-  exports: [PricingService, CreditsService, LedgerModule],
+  providers: [PricingService, CreditsService, ReconciliationService],
+  exports: [PricingService, CreditsService, ReconciliationService, LedgerModule],
 })
 export class CreditsModule {}
