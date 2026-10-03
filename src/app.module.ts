@@ -18,6 +18,7 @@ import {
 import { AuditModule } from './core/audit/audit.module';
 import { RedisModule } from './core/cache/redis.module';
 import { HealthModule } from './core/health/health.module';
+import { IdentityModule } from './core/identity/identity.module';
 import { QueueModule } from './core/queue/queue.module';
 import { StorageModule } from './core/storage/storage.module';
 import { AdminModule } from './modules/admin/admin.module';
@@ -54,6 +55,7 @@ import { PrismaModule } from './prisma/prisma.module';
     QueueModule,
     StorageModule,
     AuditModule,
+    IdentityModule,
     HealthModule,
     AuthModule,
     AssetsModule,
