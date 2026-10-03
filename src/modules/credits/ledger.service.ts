@@ -69,7 +69,7 @@ export class LedgerService {
       },
       data: { creditBalance: { increment: amount } },
     });
-    if (updated.count === 0) throw await this.refusal(tx, userId, amount);
+    if (updated.count === 0) throw await this.refusal(tx, input);
 
     // The UPDATE holds the row lock until commit, so this reads our own result.
     const { creditBalance } = await tx.user.findUniqueOrThrow({
@@ -89,7 +89,10 @@ export class LedgerService {
     });
   }
 
-  private async refusal(tx: Prisma.TransactionClient, userId: string, amount: number): Promise<HttpException> {
+  private async refusal(
+    tx: Prisma.TransactionClient,
+    { userId, amount, requireActive }: LedgerEntryInput,
+  ): Promise<HttpException> {
     const user = await tx.user.findUnique({
       where: { id: userId },
       select: { accountStatus: true, creditBalance: true },
@@ -97,7 +100,8 @@ export class LedgerService {
     if (!user || user.accountStatus === AccountStatus.deleted) {
       return appError(HttpStatus.NOT_FOUND, ErrorCode.NOT_FOUND, 'This account no longer exists.');
     }
-    if (user.accountStatus === AccountStatus.suspended) {
+    // Only spending paths are closed by suspension; an admin debit is refused on the balance alone.
+    if (requireActive && user.accountStatus === AccountStatus.suspended) {
       return appError(HttpStatus.FORBIDDEN, ErrorCode.ACCOUNT_SUSPENDED, 'This account is suspended. Contact support.');
     }
     return appError(HttpStatus.PAYMENT_REQUIRED, ErrorCode.INSUFFICIENT_CREDITS, 'Not enough credits.', {

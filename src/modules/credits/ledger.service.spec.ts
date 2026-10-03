@@ -90,6 +90,13 @@ describe('LedgerService.post', () => {
     await expect(ledger.post(grant(5, 'adj-1', CreditTxType.admin_adjustment))).resolves.toMatchObject({ replayed: false });
   });
 
+  it('refuses an admin debit beyond a suspended balance as insufficient, not as suspended', async () => {
+    const { ledger } = build(3, 'suspended');
+    const error = await errorOf(ledger.post(grant(-10, 'adj-2', CreditTxType.admin_adjustment)));
+    expect(error.getStatus()).toBe(402);
+    expect(error.getResponse()).toMatchObject({ details: { required: 10, balance: 3 } });
+  });
+
   it('refuses a deleted account', async () => {
     const { ledger } = build(0, 'deleted');
     const error = await errorOf(ledger.post(grant(5)));
