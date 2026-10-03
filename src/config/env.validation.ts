@@ -2,6 +2,7 @@ import { plainToInstance, Transform, TransformFnParams } from 'class-transformer
 import {
   ArrayNotEmpty,
   IsArray,
+  IsBoolean,
   IsDefined,
   IsEmail,
   IsIn,
@@ -56,6 +57,27 @@ const URL_OPTIONS = { require_tld: false, require_protocol: true, protocols: ['h
 const DEFAULT_MIME_TYPES = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/ogg', 'audio/flac'];
 
 const DEFAULT_CAPTION_TMP_DIR = join(tmpdir(), 'slimshot-captions');
+
+const DEFAULT_ADMOB_KEYS_URL = 'https://www.gstatic.com/admob/reward/verifier-keys.json';
+
+const bool =
+  (fallback: boolean) =>
+  ({ value }: TransformFnParams): unknown => {
+    if (blank(value)) return fallback;
+    const s = String(value).trim().toLowerCase();
+    if (s === 'true') return true;
+    if (s === 'false') return false;
+    return s;
+  };
+
+// Express accepts true/false or a hop count; anything else is a typo.
+const trustProxy = ({ value }: TransformFnParams): unknown => {
+  if (blank(value)) return false;
+  const s = String(value).trim().toLowerCase();
+  if (s === 'true') return true;
+  if (s === 'false') return false;
+  return /^\d+$/.test(s) ? Number(s) : s;
+};
 
 export class Env {
   @Transform(({ value }) => (blank(value) ? 'development' : String(value).trim()))
@@ -209,10 +231,114 @@ export class Env {
   @Transform(({ value }) => (blank(value) ? 'scribe_v2' : String(value).trim()))
   @IsString()
   CAPTION_ELEVENLABS_MODEL = 'scribe_v2';
+
+  // App-user tokens: a secret of their own, never the admin one.
+  @Transform(text)
+  @IsDefined({ message: 'USER_JWT_SECRET is required' })
+  @IsString()
+  @MinLength(32, { message: 'USER_JWT_SECRET must be at least 32 characters' })
+  USER_JWT_SECRET!: string;
+
+  @Transform(int(900))
+  @IsInt()
+  @Min(60)
+  @Max(3_600)
+  USER_ACCESS_TTL_SECONDS = 900;
+
+  @Transform(int(2_592_000))
+  @IsInt()
+  @Min(86_400)
+  @Max(7_776_000)
+  USER_REFRESH_TTL_SECONDS = 2_592_000;
+
+  // Keys every stored email, install and IP hash. Changing it forgets who
+  // already claimed a bonus.
+  @Transform(text)
+  @IsDefined({ message: 'IDENTITY_HMAC_SECRET is required' })
+  @IsString()
+  @MinLength(32, { message: 'IDENTITY_HMAC_SECRET must be at least 32 characters' })
+  IDENTITY_HMAC_SECRET!: string;
+
+  @Transform(list([]))
+  @IsArray()
+  @IsString({ each: true })
+  GOOGLE_CLIENT_IDS: string[] = [];
+
+  @Transform(({ value }) => (blank(value) ? 'log' : String(value).trim().toLowerCase()))
+  @IsIn(['log', 'smtp'])
+  EMAIL_SENDER: 'log' | 'smtp' = 'log';
+
+  @Transform(text)
+  @IsOptional()
+  @IsString()
+  SMTP_HOST?: string;
+
+  @Transform(int(587))
+  @IsInt()
+  @Min(1)
+  @Max(65_535)
+  SMTP_PORT = 587;
+
+  @Transform(bool(false))
+  @IsBoolean()
+  SMTP_SECURE = false;
+
+  @Transform(text)
+  @IsOptional()
+  @IsString()
+  SMTP_USER?: string;
+
+  @Transform(text)
+  @IsOptional()
+  @IsString()
+  SMTP_PASSWORD?: string;
+
+  @Transform(text)
+  @IsOptional()
+  @IsString()
+  EMAIL_FROM?: string;
+
+  @Transform(list([]))
+  @IsArray()
+  @IsString({ each: true })
+  ADMOB_AD_UNIT_IDS: string[] = [];
+
+  @Transform(({ value }) => (blank(value) ? DEFAULT_ADMOB_KEYS_URL : String(value).trim()))
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  ADMOB_VERIFIER_KEYS_URL = DEFAULT_ADMOB_KEYS_URL;
+
+  // Checked in crossFieldProblems: a boolean or a hop count.
+  @Transform(trustProxy)
+  TRUST_PROXY: boolean | number = false;
 }
 
 function problemsOf(errors: ValidationError[]): string[] {
   return errors.flatMap((e) => Object.values(e.constraints ?? {}));
+}
+
+/** Rules that span variables, which decorators cannot express. */
+function crossFieldProblems(env: Env): string[] {
+  const problems: string[] = [];
+  if (env.USER_JWT_SECRET && env.USER_JWT_SECRET === env.JWT_ACCESS_SECRET) {
+    problems.push('USER_JWT_SECRET must differ from JWT_ACCESS_SECRET');
+  }
+  if (env.EMAIL_SENDER === 'smtp') {
+    if (!env.SMTP_HOST) problems.push('SMTP_HOST is required when EMAIL_SENDER=smtp');
+    if (!env.EMAIL_FROM) problems.push('EMAIL_FROM is required when EMAIL_SENDER=smtp');
+  }
+  if (env.NODE_ENV === 'production') {
+    if (env.EMAIL_SENDER === 'log') {
+      problems.push('EMAIL_SENDER=log prints sign-in codes in the log; use smtp in production');
+    }
+    if (env.ADMOB_AD_UNIT_IDS.length === 0) {
+      problems.push('ADMOB_AD_UNIT_IDS is required in production');
+    }
+  }
+  const tp: unknown = env.TRUST_PROXY;
+  if (!(typeof tp === 'boolean' || (Number.isInteger(tp) && (tp as number) >= 0 && (tp as number) <= 10))) {
+    problems.push('TRUST_PROXY must be true, false or a hop count from 0 to 10');
+  }
+  return problems;
 }
 
 /**
@@ -221,7 +347,10 @@ function problemsOf(errors: ValidationError[]): string[] {
  */
 export function parseEnv(raw: Record<string, unknown>): Env {
   const env = plainToInstance(Env, raw);
-  const problems = problemsOf(validateSync(env, { skipMissingProperties: false }));
+  const problems = [
+    ...problemsOf(validateSync(env, { skipMissingProperties: false })),
+    ...crossFieldProblems(env),
+  ];
   if (problems.length > 0) {
     throw new Error(`Invalid environment configuration:\n - ${problems.join('\n - ')}`);
   }

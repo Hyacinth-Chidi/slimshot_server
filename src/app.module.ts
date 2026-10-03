@@ -2,12 +2,15 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
 import {
+  admobConfig,
+  appAuthConfig,
   appConfig,
   authConfig,
   captionConfig,
   cloudinaryConfig,
   cryptoConfig,
   databaseConfig,
+  emailConfig,
   redisConfig,
   uploadConfig,
   validate,
@@ -41,6 +44,9 @@ import { PrismaModule } from './prisma/prisma.module';
         cloudinaryConfig,
         cryptoConfig,
         captionConfig,
+        appAuthConfig,
+        emailConfig,
+        admobConfig,
       ],
     }),
     PrismaModule,

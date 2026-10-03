@@ -8,7 +8,7 @@ export const appConfig = registerAs('app', () => {
   const corsOrigins = [
     ...new Set([...env.CORS_ALLOWED_ORIGINS, ...(env.ADMIN_BASE_URL ? [env.ADMIN_BASE_URL] : [])]),
   ];
-  return { nodeEnv: env.NODE_ENV, port: env.PORT, corsOrigins };
+  return { nodeEnv: env.NODE_ENV, port: env.PORT, corsOrigins, trustProxy: env.TRUST_PROXY };
 });
 
 export type AppConfig = ConfigType<typeof appConfig>;

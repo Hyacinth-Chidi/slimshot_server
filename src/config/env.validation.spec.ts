@@ -1,10 +1,13 @@
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { admobConfig } from './admob.config';
+import { appAuthConfig } from './app-auth.config';
 import { appConfig } from './app.config';
 import { authConfig } from './auth.config';
 import { captionConfig } from './caption.config';
 import { cryptoConfig } from './crypto.config';
+import { emailConfig } from './email.config';
 import { parseEnv } from './env.validation';
 import { uploadConfig } from './upload.config';
 
@@ -16,6 +19,8 @@ const BASE = {
   CLOUDINARY_API_KEY: 'key',
   CLOUDINARY_API_SECRET: 'secret',
   MASTER_ENCRYPTION_KEY: 'ab'.repeat(32),
+  USER_JWT_SECRET: 'u'.repeat(48),
+  IDENTITY_HMAC_SECRET: 'i'.repeat(48),
 };
 
 describe('parseEnv', () => {
@@ -83,6 +88,8 @@ describe('parseEnv', () => {
     'CLOUDINARY_API_KEY',
     'CLOUDINARY_API_SECRET',
     'MASTER_ENCRYPTION_KEY',
+    'USER_JWT_SECRET',
+    'IDENTITY_HMAC_SECRET',
   ])('rejects a missing or empty %s', (name) => {
     const without: Record<string, unknown> = { ...BASE };
     delete without[name];
@@ -108,6 +115,9 @@ describe('parseEnv', () => {
     ['CAPTION_CONCURRENCY', '21'],
     ['MASTER_ENCRYPTION_KEY', 'a'.repeat(63)],
     ['MASTER_ENCRYPTION_KEY', 'g'.repeat(64)],
+    ['USER_ACCESS_TTL_SECONDS', '30'],
+    ['USER_REFRESH_TTL_SECONDS', '60'],
+    ['EMAIL_SENDER', 'pigeon'],
   ])('rejects %s=%s', (name, value) => {
     expect(() => parseEnv({ ...BASE, [name]: value })).toThrow(name);
   });
@@ -136,6 +146,61 @@ describe('parseEnv', () => {
       CAPTION_DEEPGRAM_MODEL: 'nova-3',
       CAPTION_ELEVENLABS_MODEL: 'scribe_v2',
     });
+  });
+
+  it('applies the account defaults', () => {
+    expect(parseEnv(BASE)).toMatchObject({
+      USER_ACCESS_TTL_SECONDS: 900,
+      USER_REFRESH_TTL_SECONDS: 2_592_000,
+      GOOGLE_CLIENT_IDS: [],
+      EMAIL_SENDER: 'log',
+      SMTP_PORT: 587,
+      SMTP_SECURE: false,
+      ADMOB_AD_UNIT_IDS: [],
+      ADMOB_VERIFIER_KEYS_URL: 'https://www.gstatic.com/admob/reward/verifier-keys.json',
+      TRUST_PROXY: false,
+    });
+  });
+
+  it('refuses a user token secret equal to the admin one', () => {
+    expect(() => parseEnv({ ...BASE, USER_JWT_SECRET: BASE.JWT_ACCESS_SECRET })).toThrow(
+      'USER_JWT_SECRET must differ from JWT_ACCESS_SECRET',
+    );
+  });
+
+  it('requires the SMTP host and sender address for smtp', () => {
+    let message = '';
+    try {
+      parseEnv({ ...BASE, EMAIL_SENDER: 'smtp' });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain('SMTP_HOST is required when EMAIL_SENDER=smtp');
+    expect(message).toContain('EMAIL_FROM is required when EMAIL_SENDER=smtp');
+  });
+
+  it('refuses the log email sender and missing ad units in production', () => {
+    let message = '';
+    try {
+      parseEnv({ ...BASE, NODE_ENV: 'production' });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain('EMAIL_SENDER=log');
+    expect(message).toContain('ADMOB_AD_UNIT_IDS is required in production');
+  });
+
+  it.each([
+    ['true', true],
+    ['false', false],
+    ['1', 1],
+    ['', false],
+  ])('parses TRUST_PROXY=%j', (raw, parsed) => {
+    expect(parseEnv({ ...BASE, TRUST_PROXY: raw }).TRUST_PROXY).toBe(parsed);
+  });
+
+  it('rejects a TRUST_PROXY that is not true, false or a hop count', () => {
+    expect(() => parseEnv({ ...BASE, TRUST_PROXY: 'yes' })).toThrow('TRUST_PROXY');
   });
 
   it('reports every problem in one error', () => {
@@ -185,6 +250,35 @@ describe('config namespaces', () => {
       deepgramModel: 'nova-3',
       elevenlabsModel: 'scribe_v2',
     });
+  });
+
+  it('exposes app-user auth, email and AdMob settings', () => {
+    process.env = {
+      ...BASE,
+      GOOGLE_CLIENT_IDS: 'web-1.apps.googleusercontent.com',
+      EMAIL_SENDER: 'smtp',
+      SMTP_HOST: 'smtp.example.com',
+      EMAIL_FROM: 'SlimShot <no-reply@example.com>',
+      ADMOB_AD_UNIT_IDS: 'ca-app-pub-1/2',
+      TRUST_PROXY: '1',
+    };
+    expect(appAuthConfig()).toEqual({
+      jwtSecret: 'u'.repeat(48),
+      accessTtlSeconds: 900,
+      refreshTtlSeconds: 2_592_000,
+      identityHmacSecret: 'i'.repeat(48),
+      googleClientIds: ['web-1.apps.googleusercontent.com'],
+    });
+    expect(emailConfig()).toEqual({
+      sender: 'smtp',
+      from: 'SlimShot <no-reply@example.com>',
+      smtp: { host: 'smtp.example.com', port: 587, secure: false, user: undefined, password: undefined },
+    });
+    expect(admobConfig()).toEqual({
+      adUnitIds: ['ca-app-pub-1/2'],
+      verifierKeysUrl: 'https://www.gstatic.com/admob/reward/verifier-keys.json',
+    });
+    expect(appConfig().trustProxy).toBe(1);
   });
 
   it('exposes the master encryption key', () => {

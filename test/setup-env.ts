@@ -9,3 +9,5 @@ process.env.CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME ?? 'test-c
 process.env.CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY ?? 'test-key';
 process.env.CLOUDINARY_API_SECRET = process.env.CLOUDINARY_API_SECRET ?? 'test-secret';
 process.env.MASTER_ENCRYPTION_KEY = process.env.MASTER_ENCRYPTION_KEY ?? 'ab'.repeat(32);
+process.env.USER_JWT_SECRET = process.env.USER_JWT_SECRET ?? 'u'.repeat(48);
+process.env.IDENTITY_HMAC_SECRET = process.env.IDENTITY_HMAC_SECRET ?? 'i'.repeat(48);
