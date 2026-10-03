@@ -4370,3 +4370,45 @@ commits; tests are listed in full below because they define the behaviour.
 - [ ] **Step 2:** check each of `INSUFFICIENT_CREDITS UNSUPPORTED_MEDIA INVALID_AUDIO PAYLOAD_TOO_LARGE CAPTIONS_UNAVAILABLE REFERRAL_CODE_INVALID BONUS_ALREADY_CLAIMED IP_LIMIT_REACHED inviter_capped` appears; `npx jest && npm run lint && npm run typecheck && npm run build`; commit `docs: app contract for credits and paid captions`. **Milestone 2 is complete.**
 
 ---
+
+# Milestone 3 — Rewarded ads (AdMob server-side verification)
+
+Same format as Milestone 2: exact interfaces, flows and test cases; the executor writes the code
+test-first. New module `src/modules/rewards/`.
+
+### Task 19: AdMob signature verification
+
+**Files:** Create `src/modules/rewards/admob-verifier.ts` (+ spec).
+
+**Interfaces:**
+- `class SsvSignatureError extends Error`
+- `interface SsvCallback { adUnit; customData; userId; transactionId; rewardAmount; timestamp; keyId }` (all strings; missing → `''`)
+- `AdmobVerifier(@Inject(admobConfig.KEY) cfg).verify(rawQuery: string): Promise<SsvCallback>`:
+  - the signed content is the raw query up to (not including) `&signature=`; the tail holds `signature` (base64url, DER) and `key_id`; missing either → `SsvSignatureError`;
+  - `crypto.verify('sha256', content, { key, dsaEncoding: 'der' }, signature)`; false → `SsvSignatureError('The callback signature does not match.')`;
+  - fields come from `URLSearchParams(content)` (so `custom_data` is percent-decoded);
+  - keys: fetched from `cfg.verifierKeysUrl` (JSON `{ keys: [{ keyId, pem, base64 }] }`, `createPublicKey(pem)`), cached 24 h; an unknown `key_id` triggers one refetch (at most once a minute), then `SsvSignatureError('Unknown AdMob key …')`; a failed key fetch throws a plain `Error` (so the callback answers 500 and AdMob retries).
+
+- [ ] **Step 1: Failing tests** (EC P-256 key pair generated in the test; `fetch` spied to serve `{ keys: [{ keyId: 123, pem }] }`): a signed callback parses every field and decodes `custom_data` `n%2Babc` → `n+abc`; a changed `reward_amount` → `SsvSignatureError`; no signature → `SsvSignatureError`; an unknown key id → fetch called a second time, then `SsvSignatureError`; two verifies within 24 h fetch once, a third after 24 h fetches again (`Date.now` mocked).
+- [ ] **Step 2:** FAIL. **Step 3:** implement. **Step 4:** PASS + lint + typecheck. Commit `feat: verify AdMob server-side verification callbacks`.
+
+### Task 20: Ad sessions, the callback and the poll
+
+**Files:** Create `src/modules/rewards/ad-sessions.service.ts`, `rewards.controller.ts`, `rewards.module.ts` (+ `ad-sessions.service.spec.ts`, `rewards.http.spec.ts`); import `RewardsModule` in `AppModule`.
+
+**Interfaces:**
+- `AdSessionsService(redis, prisma, ledger, settings, verifier, admobConfig)`:
+  - `start(user)` → suspended 403; `remaining = adDailyCap − adsUsedToday`; 0 → `409 AD_DAILY_CAP_REACHED { resetsAt }` (next UTC midnight); else a random nonce (18 bytes base64url) stored in Redis `ad:session:<nonce>` as `{ userId, status: 'pending' }` for 1 h → `{ nonce, ssvUserId: user.id, rewardCredits, adsRemainingToday: remaining }`.
+  - `status(user, nonce)` → missing or another user's → `404 NOT_FOUND`; else `{ status, credits?, balance }`.
+  - `handleCallback(rawQuery)`: `SsvSignatureError` → `400 BadRequestException`; ad unit not in `cfg.adUnitIds` (when the list is set) → log and return; no session for `custom_data` (including the AdMob console's test callback) → log and return; session user ≠ `user_id` → session `rejected`; else one transaction: `SELECT … FOR UPDATE` on the user row; an existing `rewarded_ad:<transaction_id>` row → `granted` with its amount (replay); today's rewarded ads ≥ cap → `capped`; else `ledger.post({ type: rewarded_ad, amount: adRewardCredits, reference: transaction_id, requireActive: true, metadata: { adUnit, nonce } }, tx)` (skipped when the reward is 0) → `granted`; a ledger 403/404 (suspended or deleted meanwhile) → `rejected`; any other error propagates (500, AdMob retries). The session in Redis is updated with the outcome.
+- `RewardsController` at `api/app/v1/rewards`: `POST ads/session` (200, `UserAuthGuard`), `GET ads/session/:nonce` (`UserAuthGuard`), `GET admob/ssv` (public) passing `req.originalUrl` after `?` untouched → `{ received: true }`.
+- `RewardsModule`: imports `AccountsModule`, `CreditsModule`, `CreditSettingsModule`; providers `AdmobVerifier`, `AdSessionsService`.
+
+- [ ] **Step 1: Failing tests.** `ad-sessions.service.spec.ts` (real `LedgerService` on `FakeCreditDb`, `FakeRedis`, verifier mocked): start returns `{ nonce, ssvUserId: 'u1', rewardCredits: 5, adsRemainingToday: 10 }` and stores a pending session; at the cap → 409 with `resetsAt`; suspended → 403; a verified callback grants 5 (balance 5) and the poll answers `{ status: 'granted', credits: 5, balance: 5 }`; the same `transaction_id` again grants nothing more; at the cap → `capped`, no grant; a foreign ad unit → nothing granted, session still `pending`; the console test callback (no `custom_data`, no `user_id`) → resolves, nothing granted; `user_id` ≠ session user → `rejected`; a bad signature → 400; a suspended user at callback time → `rejected`; polling another user's nonce → 404. `rewards.http.spec.ts`: the callback route needs no sign-in and passes the raw query string exactly (`custom_data=a%2Bb` kept encoded); a `BadRequestException` from the service → 400; session start requires sign-in.
+- [ ] **Step 2:** FAIL. **Step 3:** implement and wire. **Step 4:** `npx jest && npm run lint && npm run typecheck && npm run build`. Commit `feat: rewarded ads with AdMob server-side verification`.
+
+### Task 21: App contract, part 3 — rewarded ads
+
+- [ ] Add a **Rewarded ads** section to `docs/app-credits-api.md`: the flow (start a session → load the rewarded ad with `ServerSideVerificationOptions` `userId = ssvUserId`, `customData = nonce` → show it → after it closes poll `GET /rewards/ads/session/{nonce}` every ~1 s for up to ~30 s); responses; `409 AD_DAILY_CAP_REACHED { resetsAt }`; the AdMob console setup (set each rewarded ad unit's SSV callback URL to `https://<server>/api/app/v1/rewards/admob/ssv`; the server's `ADMOB_AD_UNIT_IDS` must list those units); never grant credits in the app. Add `AD_DAILY_CAP_REACHED` to the error table; status line: ads live. Check, run everything, commit `docs: app contract for rewarded ads`. **Milestone 3 is complete.**
+
+---
