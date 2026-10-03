@@ -4,8 +4,8 @@ The contract between the SlimShot Android app and the server for accounts, sign-
 rewarded ads and account deletion. The app is built from this file, so it is kept exact and
 current.
 
-> **Status:** Milestone 1 (accounts and sign-in) is live. Credits, paid captions, referrals and
-> rewarded ads are added to this file as they ship.
+> **Status:** accounts, sign-in, credits, paid Auto captions, the signup bonus and referrals are
+> live. Rewarded ads are added to this file when they ship.
 
 ## Basics
 
@@ -143,8 +143,30 @@ reserved. Private: shown only to the user.
 { "username": "ann_1", "referralCode": "AB3DEF7K" }
 ```
 
-`referralCode` is optional. `200` → `{ "user": { …/me… }, "bonus": …, "referral": … }`. In this
-milestone `bonus` and `referral` are `null`; the next milestone fills them.
+`referralCode` is optional (any case; spaces ignored). `200` →
+
+```json
+{
+  "user": { …/me… },
+  "bonus": { "granted": true, "credits": 100 },
+  "referral": { "outcome": "rewarded", "credits": 20 }
+}
+```
+
+- `bonus.granted: false` comes with a `reason`; the account is set up either way:
+  - `BONUS_ALREADY_CLAIMED`: this email (or this phone's app install) already received a signup
+    bonus, including on an account that was deleted since.
+  - `IP_LIMIT_REACHED`: too many new accounts from this network today.
+- `referral` is `null` without a code. Otherwise `outcome` is:
+  - `rewarded`: both people get credits (`credits` is what this user got);
+  - `inviter_capped`: this user gets credits; the friend has hit their referral limit;
+  - `invitee_ineligible`: nobody gets referral credits, because this user is not new.
+- An unknown code, the user's own code, or a code of a suspended account answers
+  `422 REFERRAL_CODE_INVALID` and nothing is saved: let the user fix or remove the code.
+
+**Referral codes.** Every user has `referralCode` in `/me` (it is not the username). Show it with a
+share button. A friend enters it on their claim screen; both earn credits only when the friend's
+email and phone are new to SlimShot.
 
 ## 9. Deleting the account
 
@@ -160,7 +182,152 @@ What happens: sessions end, the email, username and Google link are erased, cred
 `https://<server>/account-deletion` (email → 6-digit code → confirm). Put that URL in the Play
 Console's account deletion field.
 
-## 10. Errors
+## 10. Credits
+
+- The balance is `creditBalance` in `/me`. Credits are whole numbers and never go below zero.
+- `GET /credits/history?cursor=&limit=` (`limit` 1–100, default 20), newest first:
+
+  ```json
+  {
+    "items": [
+      { "id": "cm1…", "type": "feature_charge", "amount": -6, "balanceAfter": 94, "createdAt": "2026-10-03T12:00:00.000Z" }
+    ],
+    "nextCursor": "cm1…"
+  }
+  ```
+
+  Pass `nextCursor` as `cursor` for the next page; `null` means the end.
+- `type` values: `signup_bonus` (claim bonus), `referral_invitee` / `referral_inviter` (referral
+  rewards), `rewarded_ad` (watched an ad), `feature_charge` (paid for a feature, negative),
+  `feature_refund` (a failed job gave its credits back), `admin_adjustment` (support changed the
+  balance), `account_deleted` (credits forfeited on deletion), `purchase` (reserved for payments).
+
+## 11. Price quote
+
+Show the price before the user generates:
+
+`POST /credits/quote`
+
+```json
+{ "feature": "auto_captions", "durationSeconds": 125.4 }
+```
+
+`200` → `{ "credits": 6, "balance": 94, "enough": true, "pricingVersion": 3 }` → "This will use
+6 credits · You have 94". When `enough` is false, offer ways to earn credits instead.
+
+Use the duration of the exact WAV you are about to upload: the server measures that file again
+and charges what it measures.
+
+## 12. Auto captions (paid)
+
+Captions need a signed-in user with enough credits. The flow:
+
+1. Extract the audio as **WAV** (mono, 16 kHz, 16-bit PCM). The server reads the duration from
+   the WAV header, so other formats are refused:
+
+   ```bash
+   ffmpeg -i input.mp4 -vn -ac 1 -ar 16000 -c:a pcm_s16le audio.wav
+   ```
+
+   That is about 1.9 MB per minute; the default 50 MB limit is about 26 minutes.
+2. Quote it (§11) and confirm with the user.
+3. `POST /captions` with `Authorization: Bearer <accessToken>`, `Idempotency-Key: <uuid>`, and
+   `multipart/form-data`:
+   - `audio` (file, required) with the part content type **`audio/wav`** (Flutter's
+     `MultipartFile.fromPath` sends `application/octet-stream` unless you pass `contentType`);
+   - `language` (optional): a two-letter ISO 639-1 code (`en`, `fr`, `yo`); omit to detect.
+
+   `202` →
+
+   ```json
+   { "jobId": "cap_4f0c…", "status": "queued", "pollAfterMs": 1500, "charged": { "credits": 6, "balance": 88 } }
+   ```
+
+   The credits are taken now, before the provider is called. `charged` is absent for a free job
+   and for a resend of an upload the server already has.
+4. Poll `GET /captions/{jobId}` (same `Authorization`) every `pollAfterMs` until `completed` or
+   `failed`. A finished result is deleted after **3 minutes**, so use it right away.
+
+**Retrying an upload.** If the upload times out or the connection drops, send it again with the
+**same** `Idempotency-Key`: the server answers with the job it already has and charges nothing
+more. Use a new key only for a new attempt after a `failed` result.
+
+**Failed jobs are refunded automatically.** The refund appears in the history and in `/me`.
+
+**Poll responses** (`200`):
+
+- Still working: `{ "jobId", "status": "queued" | "processing", "pollAfterMs": 1500 }`.
+- Done:
+
+  ```json
+  {
+    "jobId": "cap_4f0c…",
+    "status": "completed",
+    "result": {
+      "provider": "deepgram",
+      "language": "en",
+      "durationSeconds": 42.7,
+      "text": "Welcome back to the channel. Today we…",
+      "words": [
+        { "text": "Welcome", "start": 0.08, "end": 0.42, "confidence": 0.99 },
+        { "text": "back", "start": 0.42, "end": 0.61, "confidence": 0.98 }
+      ]
+    }
+  }
+  ```
+
+  - `words` holds spoken words only, in order, with punctuation attached (`"channel."`); no
+    spaces and no sound effects.
+  - `start` and `end` are seconds from the start of the uploaded audio; `confidence` is 0–1.
+  - `language` is the code you sent, or the detected one (two or three letters, `en` or `eng`).
+  - `durationSeconds` may be `null`.
+  - Silence or music gives `"text": ""` and `"words": []`: show "No speech found".
+- Failed: `{ "jobId", "status": "failed", "error": { "code": "PROVIDER_FAILED" | "CAPTIONS_UNAVAILABLE", "message" } }`
+  (credits already refunded; the user can try again with a new key).
+
+`404 NOT_FOUND`: unknown job, another user's job, or a result older than 3 minutes. Stop polling
+after about 10 minutes and show a timeout message.
+
+**Dart sketch** (`package:http`, `http_parser`, `uuid`):
+
+```dart
+Future<Map<String, dynamic>> autoCaption(String accessToken, String wavPath, {String? language}) async {
+  final key = const Uuid().v4(); // reuse the same key if you resend this upload
+  final request = http.MultipartRequest('POST', Uri.parse('$base/captions'))
+    ..headers['Authorization'] = 'Bearer $accessToken'
+    ..headers['Idempotency-Key'] = key
+    ..files.add(await http.MultipartFile.fromPath('audio', wavPath, contentType: MediaType('audio', 'wav')));
+  if (language != null) request.fields['language'] = language;
+
+  var job = _data((await http.Response.fromStream(await request.send())).body);
+  final deadline = DateTime.now().add(const Duration(minutes: 10));
+  while (job['status'] == 'queued' || job['status'] == 'processing') {
+    if (DateTime.now().isAfter(deadline)) throw CaptionException('TIMEOUT', 'Captioning took too long.');
+    await Future.delayed(Duration(milliseconds: (job['pollAfterMs'] as int?) ?? 1500));
+    final res = await http.get(Uri.parse('$base/captions/${job['jobId']}'), headers: {'Authorization': 'Bearer $accessToken'});
+    job = _data(res.body);
+  }
+  if (job['status'] == 'failed') {
+    final error = job['error'] as Map<String, dynamic>;
+    throw CaptionException(error['code'] as String, error['message'] as String);
+  }
+  return job['result'] as Map<String, dynamic>;
+}
+```
+
+`_data` unwraps the envelope and throws on `success: false`; on `401 UNAUTHENTICATED` refresh
+once (§5) and retry.
+
+**curl:**
+
+```bash
+curl -s -X POST http://localhost:2700/api/app/v1/captions \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -F "audio=@audio.wav;type=audio/wav" -F "language=en"
+```
+
+## 13. Errors
 
 | Status | `error.code` | When | What the app does |
 |---|---|---|---|
@@ -181,4 +348,11 @@ Console's account deletion field.
 | 409 | `USERNAME_TAKEN` | someone has it | ask for another |
 | 409 | `ALREADY_CLAIMED` | claim called twice | go to the main screen |
 | 403 | `ACCOUNT_SUSPENDED` | the account is suspended | show "contact support" |
+| 422 | `REFERRAL_CODE_INVALID` | unknown, own or suspended referral code | let the user fix or remove it |
+| 402 | `INSUFFICIENT_CREDITS` | not enough credits; `details.required`, `details.balance` | offer ways to earn credits |
+| 415 | `UNSUPPORTED_MEDIA` | the `audio` part is not WAV | upload `audio/wav` |
+| 422 | `INVALID_AUDIO` | the WAV cannot be read (not PCM, empty, broken header) | extract it again (§12) |
+| 413 | `PAYLOAD_TOO_LARGE` | the audio is over the size limit | split the video's audio |
+| 503 | `CAPTIONS_UNAVAILABLE` | Auto caption is switched off or has no price set | show "Auto caption is unavailable right now" |
+| 404 | `NOT_FOUND` | unknown, someone else's, or expired caption job | start a new caption with a new key |
 | 422 | `VALIDATION_FAILED` | a malformed request; `details` lists the problems | fix the request |
