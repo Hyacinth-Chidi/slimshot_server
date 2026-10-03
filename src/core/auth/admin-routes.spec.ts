@@ -8,10 +8,12 @@ import { AdminCategoriesController } from '../../modules/admin/admin-categories.
 import { AdminJobsController } from '../../modules/admin/admin-jobs.controller';
 import { AdminKindsController } from '../../modules/admin/admin-kinds.controller';
 import { AdminCreditSettingsController } from '../../modules/admin/admin-credit-settings.controller';
+import { AdminCreditStatsController } from '../../modules/admin/admin-credit-stats.controller';
 import { AdminCreditsController } from '../../modules/admin/admin-credits.controller';
 import { AdminPricingRulesController } from '../../modules/admin/admin-pricing-rules.controller';
 import { AdminProvidersController } from '../../modules/admin/admin-providers.controller';
 import { AdminStatsController } from '../../modules/admin/admin-stats.controller';
+import { AdminUsersController } from '../../modules/admin/admin-users.controller';
 
 /**
  * Controllers whose routes are deliberately reachable without a declared permission.
@@ -35,6 +37,8 @@ const ADMIN_CONTROLLERS: Array<new (...args: never[]) => object> = [
   AdminCreditSettingsController,
   AdminPricingRulesController,
   AdminCreditsController,
+  AdminUsersController,
+  AdminCreditStatsController,
 ];
 
 describe('admin route guarding', () => {
