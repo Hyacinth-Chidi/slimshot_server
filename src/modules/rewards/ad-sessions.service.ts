@@ -24,6 +24,8 @@ interface StoredSession {
 
 const SESSION_TTL_SECONDS = 3_600;
 const sessionKey = (nonce: string) => `ad:session:${nonce}`;
+/** AdMob's callback names the ad unit by number; the console shows `ca-app-pub-…/<number>`. Accept both. */
+const adUnitNumber = (id: string) => id.trim().split('/').pop() ?? '';
 
 /**
  * Rewarded ads. The app only learns the outcome: credits are granted when
@@ -89,7 +91,8 @@ export class AdSessionsService {
       throw err;
     }
 
-    if (this.cfg.adUnitIds.length > 0 && !this.cfg.adUnitIds.includes(cb.adUnit)) {
+    const unit = adUnitNumber(cb.adUnit);
+    if (this.cfg.adUnitIds.length > 0 && !this.cfg.adUnitIds.some((id) => adUnitNumber(id) === unit)) {
       this.logger.warn(`Ignored an AdMob callback for ad unit ${cb.adUnit}, which is not one of ours.`);
       return;
     }

@@ -26,7 +26,8 @@ function build(opts: { cap?: number; adUnits?: string[] } = {}) {
   );
   const callback = (nonce: string, overrides: Record<string, string> = {}) => {
     verifier.verify.mockResolvedValueOnce({
-      adUnit: 'ca-app-pub-1/2',
+      // AdMob sends the ad unit's number, the part after the slash in the console's ID.
+      adUnit: '2',
       customData: nonce,
       userId: 'u1',
       transactionId: 'tx-1',
@@ -105,9 +106,16 @@ describe('AdSessionsService.handleCallback', () => {
   it('ignores a callback from an ad unit that is not ours', async () => {
     const { svc, db, callback } = build();
     const { nonce } = await svc.start(user());
-    await callback(nonce, { adUnit: 'ca-app-pub-OTHER/9' });
+    await callback(nonce, { adUnit: '9' });
     expect(db.users.get('u1')?.creditBalance).toBe(0);
     await expect(svc.status(user(), nonce)).resolves.toMatchObject({ status: 'pending' });
+  });
+
+  it('matches ad units written either way in the allowlist', async () => {
+    const { svc, db, callback } = build({ adUnits: ['2'] });
+    const { nonce } = await svc.start(user());
+    await callback(nonce, { adUnit: 'ca-app-pub-1/2' });
+    expect(db.users.get('u1')?.creditBalance).toBe(5);
   });
 
   it("answers AdMob's console test callback without granting anything", async () => {
