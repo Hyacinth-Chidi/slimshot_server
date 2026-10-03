@@ -84,7 +84,7 @@ export class CaptionsService {
     let charged: { credits: number; balance: number } | undefined;
     if (credits > 0) {
       // Held before any provider call; the worker refunds it if the job fails.
-      const { transaction } = await this.ledger.post({
+      const { transaction, replayed } = await this.ledger.post({
         userId: user.id,
         type: CreditTxType.feature_charge,
         amount: -credits,
@@ -97,6 +97,15 @@ export class CaptionsService {
           pricingVersion: rule.version,
         },
       });
+      if (replayed) {
+        // This key already paid for a job the queue no longer has (finished and swept, or
+        // refunded). Running a new upload on that old charge would make it free.
+        throw appError(
+          HttpStatus.CONFLICT,
+          ErrorCode.IDEMPOTENCY_KEY_REUSED,
+          'This Idempotency-Key was already used for an earlier upload. Send this upload with a new key.',
+        );
+      }
       charged = { credits, balance: transaction.balanceAfter };
     }
 

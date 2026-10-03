@@ -178,6 +178,18 @@ describe('CaptionsService.start', () => {
     cleanup();
   });
 
+  it('refuses a key whose charge exists once its job is gone, starting and refunding nothing', async () => {
+    const { svc, ledger, queue, refunds, cleanup } = build();
+    // The first upload's job finished and was swept; its charge is still in the ledger.
+    ledger.post.mockResolvedValueOnce({ transaction: { balanceAfter: 8 }, replayed: true });
+    const error = await errorOf(svc.start(user(), wav(600), undefined, KEY));
+    expect(error.getStatus()).toBe(409);
+    expect(error.getResponse()).toMatchObject({ code: 'IDEMPOTENCY_KEY_REUSED' });
+    expect(queue.add).not.toHaveBeenCalled();
+    expect(refunds.refund).not.toHaveBeenCalled();
+    cleanup();
+  });
+
   it('refunds and removes the audio if the job cannot be queued', async () => {
     const { svc, queue, cfg, refunds, cleanup } = build();
     queue.add.mockRejectedValueOnce(new Error('Redis down'));
