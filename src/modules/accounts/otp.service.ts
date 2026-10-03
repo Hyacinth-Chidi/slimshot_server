@@ -53,9 +53,11 @@ export class OtpService {
         retryAfterSeconds: wait,
       });
     }
-    await this.limiter.hit(`otp:email:${who}`, s.otpPerEmailPerHour, HOUR);
-    if (scope.installId) await this.limiter.hit(`otp:install:${scope.installId}`, s.otpPerDevicePerHour, HOUR);
+    // The caller's own limits first: a refused caller must not use up the email's budget,
+    // which would lock its owner out. Each purpose has its own email budget.
     if (scope.ip) await this.limiter.hit(`otp:ip:${this.hashes.hash('ip', scope.ip)}`, s.otpPerIpPerHour, HOUR);
+    if (scope.installId) await this.limiter.hit(`otp:install:${scope.installId}`, s.otpPerDevicePerHour, HOUR);
+    await this.limiter.hit(`otp:email:${purpose}:${who}`, s.otpPerEmailPerHour, HOUR);
 
     const code = randomInt(0, 1_000_000).toString().padStart(6, '0');
     await this.redis.set(this.codeKey(purpose, who), this.codeHash(purpose, email, code), 'EX', OTP_TTL_SECONDS);

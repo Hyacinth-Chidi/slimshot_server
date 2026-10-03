@@ -44,6 +44,13 @@ export class FakeRedis {
     return Math.ceil((entry.expiresAt - this.now()) / 1000);
   }
 
+  async expire(key: string, seconds: number): Promise<number> {
+    const entry = this.live(key);
+    if (!entry) return 0;
+    entry.expiresAt = this.now() + seconds * 1000;
+    return 1;
+  }
+
   async del(...keys: string[]): Promise<number> {
     return keys.filter((k) => this.store.delete(k)).length;
   }

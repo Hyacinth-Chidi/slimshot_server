@@ -134,6 +134,21 @@ describe('OtpService', () => {
     });
   });
 
+  it("does not spend an email's budget on requests refused for their IP", async () => {
+    const { otp } = build({ otpPerIpPerHour: 1, otpPerEmailPerHour: 2, otpResendCooldownSeconds: 0 });
+    await otp.send('sign_in', 'attacker@example.com', { ip: '10.0.0.9' });
+    for (let i = 0; i < 5; i += 1) {
+      expect((await errorOf(otp.send('sign_in', 'victim@example.com', { ip: '10.0.0.9' }))).getStatus()).toBe(429);
+    }
+    await expect(otp.send('sign_in', 'victim@example.com', { ip: '10.0.0.1' })).resolves.toBeDefined();
+  });
+
+  it('keeps the per-email budgets of sign-in and deletion codes apart', async () => {
+    const { otp } = build({ otpPerEmailPerHour: 1, otpResendCooldownSeconds: 0 });
+    await otp.send('delete_account', 'ann@example.com', {});
+    await expect(otp.send('sign_in', 'ann@example.com', {})).resolves.toBeDefined();
+  });
+
   it('keeps sign-in and deletion codes apart', async () => {
     const { otp, codeOf } = build();
     await otp.send('sign_in', 'ann@example.com', {});

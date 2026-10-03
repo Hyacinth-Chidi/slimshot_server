@@ -96,6 +96,14 @@ describe('AccountDeletionService on the web', () => {
     expect(otp.send).not.toHaveBeenCalled();
   });
 
+  it('answers the same when the code cannot be sent, so the answer never reveals an account', async () => {
+    const { svc, otp } = build();
+    otp.send.mockRejectedValueOnce(new HttpException({ code: 'OTP_RESEND_TOO_SOON', message: 'Wait.' }, 429));
+    await expect(svc.requestWebDeletion('ann@example.com', '10.0.0.1')).resolves.toEqual({ sentTo: 'ann@example.com' });
+    otp.send.mockRejectedValueOnce(new Error('SMTP is down'));
+    await expect(svc.requestWebDeletion('ann@example.com', '10.0.0.1')).resolves.toEqual({ sentTo: 'ann@example.com' });
+  });
+
   it('deletes after the emailed code checks out', async () => {
     const { svc, otp, tx } = build();
     await svc.confirmWebDeletion('ann@example.com', '123456');

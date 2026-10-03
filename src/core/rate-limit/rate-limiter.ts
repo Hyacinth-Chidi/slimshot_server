@@ -12,9 +12,11 @@ export class RateLimiter {
 
   async increment(key: string, windowSeconds: number): Promise<number> {
     const k = `rl:${key}`;
-    // SET NX first, so the key carries its expiry before it is ever counted.
-    await this.redis.set(k, '0', 'EX', windowSeconds, 'NX');
-    return this.redis.incr(k);
+    const count = await this.redis.incr(k);
+    // Start the window on the first count, and repair a counter left without an expiry (it
+    // expired between two commands, or the process died between them): no one is limited for good.
+    if (count === 1 || (await this.redis.ttl(k)) === -1) await this.redis.expire(k, windowSeconds);
+    return count;
   }
 
   async hit(key: string, limit: number, windowSeconds: number): Promise<void> {

@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 
 import { AuditService } from '../../core/audit/audit.service';
 import { appError } from '../../core/errors/app-error';
@@ -15,6 +15,8 @@ export type DeletionActor = { type: 'user'; id: string } | { type: 'admin'; id: 
 
 @Injectable()
 export class AccountDeletionService {
+  private readonly logger = new Logger(AccountDeletionService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
@@ -78,7 +80,13 @@ export class AccountDeletionService {
     const email = normalizeEmail(rawEmail);
     if (ip) await this.limiter.hit(`deletion:ip:${this.hashes.hash('ip', ip)}`, 20, 3_600);
     const user = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (user) await this.otp.send('delete_account', email, { ip });
+    if (user) {
+      // A refusal (too soon, rate limited) or a mail failure must not change the answer,
+      // or the page would reveal which emails have accounts.
+      await this.otp.send('delete_account', email, { ip }).catch((err: unknown) => {
+        this.logger.warn(`Web deletion code not sent: ${err instanceof Error ? err.message : String(err)}`);
+      });
+    }
     return { sentTo: email };
   }
 

@@ -25,6 +25,13 @@ describe('RateLimiter', () => {
     await expect(limiter.hit('k', 1, 60)).resolves.toBeUndefined();
   });
 
+  it('gives a counter that lost its expiry a new one, so nobody is limited for good', async () => {
+    const redis = new FakeRedis();
+    await redis.set('rl:k', '7');
+    await new RateLimiter(redis as never).increment('k', 60);
+    expect(await redis.ttl('rl:k')).toBeGreaterThan(0);
+  });
+
   it('counts without throwing when asked to', async () => {
     const limiter = new RateLimiter(new FakeRedis() as never);
     expect(await limiter.increment('ip', 86_400)).toBe(1);
