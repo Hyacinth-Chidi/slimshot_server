@@ -457,6 +457,91 @@ export type BytesWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedBytesFilter<$PrismaModel>
 }
 
+export type EnumCreditTxTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.CreditTxType | Prisma.EnumCreditTxTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.CreditTxType[] | Prisma.ListEnumCreditTxTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CreditTxType[] | Prisma.ListEnumCreditTxTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCreditTxTypeFilter<$PrismaModel> | $Enums.CreditTxType
+}
+
+export type EnumCreditTxTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CreditTxType | Prisma.EnumCreditTxTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.CreditTxType[] | Prisma.ListEnumCreditTxTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CreditTxType[] | Prisma.ListEnumCreditTxTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCreditTxTypeWithAggregatesFilter<$PrismaModel> | $Enums.CreditTxType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCreditTxTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCreditTxTypeFilter<$PrismaModel>
+}
+
+export type EnumBonusClaimKindFilter<$PrismaModel = never> = {
+  equals?: $Enums.BonusClaimKind | Prisma.EnumBonusClaimKindFieldRefInput<$PrismaModel>
+  in?: $Enums.BonusClaimKind[] | Prisma.ListEnumBonusClaimKindFieldRefInput<$PrismaModel>
+  notIn?: $Enums.BonusClaimKind[] | Prisma.ListEnumBonusClaimKindFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumBonusClaimKindFilter<$PrismaModel> | $Enums.BonusClaimKind
+}
+
+export type EnumBonusClaimKindWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.BonusClaimKind | Prisma.EnumBonusClaimKindFieldRefInput<$PrismaModel>
+  in?: $Enums.BonusClaimKind[] | Prisma.ListEnumBonusClaimKindFieldRefInput<$PrismaModel>
+  notIn?: $Enums.BonusClaimKind[] | Prisma.ListEnumBonusClaimKindFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumBonusClaimKindWithAggregatesFilter<$PrismaModel> | $Enums.BonusClaimKind
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumBonusClaimKindFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumBonusClaimKindFilter<$PrismaModel>
+}
+
+export type EnumReferralOutcomeFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReferralOutcome | Prisma.EnumReferralOutcomeFieldRefInput<$PrismaModel>
+  in?: $Enums.ReferralOutcome[] | Prisma.ListEnumReferralOutcomeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ReferralOutcome[] | Prisma.ListEnumReferralOutcomeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumReferralOutcomeFilter<$PrismaModel> | $Enums.ReferralOutcome
+}
+
+export type EnumReferralOutcomeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReferralOutcome | Prisma.EnumReferralOutcomeFieldRefInput<$PrismaModel>
+  in?: $Enums.ReferralOutcome[] | Prisma.ListEnumReferralOutcomeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ReferralOutcome[] | Prisma.ListEnumReferralOutcomeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumReferralOutcomeWithAggregatesFilter<$PrismaModel> | $Enums.ReferralOutcome
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumReferralOutcomeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumReferralOutcomeFilter<$PrismaModel>
+}
+
+export type EnumCreditFeatureFilter<$PrismaModel = never> = {
+  equals?: $Enums.CreditFeature | Prisma.EnumCreditFeatureFieldRefInput<$PrismaModel>
+  in?: $Enums.CreditFeature[] | Prisma.ListEnumCreditFeatureFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CreditFeature[] | Prisma.ListEnumCreditFeatureFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCreditFeatureFilter<$PrismaModel> | $Enums.CreditFeature
+}
+
+export type EnumPricingModeFilter<$PrismaModel = never> = {
+  equals?: $Enums.PricingMode | Prisma.EnumPricingModeFieldRefInput<$PrismaModel>
+  in?: $Enums.PricingMode[] | Prisma.ListEnumPricingModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PricingMode[] | Prisma.ListEnumPricingModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPricingModeFilter<$PrismaModel> | $Enums.PricingMode
+}
+
+export type EnumCreditFeatureWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CreditFeature | Prisma.EnumCreditFeatureFieldRefInput<$PrismaModel>
+  in?: $Enums.CreditFeature[] | Prisma.ListEnumCreditFeatureFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CreditFeature[] | Prisma.ListEnumCreditFeatureFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCreditFeatureWithAggregatesFilter<$PrismaModel> | $Enums.CreditFeature
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCreditFeatureFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCreditFeatureFilter<$PrismaModel>
+}
+
+export type EnumPricingModeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.PricingMode | Prisma.EnumPricingModeFieldRefInput<$PrismaModel>
+  in?: $Enums.PricingMode[] | Prisma.ListEnumPricingModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PricingMode[] | Prisma.ListEnumPricingModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPricingModeWithAggregatesFilter<$PrismaModel> | $Enums.PricingMode
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumPricingModeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumPricingModeFilter<$PrismaModel>
+}
+
 export type NestedStringFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -884,6 +969,91 @@ export type NestedBytesWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedBytesFilter<$PrismaModel>
   _max?: Prisma.NestedBytesFilter<$PrismaModel>
+}
+
+export type NestedEnumCreditTxTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.CreditTxType | Prisma.EnumCreditTxTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.CreditTxType[] | Prisma.ListEnumCreditTxTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CreditTxType[] | Prisma.ListEnumCreditTxTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCreditTxTypeFilter<$PrismaModel> | $Enums.CreditTxType
+}
+
+export type NestedEnumCreditTxTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CreditTxType | Prisma.EnumCreditTxTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.CreditTxType[] | Prisma.ListEnumCreditTxTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CreditTxType[] | Prisma.ListEnumCreditTxTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCreditTxTypeWithAggregatesFilter<$PrismaModel> | $Enums.CreditTxType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCreditTxTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCreditTxTypeFilter<$PrismaModel>
+}
+
+export type NestedEnumBonusClaimKindFilter<$PrismaModel = never> = {
+  equals?: $Enums.BonusClaimKind | Prisma.EnumBonusClaimKindFieldRefInput<$PrismaModel>
+  in?: $Enums.BonusClaimKind[] | Prisma.ListEnumBonusClaimKindFieldRefInput<$PrismaModel>
+  notIn?: $Enums.BonusClaimKind[] | Prisma.ListEnumBonusClaimKindFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumBonusClaimKindFilter<$PrismaModel> | $Enums.BonusClaimKind
+}
+
+export type NestedEnumBonusClaimKindWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.BonusClaimKind | Prisma.EnumBonusClaimKindFieldRefInput<$PrismaModel>
+  in?: $Enums.BonusClaimKind[] | Prisma.ListEnumBonusClaimKindFieldRefInput<$PrismaModel>
+  notIn?: $Enums.BonusClaimKind[] | Prisma.ListEnumBonusClaimKindFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumBonusClaimKindWithAggregatesFilter<$PrismaModel> | $Enums.BonusClaimKind
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumBonusClaimKindFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumBonusClaimKindFilter<$PrismaModel>
+}
+
+export type NestedEnumReferralOutcomeFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReferralOutcome | Prisma.EnumReferralOutcomeFieldRefInput<$PrismaModel>
+  in?: $Enums.ReferralOutcome[] | Prisma.ListEnumReferralOutcomeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ReferralOutcome[] | Prisma.ListEnumReferralOutcomeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumReferralOutcomeFilter<$PrismaModel> | $Enums.ReferralOutcome
+}
+
+export type NestedEnumReferralOutcomeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReferralOutcome | Prisma.EnumReferralOutcomeFieldRefInput<$PrismaModel>
+  in?: $Enums.ReferralOutcome[] | Prisma.ListEnumReferralOutcomeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ReferralOutcome[] | Prisma.ListEnumReferralOutcomeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumReferralOutcomeWithAggregatesFilter<$PrismaModel> | $Enums.ReferralOutcome
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumReferralOutcomeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumReferralOutcomeFilter<$PrismaModel>
+}
+
+export type NestedEnumCreditFeatureFilter<$PrismaModel = never> = {
+  equals?: $Enums.CreditFeature | Prisma.EnumCreditFeatureFieldRefInput<$PrismaModel>
+  in?: $Enums.CreditFeature[] | Prisma.ListEnumCreditFeatureFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CreditFeature[] | Prisma.ListEnumCreditFeatureFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCreditFeatureFilter<$PrismaModel> | $Enums.CreditFeature
+}
+
+export type NestedEnumPricingModeFilter<$PrismaModel = never> = {
+  equals?: $Enums.PricingMode | Prisma.EnumPricingModeFieldRefInput<$PrismaModel>
+  in?: $Enums.PricingMode[] | Prisma.ListEnumPricingModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PricingMode[] | Prisma.ListEnumPricingModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPricingModeFilter<$PrismaModel> | $Enums.PricingMode
+}
+
+export type NestedEnumCreditFeatureWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CreditFeature | Prisma.EnumCreditFeatureFieldRefInput<$PrismaModel>
+  in?: $Enums.CreditFeature[] | Prisma.ListEnumCreditFeatureFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CreditFeature[] | Prisma.ListEnumCreditFeatureFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCreditFeatureWithAggregatesFilter<$PrismaModel> | $Enums.CreditFeature
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCreditFeatureFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCreditFeatureFilter<$PrismaModel>
+}
+
+export type NestedEnumPricingModeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.PricingMode | Prisma.EnumPricingModeFieldRefInput<$PrismaModel>
+  in?: $Enums.PricingMode[] | Prisma.ListEnumPricingModeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PricingMode[] | Prisma.ListEnumPricingModeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPricingModeWithAggregatesFilter<$PrismaModel> | $Enums.PricingMode
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumPricingModeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumPricingModeFilter<$PrismaModel>
 }
 
 

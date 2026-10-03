@@ -115,3 +115,50 @@ export const ProviderCapability = {
 } as const
 
 export type ProviderCapability = (typeof ProviderCapability)[keyof typeof ProviderCapability]
+
+
+export const CreditTxType = {
+  signup_bonus: 'signup_bonus',
+  referral_inviter: 'referral_inviter',
+  referral_invitee: 'referral_invitee',
+  rewarded_ad: 'rewarded_ad',
+  feature_charge: 'feature_charge',
+  feature_refund: 'feature_refund',
+  admin_adjustment: 'admin_adjustment',
+  account_deleted: 'account_deleted',
+  purchase: 'purchase'
+} as const
+
+export type CreditTxType = (typeof CreditTxType)[keyof typeof CreditTxType]
+
+
+export const CreditFeature = {
+  auto_captions: 'auto_captions'
+} as const
+
+export type CreditFeature = (typeof CreditFeature)[keyof typeof CreditFeature]
+
+
+export const PricingMode = {
+  per_job: 'per_job',
+  duration_tiers: 'duration_tiers'
+} as const
+
+export type PricingMode = (typeof PricingMode)[keyof typeof PricingMode]
+
+
+export const BonusClaimKind = {
+  email: 'email',
+  install: 'install'
+} as const
+
+export type BonusClaimKind = (typeof BonusClaimKind)[keyof typeof BonusClaimKind]
+
+
+export const ReferralOutcome = {
+  rewarded: 'rewarded',
+  invitee_ineligible: 'invitee_ineligible',
+  inviter_capped: 'inviter_capped'
+} as const
+
+export type ReferralOutcome = (typeof ReferralOutcome)[keyof typeof ReferralOutcome]

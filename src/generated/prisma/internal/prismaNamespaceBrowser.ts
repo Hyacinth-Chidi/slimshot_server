@@ -63,7 +63,14 @@ export const ModelName = {
   AdminUser: 'AdminUser',
   RefreshToken: 'RefreshToken',
   ProviderCredential: 'ProviderCredential',
-  Device: 'Device'
+  Device: 'Device',
+  UserSession: 'UserSession',
+  UserRefreshToken: 'UserRefreshToken',
+  CreditTransaction: 'CreditTransaction',
+  BonusClaim: 'BonusClaim',
+  Referral: 'Referral',
+  CreditSettings: 'CreditSettings',
+  PricingRule: 'PricingRule'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -186,6 +193,12 @@ export const UserScalarFieldEnum = {
   avatarUrl: 'avatarUrl',
   accountStatus: 'accountStatus',
   tier: 'tier',
+  googleSub: 'googleSub',
+  username: 'username',
+  referralCode: 'referralCode',
+  creditBalance: 'creditBalance',
+  claimedAt: 'claimedAt',
+  signupIpLimited: 'signupIpLimited',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   deletedAt: 'deletedAt'
@@ -289,11 +302,112 @@ export const DeviceScalarFieldEnum = {
   tokenHash: 'tokenHash',
   platform: 'platform',
   appVersion: 'appVersion',
+  userId: 'userId',
   createdAt: 'createdAt',
   lastSeenAt: 'lastSeenAt'
 } as const
 
 export type DeviceScalarFieldEnum = (typeof DeviceScalarFieldEnum)[keyof typeof DeviceScalarFieldEnum]
+
+
+export const UserSessionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  deviceId: 'deviceId',
+  createdAt: 'createdAt',
+  lastUsedAt: 'lastUsedAt',
+  revokedAt: 'revokedAt'
+} as const
+
+export type UserSessionScalarFieldEnum = (typeof UserSessionScalarFieldEnum)[keyof typeof UserSessionScalarFieldEnum]
+
+
+export const UserRefreshTokenScalarFieldEnum = {
+  id: 'id',
+  tokenHash: 'tokenHash',
+  sessionId: 'sessionId',
+  expiresAt: 'expiresAt',
+  revokedAt: 'revokedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type UserRefreshTokenScalarFieldEnum = (typeof UserRefreshTokenScalarFieldEnum)[keyof typeof UserRefreshTokenScalarFieldEnum]
+
+
+export const CreditTransactionScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  amount: 'amount',
+  balanceAfter: 'balanceAfter',
+  idempotencyKey: 'idempotencyKey',
+  reference: 'reference',
+  metadata: 'metadata',
+  createdAt: 'createdAt'
+} as const
+
+export type CreditTransactionScalarFieldEnum = (typeof CreditTransactionScalarFieldEnum)[keyof typeof CreditTransactionScalarFieldEnum]
+
+
+export const BonusClaimScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  hmac: 'hmac',
+  createdAt: 'createdAt'
+} as const
+
+export type BonusClaimScalarFieldEnum = (typeof BonusClaimScalarFieldEnum)[keyof typeof BonusClaimScalarFieldEnum]
+
+
+export const ReferralScalarFieldEnum = {
+  id: 'id',
+  inviterId: 'inviterId',
+  inviteeId: 'inviteeId',
+  outcome: 'outcome',
+  createdAt: 'createdAt'
+} as const
+
+export type ReferralScalarFieldEnum = (typeof ReferralScalarFieldEnum)[keyof typeof ReferralScalarFieldEnum]
+
+
+export const CreditSettingsScalarFieldEnum = {
+  id: 'id',
+  signupBonusCredits: 'signupBonusCredits',
+  adRewardCredits: 'adRewardCredits',
+  adDailyCap: 'adDailyCap',
+  referralInviterCredits: 'referralInviterCredits',
+  referralInviteeCredits: 'referralInviteeCredits',
+  referralCapCount: 'referralCapCount',
+  referralCapDays: 'referralCapDays',
+  ipSignupLimitPer24h: 'ipSignupLimitPer24h',
+  disposableEmailDomains: 'disposableEmailDomains',
+  otpMaxAttempts: 'otpMaxAttempts',
+  otpResendCooldownSeconds: 'otpResendCooldownSeconds',
+  otpPerEmailPerHour: 'otpPerEmailPerHour',
+  otpPerDevicePerHour: 'otpPerDevicePerHour',
+  otpPerIpPerHour: 'otpPerIpPerHour',
+  updatedById: 'updatedById',
+  updatedAt: 'updatedAt'
+} as const
+
+export type CreditSettingsScalarFieldEnum = (typeof CreditSettingsScalarFieldEnum)[keyof typeof CreditSettingsScalarFieldEnum]
+
+
+export const PricingRuleScalarFieldEnum = {
+  id: 'id',
+  feature: 'feature',
+  version: 'version',
+  mode: 'mode',
+  perJobCredits: 'perJobCredits',
+  tiers: 'tiers',
+  isActive: 'isActive',
+  note: 'note',
+  createdById: 'createdById',
+  createdAt: 'createdAt',
+  activatedAt: 'activatedAt'
+} as const
+
+export type PricingRuleScalarFieldEnum = (typeof PricingRuleScalarFieldEnum)[keyof typeof PricingRuleScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -107,3 +107,38 @@ export type ProviderCredential = Prisma.ProviderCredentialModel
  * An anonymous app install. The app holds the token; only its SHA-256 is kept.
  */
 export type Device = Prisma.DeviceModel
+/**
+ * Model UserSession
+ * One refresh-token family: one signed-in install.
+ */
+export type UserSession = Prisma.UserSessionModel
+/**
+ * Model UserRefreshToken
+ * 
+ */
+export type UserRefreshToken = Prisma.UserRefreshTokenModel
+/**
+ * Model CreditTransaction
+ * Append-only. Written only by LedgerService; the user's creditBalance is its sum.
+ */
+export type CreditTransaction = Prisma.CreditTransactionModel
+/**
+ * Model BonusClaim
+ * Who already received a signup bonus: HMACs only, no user link, kept after deletion.
+ */
+export type BonusClaim = Prisma.BonusClaimModel
+/**
+ * Model Referral
+ * 
+ */
+export type Referral = Prisma.ReferralModel
+/**
+ * Model CreditSettings
+ * Exactly one row, id "default", inserted by the migration and edited from the admin API.
+ */
+export type CreditSettings = Prisma.CreditSettingsModel
+/**
+ * Model PricingRule
+ * Immutable once created; a price change is a new version. One active per feature (partial index).
+ */
+export type PricingRule = Prisma.PricingRuleModel

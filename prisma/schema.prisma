@@ -174,19 +174,30 @@ model UploadSession {
 }
 
 model User {
-  id            String        @id @default(cuid())
-  email         String?       @unique
-  phone         String?       @unique
-  displayName   String?
-  avatarUrl     String?
-  accountStatus AccountStatus @default(active)
-  tier          String        @default("free")
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  deletedAt     DateTime?
+  id              String        @id @default(cuid())
+  email           String?       @unique
+  phone           String?       @unique
+  displayName     String?
+  avatarUrl       String?
+  accountStatus   AccountStatus @default(active)
+  tier            String        @default("free")
+  googleSub       String?       @unique
+  username        String?       @unique
+  referralCode    String?       @unique
+  creditBalance   Int           @default(0)
+  claimedAt       DateTime?
+  signupIpLimited Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
 
-  entitlements UserEntitlement[]
-  assets       Asset[]
+  entitlements     UserEntitlement[]
+  assets           Asset[]
+  sessions         UserSession[]
+  devices          Device[]
+  ledger           CreditTransaction[]
+  referralsMade    Referral[]          @relation("ReferralInviter")
+  referralReceived Referral?           @relation("ReferralInvitee")
 }
 
 model UserEntitlement {
@@ -316,6 +327,152 @@ model Device {
   tokenHash  String   @unique
   platform   String?
   appVersion String?
+  userId     String?
   createdAt  DateTime @default(now())
   lastSeenAt DateTime @default(now())
+
+  user     User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessions UserSession[]
+
+  @@index([userId])
+}
+
+enum CreditTxType {
+  signup_bonus
+  referral_inviter
+  referral_invitee
+  rewarded_ad
+  feature_charge
+  feature_refund
+  admin_adjustment
+  account_deleted
+  purchase
+}
+
+enum CreditFeature {
+  auto_captions
+}
+
+enum PricingMode {
+  per_job
+  duration_tiers
+}
+
+enum BonusClaimKind {
+  email
+  install
+}
+
+enum ReferralOutcome {
+  rewarded
+  invitee_ineligible
+  inviter_capped
+}
+
+/// One refresh-token family: one signed-in install.
+model UserSession {
+  id         String    @id @default(cuid())
+  userId     String
+  deviceId   String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  revokedAt  DateTime?
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device        Device             @relation(fields: [deviceId], references: [id])
+  refreshTokens UserRefreshToken[]
+
+  @@index([userId, revokedAt])
+}
+
+model UserRefreshToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  sessionId String
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  session UserSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+/// Append-only. Written only by LedgerService; the user's creditBalance is its sum.
+model CreditTransaction {
+  id             String       @id @default(cuid())
+  userId         String
+  type           CreditTxType
+  amount         Int
+  balanceAfter   Int
+  idempotencyKey String       @unique
+  reference      String?
+  metadata       Json?
+  createdAt      DateTime     @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([type, createdAt])
+}
+
+/// Who already received a signup bonus: HMACs only, no user link, kept after deletion.
+model BonusClaim {
+  id        String         @id @default(cuid())
+  kind      BonusClaimKind
+  hmac      String
+  createdAt DateTime       @default(now())
+
+  @@unique([kind, hmac])
+}
+
+model Referral {
+  id        String          @id @default(cuid())
+  inviterId String
+  inviteeId String          @unique
+  outcome   ReferralOutcome
+  createdAt DateTime        @default(now())
+
+  inviter User @relation("ReferralInviter", fields: [inviterId], references: [id])
+  invitee User @relation("ReferralInvitee", fields: [inviteeId], references: [id])
+
+  @@index([inviterId, createdAt])
+}
+
+/// Exactly one row, id "default", inserted by the migration and edited from the admin API.
+model CreditSettings {
+  id                       String   @id
+  signupBonusCredits       Int
+  adRewardCredits          Int
+  adDailyCap               Int
+  referralInviterCredits   Int
+  referralInviteeCredits   Int
+  referralCapCount         Int
+  referralCapDays          Int
+  ipSignupLimitPer24h      Int
+  disposableEmailDomains   String[]
+  otpMaxAttempts           Int
+  otpResendCooldownSeconds Int
+  otpPerEmailPerHour       Int
+  otpPerDevicePerHour      Int
+  otpPerIpPerHour          Int
+  updatedById              String?
+  updatedAt                DateTime @updatedAt
+}
+
+/// Immutable once created; a price change is a new version. One active per feature (partial index).
+model PricingRule {
+  id            String        @id @default(cuid())
+  feature       CreditFeature
+  version       Int
+  mode          PricingMode
+  perJobCredits Int?
+  tiers         Json?
+  isActive      Boolean       @default(false)
+  note          String?
+  createdById   String
+  createdAt     DateTime      @default(now())
+  activatedAt   DateTime?
+
+  @@unique([feature, version])
 }
