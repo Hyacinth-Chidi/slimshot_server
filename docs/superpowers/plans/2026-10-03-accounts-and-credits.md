@@ -4412,3 +4412,48 @@ test-first. New module `src/modules/rewards/`.
 - [ ] Add a **Rewarded ads** section to `docs/app-credits-api.md`: the flow (start a session → load the rewarded ad with `ServerSideVerificationOptions` `userId = ssvUserId`, `customData = nonce` → show it → after it closes poll `GET /rewards/ads/session/{nonce}` every ~1 s for up to ~30 s); responses; `409 AD_DAILY_CAP_REACHED { resetsAt }`; the AdMob console setup (set each rewarded ad unit's SSV callback URL to `https://<server>/api/app/v1/rewards/admob/ssv`; the server's `ADMOB_AD_UNIT_IDS` must list those units); never grant credits in the app. Add `AD_DAILY_CAP_REACHED` to the error table; status line: ads live. Check, run everything, commit `docs: app contract for rewarded ads`. **Milestone 3 is complete.**
 
 ---
+
+# Milestone 4 — Admin API
+
+Same format as Milestones 2–3. All routes under `/api/admin/v1`, guarded by `JwtAuthGuard` +
+`PermissionsGuard`, every handler with `@RequirePermission`, every write audited. `AdminModule`
+imports `CreditsModule`, `CreditSettingsModule` and `AccountsModule`.
+
+### Task 22: Permissions, credit settings, pricing rules, balance check
+
+**Files:** Modify `src/core/auth/permissions.ts` (+ spec), `src/core/auth/admin-routes.spec.ts`, `src/modules/credits/pricing.service.ts` (+ spec), `src/modules/admin/admin.module.ts`; Create `src/modules/admin/admin-credit-settings.controller.ts`, `admin-pricing-rules.controller.ts`, `admin-credits.controller.ts`, `dto/credit-admin.dto.ts`, `admin-pricing-rules.http.spec.ts`.
+
+**Interfaces:**
+- Permissions: `users.read` (viewer and up), `users.manage` (admin and up), `credits.manage` (owner only).
+- `PricingService.listRules(feature)` (newest version first); `.createRule({ feature, mode, perJobCredits?, tiers?, note? }, adminId)` → next version for the feature; a `duration_tiers` rule runs `tierProblems`, a `per_job` rule needs `perJobCredits`; problems → `422 VALIDATION_FAILED { problems: string[] }`; audit `pricing.rule.created`; `.activate(id, adminId)` → 404 if unknown; when not active, one transaction deactivates the feature's active rule and activates this one (`activatedAt`), audit `pricing.rule.activated`; returns the feature's rules.
+- Routes:
+  - `GET /credit-settings`, `PUT /credit-settings` (`credits.manage`); the DTO allows each settings field as optional, with bounds: signup bonus, ad reward and referral amounts 0–100000; `adDailyCap` 0–1000; `referralCapCount` 0–10000; `referralCapDays` 1–365; `ipSignupLimitPer24h` 1–100000; `otpMaxAttempts` 1–20; `otpResendCooldownSeconds` 0–3600; the three OTP hourly limits 1–10000; `disposableEmailDomains` up to 5000 lowercased domain names.
+  - `GET /pricing-rules?feature=` (422 for an unknown feature), `POST /pricing-rules` (201), `POST /pricing-rules/:id/activate` (200) (`credits.manage`). Tier DTO: `upToSeconds` an integer 1–86400 or `null`; `credits` 0–100000; 1–50 tiers.
+  - `GET /credits/reconciliation` (`credits.manage`) → the mismatches from `ReconciliationService.check()`.
+
+- [ ] **Step 1: Failing tests.** `permissions.spec.ts`: viewer has `users.read` but not `users.manage`; admin has `users.manage` but not `credits.manage`; only owner has `credits.manage`. `pricing.service.spec.ts` additions: create assigns version = last + 1 and audits; invalid tiers → 422 with problems; per-job without `perJobCredits` → 422; activate switches the active rule in one transaction and audits; activating an active rule writes nothing; unknown id → 404. `admin-routes.spec.ts`: the three new controllers listed (every handler declares a permission). `admin-pricing-rules.http.spec.ts` (guards overridden to pass): a valid tiered rule with a `null` last tier → 201 and the service gets the tiers; a tier with `upToSeconds: 0` → 422; an unknown `mode` → 422; `GET ?feature=nope` → 422.
+- [ ] **Step 2:** FAIL. **Step 3:** implement. **Step 4:** `npx jest && npm run lint && npm run typecheck`. Commit `feat: admin API for credit settings, pricing rules and the balance check`.
+
+### Task 23: Users and credit stats
+
+**Files:** Create `src/modules/admin/admin-users.service.ts` (+ spec), `admin-users.controller.ts`, `admin-credit-stats.controller.ts`, `dto/user-admin.dto.ts`; register in `admin.module.ts` and `admin-routes.spec.ts`; document all admin routes in `docs/admin-credits-api.md` (for the dashboard plan).
+
+**Interfaces:**
+- `AdminUsersService(prisma, ledger, credits: CreditsService, deletion: AccountDeletionService, audit)`:
+  - `search(q?, cursor?, limit = 20)` → email or username containing `q` (lowercased), newest first, cursor pagination → `{ items: UserSummary[], nextCursor }` with `UserSummary { id, email, username, accountStatus, creditBalance, createdAt, claimedAt }`.
+  - `detail(id)` → summary + `referralCode`, `deletedAt`, `signInMethods { google, email }`; 404 if unknown.
+  - `ledger(id, cursor?, limit?)` → `CreditsService.history`.
+  - `adjust(id, amount, reason, adminId)` → `admin_adjustment` with a random reference and metadata `{ reason, adminId }`; a 402 from the ledger → `422 VALIDATION_FAILED "This would take the balance below zero." { balance }`; audit `credits.adjusted { amount, reason }`; returns `{ balance }`.
+  - `suspend(id, reason, adminId)` / `unsuspend(id, adminId)` → status change only from `active` / `suspended`; 404 unknown; 409 when already in that state (or deleted); audits `user.suspended { reason }` / `user.unsuspended`; returns `detail`.
+  - `remove(id, reason, adminId)` → `AccountDeletionService.deleteAccount(id, { type: 'admin', id: adminId, reason })`.
+  - `creditStats(days)` → one SQL query per day and type: `granted` (sum of positive amounts) and `spent` (sum of negative amounts, as a positive number) since `days` days ago → `[{ day: 'YYYY-MM-DD', type, granted, spent }]`.
+- Routes: `GET /users?q=&cursor=&limit=`, `GET /users/:id`, `GET /users/:id/ledger` (`users.read`); `POST /users/:id/adjustments { amount (non-zero integer, −1 000 000…1 000 000), reason (3–500) }`, `POST /users/:id/suspend { reason }`, `POST /users/:id/unsuspend`, `DELETE /users/:id { reason }` (`users.manage`, all 200); `GET /stats/credits?days=30` (`users.read`, 1–365 else 422).
+
+- [ ] **Step 1: Failing tests** (`admin-users.service.spec.ts`, Prisma and services mocked): search builds the `OR` filter and pages; detail 404; adjust posts the ledger entry with a reference and audits, maps a 402 to 422 with the balance; suspend from active writes and audits, suspend of a suspended user → 409, unknown → 404; unsuspend mirrors it; remove calls the deletion service with the admin actor; creditStats maps rows to numbers.
+- [ ] **Step 2:** FAIL. **Step 3:** implement; write `docs/admin-credits-api.md` (every route above with request and response shapes, permissions and errors). **Step 4:** `npx jest && npm run lint && npm run typecheck && npm run build`. Commit `feat: admin API for users and credit stats`.
+
+### Task 24: Final verification
+
+- [ ] `npx jest && npm run lint && npm run typecheck && npm run build`; `git status` clean; `grep` that no controller returns `apiKeyCipher`, `tokenHash` or `hmac`; then the executing-plans final review.
+
+---
