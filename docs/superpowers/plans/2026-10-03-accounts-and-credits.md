@@ -4255,3 +4255,118 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 Expected: the whole suite passes. **Milestone 1 is complete** (owner can test sign-in, `/me`, username, claim and deletion after `migrate deploy`).
 
 ---
+
+# Milestone 2 — Credits and paid captions
+
+Builds on Milestone 1 as committed. `CreditsModule` (Task 13) imports `LedgerModule`,
+`CreditSettingsModule` and `AccountsModule` (for `UserAuthGuard`) and re-exports `LedgerModule`
+and `PricingService`. `ClaimService` (Task 16) stays in `accounts/` because `CreditsModule`
+depends on `AccountsModule`, not the other way round. Full code for every step is in the
+commits; tests are listed in full below because they define the behaviour.
+
+### Task 13: Pricing, quote and history
+
+**Files:**
+- Create: `src/modules/credits/pricing.ts`, `pricing.service.ts`, `credits.service.ts`, `credits.controller.ts`, `dto/credits.dto.ts`, `credits.module.ts`
+- Modify: `src/app.module.ts` (import `CreditsModule` after `AccountsModule`)
+- Test: `src/modules/credits/pricing.spec.ts`, `pricing.service.spec.ts`, `credits.service.spec.ts`
+
+**Interfaces:**
+- Produces:
+  - `interface PriceTier { upToSeconds: number | null; credits: number }`
+  - `interface PricedRule { id: string; version: number; mode: PricingMode; perJobCredits: number | null; tiers: PriceTier[] | null }`
+  - `priceFor(rule, durationSeconds): number` — first tier with `durationSeconds <= upToSeconds` (inclusive) or the open-ended last tier; `per_job` returns `perJobCredits ?? 0`
+  - `tierProblems(tiers): string[]` — messages containing: "At least one tier", "last tier must be open-ended", "only the last tier can be open-ended", "greater than the tier before", "credits must be a whole number" (used by Task 22)
+  - `PricingService.activeRule(feature)`: `pricingRule.findFirst({ where: { feature, isActive: true } })` mapped to `PricedRule`; `.price(feature, seconds): { credits, rule }` → `503 CAPTIONS_UNAVAILABLE` "Auto caption is not available right now. Try again later." without a rule
+  - `CreditsService.quote(userId, feature, seconds)` → `{ credits, balance, enough: balance >= credits, pricingVersion }`; `.history(userId, cursor?, limit = 20)` → `findMany({ where: { userId }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: limit + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), select: { id, type, amount, balanceAfter, createdAt } })` → `{ items: first limit, nextCursor: rows.length > limit ? last item id : null }`
+  - DTOs: `QuoteDto { @IsEnum(CreditFeature) feature; @IsNumber({maxDecimalPlaces: 3}) @Min(0.001) @Max(14400) durationSeconds }`; `HistoryQueryDto { @IsOptional @IsString @MaxLength(40) cursor?; @IsOptional @Type(() => Number) @IsInt @Min(1) @Max(100) limit? }`
+  - Routes (`UserAuthGuard`): `POST /api/app/v1/credits/quote` (`@HttpCode(200)`), `GET /api/app/v1/credits/history`
+  - `CreditsModule`: imports `[LedgerModule, CreditSettingsModule, AccountsModule]`, providers `[PricingService, CreditsService]`, exports `[PricingService, CreditsService, LedgerModule]`
+
+- [ ] **Step 1: Failing tests.** `pricing.spec.ts`: with tiers `[60→2, 180→5, null→9]`, `priceFor` gives 0.5→2, 60→2, 60.001→5, 180→5, 180.5→9, 3600→9; per-job rule with `perJobCredits: 4` → 4; `tierProblems` of the valid list → `[]`, and each of the five invalid lists reports its message. `pricing.service.spec.ts`: active rule `{ id: 'r1', version: 2, mode: 'per_job', perJobCredits: 3 }` → `{ credits: 3, rule: { id: 'r1', version: 2 } }` and `findFirst` called with `{ where: { feature: 'auto_captions', isActive: true } }`; no rule → 503 `CAPTIONS_UNAVAILABLE`. `credits.service.spec.ts`: quote with balance 94 → enough true, 5 → false (credits 6, pricingVersion 3); history with three rows and limit 2 → two items, `nextCursor: 't2'`, exact `findMany` arguments above; with cursor `t2` → `cursor: { id: 't2' }, skip: 1`; one row → `nextCursor: null`.
+- [ ] **Step 2:** `npx jest src/modules/credits` → FAIL (modules not found).
+- [ ] **Step 3:** implement the files above; wire `CreditsModule` into `AppModule`.
+- [ ] **Step 4:** `npx jest src/modules/credits && npm run lint && npm run typecheck` → PASS. Commit `feat: pricing rules, credit quote and history`.
+
+---
+
+### Task 14: WAV duration from the header
+
+**Files:** Create `src/modules/captions/wav.ts`, `test/fakes/wav.ts`; Test `src/modules/captions/wav.spec.ts`.
+
+**Interfaces:**
+- `class InvalidWavError extends Error`; `wavDurationSeconds(audio: Buffer): number` = data bytes ÷ byte rate. Walk chunks after `RIFF….WAVE`; `fmt ` must be PCM (1) or extensible (0xFFFE) with a non-zero byte rate and come before `data`; `data` bytes = `min(declared size, bytes present)` (streaming placeholder sizes and cut-short uploads); odd chunk sizes skip one pad byte. Errors: "The upload is not a WAV file.", "Only uncompressed PCM WAV is supported.", "The WAV has no format chunk before its audio.", "The WAV contains no audio.", "The WAV format header is incomplete.", "The WAV header has a zero byte rate."
+- Test helper `test/fakes/wav.ts`: `riffChunk(id, body, declaredSize = body.length)` (pads odd bodies) and `makeWav({ seconds, sampleRate = 16000, channels = 1, bits = 16, format = 1, extraChunks, dataSizeOverride, omitFmt })` building a silent WAV byte by byte.
+
+- [ ] **Step 1: Failing tests:** 2.5 s mono 16 kHz → 2.5; 1 s stereo 44.1 kHz → 1; `LIST` (5 bytes, odd) and `JUNK` chunks before `data` → 3; `dataSizeOverride: 0xffffffff` → 2; a 4 s file with its last 32 000 bytes cut → 3; refuses not-RIFF, format 85, data without fmt, zero seconds (`InvalidWavError`).
+- [ ] **Step 2:** FAIL (module not found). **Step 3:** implement. **Step 4:** PASS + lint. Commit `feat: measure WAV duration from the header`.
+
+---
+
+### Task 15: Paid captions — sign-in, WAV, charge, refund
+
+**Files:**
+- Create `src/modules/captions/caption-refunds.ts` (+ spec)
+- Replace `captions.service.ts`, `caption.worker.ts`, `captions.controller.ts` and their specs (`captions.service.spec.ts`, `caption.worker.spec.ts`, `captions.http.spec.ts`)
+- Modify `captions.constants.ts` (`CaptionJobData { userId, filePath, mimeType, language, credits }`; `captionJobId(userId, key)`), `captions.module.ts` (imports `AccountsModule`, `CreditsModule`, `ProvidersModule`; providers add `CaptionRefunds`; drop `DevicesModule`)
+- Delete `src/modules/devices/device-auth.guard.ts`, `device-auth.guard.spec.ts`, `current-device.decorator.ts`; `DevicesModule` keeps only `DevicesController` + `DevicesService`
+
+**Interfaces:**
+- `CaptionRefunds.refund(userId: string | undefined, jobId, credits: number | undefined, reason): Promise<void>` — no-op without userId or with credits ≤ 0 (free jobs, jobs queued before credits existed); posts `{ userId, type: feature_refund, amount: credits, reference: jobId, metadata: { reason } }`; on any ledger error logs (`Logger.error`) and audits `credits.refund.failed` (actorType `system`, entityType `User`, after `{ jobId, credits, reason }`); never throws.
+- `WAV_MIME_TYPES = {audio/wav, audio/x-wav, audio/wave, audio/vnd.wave}`
+- `CaptionsService(queue, providers: ProviderCredentialsService, pricing, ledger, refunds, cfg)`. `start(user: AuthenticatedAppUser, audio, language, key): StartedCaptionView` (= `CaptionJobView & { charged?: { credits, balance } }`), in order:
+  1. suspended → `403 ACCOUNT_SUSPENDED`; 2. no active provider → `503 CAPTIONS_UNAVAILABLE`;
+  3. `jobId = captionJobId(user.id, key)`; existing job → its view (no charge);
+  4. mimetype not in `WAV_MIME_TYPES` → `415 UNSUPPORTED_MEDIA` "Upload WAV audio (audio/wav); got <type>.";
+  5. `wavDurationSeconds` (`InvalidWavError` → `422 INVALID_AUDIO` with its message);
+  6. `pricing.price(auto_captions, duration)`;
+  7. credits > 0 → `ledger.post({ userId, type: feature_charge, amount: -credits, reference: jobId, requireActive: true, metadata: { feature: 'auto_captions', durationSeconds, pricingRuleId, pricingVersion } })` → `charged = { credits, balance: transaction.balanceAfter }`;
+  8. in one try: mkdir (0700), write `<jobId>.audio` (0600), `queue.add('transcribe', { userId, filePath, mimeType, language ?? null, credits }, { jobId, attempts: 2, backoff fixed 2000, removeOnComplete/removeOnFail { age: TTL } })`; on failure remove the file, `refunds.refund(user.id, jobId, credits, 'queue_failed')`, rethrow;
+  9. `202 { jobId, status: 'queued', pollAfterMs, charged? }`.
+  `status(user, jobId)` as before but scoped to `job.data.userId`.
+- `CaptionWorker(credentials, refunds, cfg)`: as before plus `failedForGood` (no provider, provider refusal, last attempt) → `refunds.refund(userId, job.id, credits, 'job_failed')` in `finally`; the `rm` in `finally` is wrapped (`.catch` → `Logger.warn`) so a cleanup error never turns a paid result into a failure.
+- `CaptionsController`: `@UseGuards(UserAuthGuard)`, `@CurrentAppUser()`; keeps the Idempotency-Key and missing-audio 422s; the mimetype check moves to the service.
+
+- [ ] **Step 1: Failing tests.**
+  - `caption-refunds.spec.ts`: posts the refund keyed by the job; no-op for credits 0 and for missing userId/credits; a ledger 404 is logged and audited (`credits.refund.failed`) and the call resolves.
+  - `captions.service.spec.ts` (WAV bodies from `makeWav`): suspended → `ACCOUNT_SUSPENDED`, no ledger call; no provider → 503; `application/octet-stream` → 415 naming the type, no ledger call; unreadable WAV → `INVALID_AUDIO`; a 3 s WAV → `pricing.price('auto_captions', ≈3)`, the exact ledger charge above, file written, exact `queue.add` arguments, view `{ jobId, status: 'queued', pollAfterMs: 1500, charged: { credits: 6, balance: 88 } }`; ledger 402 → no queue, no tmp dir; 0-credit job → no ledger call, no `charged`; resend with the same key → one charge, one job; `queue.add` failure → no file, `refund(u1, jobId, 6, 'queue_failed')`; POSIX file mode 0600; status: waiting/delayed→queued, active→processing, completed→result, another user → 404, older than TTL → 404.
+  - `caption.worker.spec.ts`: success → result, file gone, no refund; provider 400 → `UnrecoverableError`, file gone, `refund('u1','cap_x',6,'job_failed')`; 503 on attempt 1 → file kept, no refund; network error on the last attempt → file gone, refund; no provider → `UnrecoverableError`, refund; the file path is a directory (rm fails) → the result is still returned, a warning logged, no refund; the key never appears in warnings; concurrency applied on bootstrap.
+  - `captions.http.spec.ts`: `UserAuthGuard` overridden with a fake that accepts `Bearer a.b.c` and otherwise throws `401 SIGN_IN_REQUIRED`; `POST /devices` still works unauthenticated; 202 passes the app user, `audio/wav` part, lowercased language and key; no bearer and a device-token bearer → 401 `SIGN_IN_REQUIRED` without calling the service; bad keys → 422; no audio → 422; oversize → 413 `PAYLOAD_TOO_LARGE`; a service 402 passes through with `details { required, balance }`; polling passes the user.
+- [ ] **Step 2:** `npx jest src/modules/captions` → FAIL.
+- [ ] **Step 3:** implement, delete the device guard files, update the modules.
+- [ ] **Step 4:** `npx jest && npm run lint && npm run typecheck && npm run build` → PASS. Commit `feat: paid captions: sign-in, WAV duration, charge, automatic refund`.
+
+---
+
+### Task 16: Signup bonus and referrals in the claim
+
+**Files:** Replace `src/modules/accounts/claim.service.ts` and its spec.
+
+**Interfaces:**
+- `ClaimService(prisma, usernames, me, settings: CreditSettingsService, hashes: IdentityHashService, ledger: LedgerService)`
+- `ClaimResult { user: MeView; bonus: { granted: boolean; credits: number; reason?: 'BONUS_ALREADY_CLAIMED' | 'IP_LIMIT_REACHED' }; referral: { outcome: ReferralOutcome; credits: number } | null }`
+- Flow: suspended → 403; already claimed → 409; username via `assertAvailable`; referral code (if any) → `findInviter` (normalised; unknown, own or non-active inviter → `422 REFERRAL_CODE_INVALID` "That referral code is not valid.") **before writing anything**; keys `hash('bonus-email', canonicalEmail(email))` (null without email) and `hash('bonus-install', deviceId)`; eligibility: `signupIpLimited` → `IP_LIMIT_REACHED`; any matching `BonusClaim` (`findFirst` with `OR`) → `BONUS_ALREADY_CLAIMED`; then one transaction: `updateMany({ where: { id, claimedAt: null }, data: { username, claimedAt } })` (count 0 → 409), if eligible create the `BonusClaim` rows (email, install) and post `signup_bonus` (reference userId) when the setting > 0; referral: when the invitee is eligible lock the inviter row (`tx.$queryRaw … FOR UPDATE`), count rewarded referrals in the last `referralCapDays` → `inviter_capped` at the cap else `rewarded`; not eligible → `invitee_ineligible`; create the `Referral`; invitee gets `referral_invitee` unless ineligible; inviter gets `referral_inviter` only when `rewarded` (both reference the referral id). A unique violation from the transaction: if the username now belongs to someone else → `409 USERNAME_TAKEN`; otherwise re-run the transaction as not eligible (`BONUS_ALREADY_CLAIMED`).
+
+- [ ] **Step 1: Failing tests** (in-memory fake with snapshot rollback; ledger mocked): new email + new install → bonus `{ granted: true, credits: 100 }`, two `BonusClaim` rows, `signup_bonus` post; seeded email claim (delete-and-recreate) → `BONUS_ALREADY_CLAIMED`, no post, username set; seeded install claim (second account on one phone) → `BONUS_ALREADY_CLAIMED`; `a.nn+promo@gmail.com` blocked by a claim for `ann@gmail.com`; IP-limited → `IP_LIMIT_REACHED`, no claim rows; referral with `' invite22 '` → `rewarded`, both posts referencing `ref-1`; inviter at cap 1 → `inviter_capped`, invitee 20, no inviter post; ineligible invitee → `invitee_ineligible`, no posts; codes `NOPE0000`, own `SELFCODE`, suspended inviter's `SUSPEND3` → 422 with `claimedAt` still null; a forced unique violation on the first `BonusClaim` insert → falls back to `BONUS_ALREADY_CLAIMED`, username and `claimedAt` set; second claim → 409, suspended → 403.
+- [ ] **Step 2:** FAIL. **Step 3:** implement. **Step 4:** `npx jest src/modules/accounts && npm run lint && npm run typecheck`. Commit `feat: signup bonus and referrals in the claim step`.
+
+---
+
+### Task 17: Daily balance check
+
+**Files:** Create `src/modules/credits/reconciliation.service.ts` (+ spec); provide and export it from `CreditsModule`.
+
+**Interfaces:** `BalanceMismatch { userId, cached, ledger }`; `check()` runs one SQL query (`User` LEFT JOIN `CreditTransaction`, `GROUP BY` user, `HAVING creditBalance <> COALESCE(SUM(amount), 0)`, `::int`); `run()` logs (`Logger.error`) and audits `credits.reconcile.mismatch` per mismatch (actorType `system`, after `{ cached, ledger }`), swallows errors with a warning and returns `[]`; `onModuleInit` schedules a first run after 5 minutes and then every 24 h with `unref`'d timers; `onModuleDestroy` clears them.
+
+- [ ] **Steps:** failing spec (mapping, audit per mismatch, survives a DB error, schedules without hanging) → FAIL → implement → PASS + lint + typecheck. Commit `feat: daily check that balances equal their ledger`.
+
+---
+
+### Task 18: App contract, part 2 — credits and paid captions
+
+**Files:** Modify `docs/app-credits-api.md`; replace `docs/app-api/auto-caption.md` with a pointer.
+
+- [ ] **Step 1:** Status: Milestones 1–2 live. Add: **Credits** (`/me.creditBalance`; `GET /credits/history?cursor=&limit=` 1–100, default 20 → `{ items: [{ id, type, amount, balanceAfter, createdAt }], nextCursor }`, every `type` explained); **Quote** (`POST /credits/quote { feature: "auto_captions", durationSeconds }` → `{ credits, balance, enough, pricingVersion }`, show "This will use N credits · You have M", the server re-measures the same WAV); **Auto captions, now paid** (sign-in required; WAV only via `ffmpeg -i input.mp4 -vn -ac 1 -ar 16000 -c:a pcm_s16le audio.wav`, ≈1.9 MB/min, 50 MB ≈ 26 min; part type `audio/wav`; Idempotency-Key rule; `202 { jobId, status, pollAfterMs, charged? }`; failed jobs refunded automatically; polling and result format carried over from the old guide; Dart snippet with the access token and `MediaType('audio', 'wav')`; curl); **Claim filled in** (`bonus` reasons, `referral` outcomes, how referral codes work); error table additions: `402 INSUFFICIENT_CREDITS {required, balance}`, `415 UNSUPPORTED_MEDIA`, `422 INVALID_AUDIO`, `413 PAYLOAD_TOO_LARGE`, `503 CAPTIONS_UNAVAILABLE`, `422 REFERRAL_CODE_INVALID`, `404 NOT_FOUND`. `auto-caption.md` becomes a short pointer to the new contract.
+- [ ] **Step 2:** check each of `INSUFFICIENT_CREDITS UNSUPPORTED_MEDIA INVALID_AUDIO PAYLOAD_TOO_LARGE CAPTIONS_UNAVAILABLE REFERRAL_CODE_INVALID BONUS_ALREADY_CLAIMED IP_LIMIT_REACHED inviter_capped` appears; `npx jest && npm run lint && npm run typecheck && npm run build`; commit `docs: app contract for credits and paid captions`. **Milestone 2 is complete.**
+
+---
