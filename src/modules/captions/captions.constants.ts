@@ -14,20 +14,22 @@ export const IDEMPOTENCY_KEY = /^[A-Za-z0-9_-]{8,64}$/;
 export const CAPTION_JOB_ID = /^cap_[0-9a-f]{32}$/;
 
 export interface CaptionJobData {
-  deviceId: string;
+  userId: string;
   filePath: string;
   mimeType: string;
   language: string | null;
+  /** What this job was charged; refunded if it fails. */
+  credits: number;
 }
 
 /**
  * Derived, not random: a resend with the same Idempotency-Key lands on the
- * job that already exists instead of paying the provider twice, and the id
- * is scoped to the device that created it. The prefix keeps the id from
- * ever being all digits, which BullMQ refuses as a custom id.
+ * job that already exists instead of charging twice, and the id is scoped to
+ * the user who created it. The prefix keeps the id from ever being all digits,
+ * which BullMQ refuses as a custom id.
  */
-export function captionJobId(deviceId: string, idempotencyKey: string): string {
-  const digest = createHash('sha256').update(`${deviceId}:${idempotencyKey}`).digest('hex');
+export function captionJobId(userId: string, idempotencyKey: string): string {
+  const digest = createHash('sha256').update(`${userId}:${idempotencyKey}`).digest('hex');
   return `cap_${digest.slice(0, 32)}`;
 }
 

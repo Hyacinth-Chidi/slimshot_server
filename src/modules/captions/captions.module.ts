@@ -3,8 +3,10 @@ import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 
 import { captionConfig, type CaptionConfig } from '../../config';
-import { DevicesModule } from '../devices/devices.module';
+import { AccountsModule } from '../accounts/accounts.module';
+import { CreditsModule } from '../credits/credits.module';
 import { ProvidersModule } from '../providers/providers.module';
+import { CaptionRefunds } from './caption-refunds';
 import { CaptionSweeper } from './caption-sweeper';
 import { CaptionWorker } from './caption.worker';
 import { QUEUE_CAPTIONS } from './captions.constants';
@@ -22,10 +24,11 @@ import { CaptionsService } from './captions.service';
         limits: { fileSize: caption.maxUploadBytes, files: 1 },
       }),
     }),
-    DevicesModule,
+    AccountsModule,
+    CreditsModule,
     ProvidersModule,
   ],
   controllers: [CaptionsController],
-  providers: [CaptionsService, CaptionWorker, CaptionSweeper],
+  providers: [CaptionsService, CaptionWorker, CaptionSweeper, CaptionRefunds],
 })
 export class CaptionsModule {}

@@ -2,20 +2,19 @@ import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import { InjectQueue } from '@nestjs/bullmq';
-import {
-  Inject,
-  Injectable,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { HttpStatus, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import type { Job, Queue } from 'bullmq';
 
 import { captionConfig, type CaptionConfig } from '../../config';
+import { appError } from '../../core/errors/app-error';
 import { ErrorCode } from '../../core/errors/error-codes';
-import { ProviderCapability } from '../../generated/prisma/enums';
-import type { AuthenticatedDevice } from '../devices/devices.service';
+import { AccountStatus, CreditFeature, CreditTxType, ProviderCapability } from '../../generated/prisma/enums';
+import type { AuthenticatedAppUser } from '../accounts/user-auth.guard';
+import { LedgerService } from '../credits/ledger.service';
+import { PricingService } from '../credits/pricing.service';
 import { ProviderCredentialsService } from '../providers/provider-credentials.service';
 import type { CaptionResult } from '../providers/speech-to-text.provider';
+import { CaptionRefunds } from './caption-refunds';
 import {
   CAPTION_JOB_ID,
   captionJobId,
@@ -25,11 +24,17 @@ import {
   POLL_AFTER_MS,
   QUEUE_CAPTIONS,
 } from './captions.constants';
+import { InvalidWavError, wavDurationSeconds } from './wav';
 
 export interface UploadedAudio {
   buffer: Buffer;
   mimetype: string;
 }
+
+export type StartedCaptionView = CaptionJobView & { charged?: { credits: number; balance: number } };
+
+/** WAV only: the server measures the duration from the header, never from the app. */
+export const WAV_MIME_TYPES = new Set(['audio/wav', 'audio/x-wav', 'audio/wave', 'audio/vnd.wave']);
 
 type CaptionJob = Job<CaptionJobData, CaptionResult>;
 
@@ -37,38 +42,71 @@ type CaptionJob = Job<CaptionJobData, CaptionResult>;
 export class CaptionsService {
   constructor(
     @InjectQueue(QUEUE_CAPTIONS) private readonly queue: Queue<CaptionJobData, CaptionResult>,
-    private readonly credentials: ProviderCredentialsService,
+    private readonly providers: ProviderCredentialsService,
+    private readonly pricing: PricingService,
+    private readonly ledger: LedgerService,
+    private readonly refunds: CaptionRefunds,
     @Inject(captionConfig.KEY) private readonly cfg: CaptionConfig,
   ) {}
 
   async start(
-    device: AuthenticatedDevice,
+    user: AuthenticatedAppUser,
     audio: UploadedAudio,
     language: string | undefined,
     idempotencyKey: string,
-  ): Promise<CaptionJobView> {
-    // Credit phase: the balance check belongs here, before anything is written or queued.
-    if (!(await this.credentials.getActive(ProviderCapability.speech_to_text))) {
-      throw new ServiceUnavailableException({
-        code: ErrorCode.CAPTIONS_UNAVAILABLE,
-        message: 'Auto caption is not available right now. Try again later.',
-      });
+  ): Promise<StartedCaptionView> {
+    if (user.status === AccountStatus.suspended) {
+      throw appError(HttpStatus.FORBIDDEN, ErrorCode.ACCOUNT_SUSPENDED, 'This account is suspended. Contact support.');
+    }
+    if (!(await this.providers.getActive(ProviderCapability.speech_to_text))) {
+      throw appError(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        ErrorCode.CAPTIONS_UNAVAILABLE,
+        'Auto caption is not available right now. Try again later.',
+      );
     }
 
-    const jobId = captionJobId(device.id, idempotencyKey);
+    const jobId = captionJobId(user.id, idempotencyKey);
     const existing = await this.queue.getJob(jobId);
-    // A resend of an upload the server already has: answer with that job and
-    // drop the new bytes without writing them.
+    // A resend of an upload the server already has: same job, no second charge.
     if (existing) return this.view(existing);
 
-    await mkdir(this.cfg.tmpDir, { recursive: true, mode: 0o700 });
-    const filePath = join(this.cfg.tmpDir, `${jobId}.audio`);
-    await writeFile(filePath, audio.buffer, { mode: 0o600 });
+    if (!WAV_MIME_TYPES.has(audio.mimetype)) {
+      throw appError(
+        HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+        ErrorCode.UNSUPPORTED_MEDIA,
+        `Upload WAV audio (audio/wav); got ${audio.mimetype}.`,
+      );
+    }
+    const durationSeconds = this.measure(audio.buffer);
+    const { credits, rule } = await this.pricing.price(CreditFeature.auto_captions, durationSeconds);
 
+    let charged: { credits: number; balance: number } | undefined;
+    if (credits > 0) {
+      // Held before any provider call; the worker refunds it if the job fails.
+      const { transaction } = await this.ledger.post({
+        userId: user.id,
+        type: CreditTxType.feature_charge,
+        amount: -credits,
+        reference: jobId,
+        requireActive: true,
+        metadata: {
+          feature: CreditFeature.auto_captions,
+          durationSeconds,
+          pricingRuleId: rule.id,
+          pricingVersion: rule.version,
+        },
+      });
+      charged = { credits, balance: transaction.balanceAfter };
+    }
+
+    const filePath = join(this.cfg.tmpDir, `${jobId}.audio`);
     try {
+      await mkdir(this.cfg.tmpDir, { recursive: true, mode: 0o700 });
+      await writeFile(filePath, audio.buffer, { mode: 0o600 });
       await this.queue.add(
         'transcribe',
-        { deviceId: device.id, filePath, mimeType: audio.mimetype, language: language ?? null },
+        { userId: user.id, filePath, mimeType: audio.mimetype, language: language ?? null, credits },
         {
           jobId,
           // The retry is for outages only; the worker makes refusals unrecoverable.
@@ -79,32 +117,38 @@ export class CaptionsService {
         },
       );
     } catch (err) {
-      await rm(filePath, { force: true });
+      await rm(filePath, { force: true }).catch(() => undefined);
+      await this.refunds.refund(user.id, jobId, credits, 'queue_failed');
       throw err;
     }
 
-    return { jobId, status: 'queued', pollAfterMs: POLL_AFTER_MS };
+    return { jobId, status: 'queued', pollAfterMs: POLL_AFTER_MS, ...(charged ? { charged } : {}) };
   }
 
-  async status(device: AuthenticatedDevice, jobId: string): Promise<CaptionJobView> {
+  async status(user: AuthenticatedAppUser, jobId: string): Promise<CaptionJobView> {
     if (!CAPTION_JOB_ID.test(jobId)) throw notFound();
-
     const job = await this.queue.getJob(jobId);
-    if (!job || job.data.deviceId !== device.id) throw notFound();
-
+    if (!job || job.data.userId !== user.id) throw notFound();
     // BullMQ prunes finished jobs by age only when a later job finishes. The
     // app is promised a fixed window, so enforce it here.
-    if (job.finishedOn && Date.now() - job.finishedOn > this.cfg.resultTtlSeconds * 1_000) {
-      throw notFound();
-    }
-
+    if (job.finishedOn && Date.now() - job.finishedOn > this.cfg.resultTtlSeconds * 1_000) throw notFound();
     return this.view(job);
+  }
+
+  private measure(audio: Buffer): number {
+    try {
+      return wavDurationSeconds(audio);
+    } catch (err) {
+      if (err instanceof InvalidWavError) {
+        throw appError(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.INVALID_AUDIO, err.message);
+      }
+      throw err;
+    }
   }
 
   private async view(job: CaptionJob): Promise<CaptionJobView> {
     const jobId = String(job.id);
     const state = await job.getState();
-
     switch (state) {
       case 'completed':
         return { jobId, status: 'completed', result: job.returnvalue };

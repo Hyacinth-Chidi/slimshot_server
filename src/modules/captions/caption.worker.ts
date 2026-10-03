@@ -10,6 +10,7 @@ import { ProviderCapability } from '../../generated/prisma/enums';
 import { ProviderCredentialsService } from '../providers/provider-credentials.service';
 import { ProviderError, scrub } from '../providers/provider-error';
 import type { CaptionResult } from '../providers/speech-to-text.provider';
+import { CaptionRefunds } from './caption-refunds';
 import { type CaptionJobData, encodeFailure, QUEUE_CAPTIONS } from './captions.constants';
 
 @Processor(QUEUE_CAPTIONS)
@@ -18,6 +19,7 @@ export class CaptionWorker extends WorkerHost implements OnApplicationBootstrap 
 
   constructor(
     private readonly credentials: ProviderCredentialsService,
+    private readonly refunds: CaptionRefunds,
     @Inject(captionConfig.KEY) private readonly cfg: CaptionConfig,
   ) {
     super();
@@ -29,10 +31,11 @@ export class CaptionWorker extends WorkerHost implements OnApplicationBootstrap 
   }
 
   async process(job: Job<CaptionJobData, CaptionResult>): Promise<CaptionResult> {
-    const { filePath, mimeType, language } = job.data;
-    // The audio goes the moment it cannot be needed again: after an answer,
-    // after a failure no retry can fix, or after the last attempt.
+    const { filePath, mimeType, language, userId, credits } = job.data;
+    // The audio goes the moment it cannot be needed again; a job that will not
+    // be retried gives its credits back.
     let audioDone = false;
+    let failedForGood = false;
     // Kept outside the try so the catch can scrub it from anything it logs.
     let apiKey = '';
 
@@ -43,9 +46,8 @@ export class CaptionWorker extends WorkerHost implements OnApplicationBootstrap 
       apiKey = active?.apiKey ?? '';
       if (!active) {
         audioDone = true;
-        throw new UnrecoverableError(
-          encodeFailure(ErrorCode.CAPTIONS_UNAVAILABLE, 'No caption provider is active.'),
-        );
+        failedForGood = true;
+        throw new UnrecoverableError(encodeFailure(ErrorCode.CAPTIONS_UNAVAILABLE, 'No caption provider is active.'));
       }
 
       const result = await active.adapter.transcribe(
@@ -53,19 +55,20 @@ export class CaptionWorker extends WorkerHost implements OnApplicationBootstrap 
         active.apiKey,
       );
       audioDone = true;
-      // Credit phase: charge here, keyed by job.id, so a retried job can never pay twice.
       return result;
     } catch (err) {
       if (err instanceof UnrecoverableError) throw err;
 
       if (err instanceof ProviderError && !err.retryable) {
         audioDone = true;
+        failedForGood = true;
         this.logger.warn(`Caption job ${job.id} refused by ${err.provider} (${err.status}): ${err.message}`);
         throw new UnrecoverableError(encodeFailure(ErrorCode.PROVIDER_FAILED, err.message));
       }
 
       const attempt = job.attemptsMade + 1;
       audioDone = attempt >= (job.opts.attempts ?? 1);
+      failedForGood = audioDone;
       // Network and header errors from fetch can quote request details, key included.
       const reason = scrub(err instanceof Error ? err.message : String(err), apiKey);
       this.logger.warn(`Caption job ${job.id} attempt ${attempt} failed: ${reason}`);
@@ -76,7 +79,15 @@ export class CaptionWorker extends WorkerHost implements OnApplicationBootstrap 
         ),
       );
     } finally {
-      if (audioDone) await rm(filePath, { force: true });
+      // A cleanup problem must never turn a paid answer into a failure (and a second provider call).
+      if (audioDone) {
+        await rm(filePath, { force: true }).catch((e: unknown) =>
+          this.logger.warn(
+            `Could not delete caption audio for job ${job.id}: ${e instanceof Error ? e.message : String(e)}`,
+          ),
+        );
+      }
+      if (failedForGood) await this.refunds.refund(userId, String(job.id), credits, 'job_failed');
     }
   }
 }

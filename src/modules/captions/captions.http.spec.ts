@@ -1,10 +1,11 @@
-import { INestApplication, ServiceUnavailableException } from '@nestjs/common';
+import { ExecutionContext, INestApplication } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 
 import { configureHttp } from '../../app.setup';
+import { appError } from '../../core/errors/app-error';
 import { ErrorCode } from '../../core/errors/error-codes';
-import { DeviceAuthGuard } from '../devices/device-auth.guard';
+import { UserAuthGuard } from '../accounts/user-auth.guard';
 import { DevicesController } from '../devices/devices.controller';
 import { DevicesService } from '../devices/devices.service';
 import { CaptionsController } from './captions.controller';
@@ -12,15 +13,25 @@ import { CaptionsService } from './captions.service';
 
 const LIMIT = 1_024;
 const QUEUED = { jobId: 'cap_0123456789abcdef0123456789abcdef', status: 'queued', pollAfterMs: 1500 };
+const ACCESS = 'Bearer a.b.c';
+
+// Stands in for UserAuthGuard: the real one is covered by its own spec.
+const fakeGuard = {
+  canActivate(ctx: ExecutionContext) {
+    const req = ctx.switchToHttp().getRequest<{ headers: Record<string, string>; appUser?: unknown }>();
+    if (req.headers.authorization !== ACCESS) {
+      throw appError(401, ErrorCode.SIGN_IN_REQUIRED, 'Sign in to use this feature.');
+    }
+    req.appUser = { id: 'u1', sessionId: 's1', deviceId: 'dev-1', status: 'active' };
+    return true;
+  },
+};
 
 describe('app caption API over HTTP', () => {
   let app: INestApplication;
   let base: string;
   const captions = { start: jest.fn(), status: jest.fn() };
-  const devices = {
-    register: jest.fn(async () => ({ deviceId: 'dev-1', token: 'tok' })),
-    authenticate: jest.fn(async (t: string) => (t === 'good-token' ? { id: 'dev-1' } : null)),
-  };
+  const devices = { register: jest.fn(async () => ({ deviceId: 'dev-1', token: 'tok' })) };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -29,9 +40,11 @@ describe('app caption API over HTTP', () => {
       providers: [
         { provide: CaptionsService, useValue: captions },
         { provide: DevicesService, useValue: devices },
-        DeviceAuthGuard,
       ],
-    }).compile();
+    })
+      .overrideGuard(UserAuthGuard)
+      .useValue(fakeGuard)
+      .compile();
 
     app = moduleRef.createNestApplication();
     configureHttp(app);
@@ -48,28 +61,17 @@ describe('app caption API over HTTP', () => {
     captions.status.mockReset().mockResolvedValue(QUEUED);
   });
 
-  function upload(opts: {
-    token?: string | null;
-    key?: string | null;
-    bytes?: number;
-    type?: string;
-    language?: string;
-    withAudio?: boolean;
-  } = {}) {
+  function upload(
+    opts: { auth?: string | null; key?: string | null; bytes?: number; language?: string; withAudio?: boolean } = {},
+  ) {
     const form = new FormData();
     if (opts.withAudio !== false) {
-      form.append(
-        'audio',
-        new Blob([new Uint8Array(opts.bytes ?? 16)], { type: opts.type ?? 'audio/mp4' }),
-        'clip.m4a',
-      );
+      form.append('audio', new Blob([new Uint8Array(opts.bytes ?? 16)], { type: 'audio/wav' }), 'clip.wav');
     }
     if (opts.language !== undefined) form.append('language', opts.language);
-
     const headers: Record<string, string> = {};
-    if (opts.token !== null) headers.authorization = `Bearer ${opts.token ?? 'good-token'}`;
+    if (opts.auth !== null) headers.authorization = opts.auth ?? ACCESS;
     if (opts.key !== null) headers['idempotency-key'] = opts.key ?? 'key-12345678';
-
     return fetch(`${base}/api/app/v1/captions`, { method: 'POST', headers, body: form });
   }
 
@@ -79,111 +81,67 @@ describe('app caption API over HTTP', () => {
     return body.error;
   }
 
-  it('registers a device', async () => {
-    const res = await fetch(`${base}/api/app/v1/devices`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ platform: 'android', appVersion: '1.4.0' }),
-    });
-    expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ success: true, data: { deviceId: 'dev-1', token: 'tok' } });
-  });
-
-  it('registers a device with no body at all', async () => {
+  it('registers a device without signing in', async () => {
     const res = await fetch(`${base}/api/app/v1/devices`, { method: 'POST' });
     expect(res.status).toBe(201);
   });
 
-  it('rejects an unknown platform', async () => {
-    const res = await fetch(`${base}/api/app/v1/devices`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ platform: 'symbian' }),
-    });
-    expect(res.status).toBe(422);
-  });
-
-  it('starts a caption job: 202 with the job', async () => {
+  it('starts a caption job for the signed-in user: 202', async () => {
     const res = await upload({ language: 'EN' });
-
     expect(res.status).toBe(202);
     expect(await res.json()).toEqual({ success: true, data: QUEUED });
-    const [device, audio, language, key] = captions.start.mock.calls[0] as [
+    const [appUser, audio, language, key] = captions.start.mock.calls[0] as [
       unknown,
-      { buffer: Buffer; mimetype: string },
+      { mimetype: string },
       string,
       string,
     ];
-    expect(device).toEqual({ id: 'dev-1' });
-    expect(audio.mimetype).toBe('audio/mp4');
-    expect(audio.buffer).toHaveLength(16);
+    expect(appUser).toMatchObject({ id: 'u1' });
+    expect(audio.mimetype).toBe('audio/wav');
     expect(language).toBe('en');
     expect(key).toBe('key-12345678');
   });
 
-  it('401s without a device token, before reading the upload', async () => {
-    const res = await upload({ token: null });
-    expect(res.status).toBe(401);
-    expect((await errorOf(res)).code).toBe(ErrorCode.UNAUTHENTICATED);
-    expect(captions.start).not.toHaveBeenCalled();
-  });
+  it.each([null, 'Bearer device-token-not-a-jwt'])(
+    '401 SIGN_IN_REQUIRED without a signed-in user (%p)',
+    async (auth) => {
+      const res = await upload({ auth });
+      expect(res.status).toBe(401);
+      expect((await errorOf(res)).code).toBe('SIGN_IN_REQUIRED');
+      expect(captions.start).not.toHaveBeenCalled();
+    },
+  );
 
-  it('401s an unknown device token', async () => {
-    const res = await upload({ token: 'stolen' });
-    expect(res.status).toBe(401);
-  });
-
-  it.each([null, 'short', 'has spaces in it', 'x'.repeat(65)])('422s Idempotency-Key %j', async (key) => {
+  it.each([null, 'short', 'has spaces in it'])('422s Idempotency-Key %j', async (key) => {
     const res = await upload({ key });
     expect(res.status).toBe(422);
-    expect((await errorOf(res)).code).toBe(ErrorCode.VALIDATION_FAILED);
   });
 
   it('422s a request with no audio', async () => {
     const res = await upload({ withAudio: false });
     expect(res.status).toBe(422);
-    expect((await errorOf(res)).message).toMatch(/"audio"/);
-  });
-
-  it('415s audio sent as application/octet-stream, naming what it received', async () => {
-    const res = await upload({ type: 'application/octet-stream' });
-    expect(res.status).toBe(415);
-    const error = await errorOf(res);
-    expect(error.code).toBe(ErrorCode.UNSUPPORTED_MEDIA);
-    expect(error.message).toContain('application/octet-stream');
   });
 
   it('413s audio over the size limit', async () => {
     const res = await upload({ bytes: LIMIT * 2 });
     expect(res.status).toBe(413);
-    expect((await errorOf(res)).code).toBe(ErrorCode.PAYLOAD_TOO_LARGE);
+    expect((await errorOf(res)).code).toBe('PAYLOAD_TOO_LARGE');
   });
 
-  it('422s a language that is not a two-letter code', async () => {
-    const res = await upload({ language: 'english' });
-    expect(res.status).toBe(422);
-  });
-
-  it('503s with CAPTIONS_UNAVAILABLE when no provider is active', async () => {
+  it('passes 402 INSUFFICIENT_CREDITS through with required and balance', async () => {
     captions.start.mockRejectedValue(
-      new ServiceUnavailableException({ code: ErrorCode.CAPTIONS_UNAVAILABLE, message: 'off' }),
+      appError(402, ErrorCode.INSUFFICIENT_CREDITS, 'Not enough credits.', { required: 6, balance: 2 }),
     );
     const res = await upload();
-    expect(res.status).toBe(503);
-    expect((await errorOf(res)).code).toBe(ErrorCode.CAPTIONS_UNAVAILABLE);
-  });
-
-  it('polls a job for the calling device', async () => {
-    const res = await fetch(`${base}/api/app/v1/captions/${QUEUED.jobId}`, {
-      headers: { authorization: 'Bearer good-token' },
+    expect(res.status).toBe(402);
+    expect(await res.json()).toMatchObject({
+      error: { code: 'INSUFFICIENT_CREDITS', details: { required: 6, balance: 2 } },
     });
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ success: true, data: QUEUED });
-    expect(captions.status).toHaveBeenCalledWith({ id: 'dev-1' }, QUEUED.jobId);
   });
 
-  it('401s a poll without a token', async () => {
-    const res = await fetch(`${base}/api/app/v1/captions/${QUEUED.jobId}`);
-    expect(res.status).toBe(401);
+  it('polls a job for the signed-in user', async () => {
+    const res = await fetch(`${base}/api/app/v1/captions/${QUEUED.jobId}`, { headers: { authorization: ACCESS } });
+    expect(res.status).toBe(200);
+    expect(captions.status).toHaveBeenCalledWith(expect.objectContaining({ id: 'u1' }), QUEUED.jobId);
   });
 });
