@@ -215,6 +215,10 @@ Show the price before the user generates:
 `200` → `{ "credits": 6, "balance": 94, "enough": true, "pricingVersion": 3 }` → "This will use
 6 credits · You have 94". When `enough` is false, offer ways to earn credits instead.
 
+Always ask; never compute the price in the app. The owner can price a job flat, by length
+brackets, or by the second (for example 1 credit per started 10 s, at least 2 per job), and can
+switch between them at any time.
+
 Use the duration of the exact WAV you are about to upload: the server measures that file again
 and charges what it measures.
 

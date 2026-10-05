@@ -87,11 +87,17 @@ Pricing is versioned. A rule is never edited: to change a price, create a new ve
 activate it. Exactly one version per feature is active; until one is, the app's Auto caption
 answers `503 CAPTIONS_UNAVAILABLE`. Features today: `auto_captions`.
 
-A rule is one of two modes:
+A rule is one of three modes:
 - `per_job`: every job costs `perJobCredits`.
 - `duration_tiers`: the job costs the first tier whose `upToSeconds` is at least the audio's
   length (inclusive: exactly 60 s is "up to 60"). The last tier has `upToSeconds: null` and
   covers everything longer.
+- `per_second`: the job costs `blockCredits` for every block of `blockSeconds` it starts, and
+  never less than `minCredits` (optional). The length is measured to the millisecond first.
+  With `blockSeconds: 10, blockCredits: 1, minCredits: 2`: 3 s → 2 credits (the minimum),
+  60 s → 6, 61 s → 7, 5 min → 30.
+
+Each rule carries only its own mode's fields; the others are `null`.
 
 A rule as returned:
 
@@ -103,6 +109,9 @@ A rule as returned:
   "mode": "duration_tiers",
   "perJobCredits": null,
   "tiers": [{ "upToSeconds": 60, "credits": 2 }, { "upToSeconds": 300, "credits": 5 }, { "upToSeconds": null, "credits": 10 }],
+  "blockSeconds": null,
+  "blockCredits": null,
+  "minCredits": null,
   "isActive": true,
   "note": "October prices",
   "createdById": "admin id",
@@ -120,16 +129,20 @@ Every version of the feature, newest first. An unknown or missing `feature` → 
 ```json
 { "feature": "auto_captions", "mode": "duration_tiers", "tiers": [{ "upToSeconds": 60, "credits": 2 }, { "upToSeconds": null, "credits": 5 }], "note": "optional, ≤ 500 chars" }
 ```
-or `{ "feature": "auto_captions", "mode": "per_job", "perJobCredits": 3 }`.
+or `{ "feature": "auto_captions", "mode": "per_job", "perJobCredits": 3 }`,
+or `{ "feature": "auto_captions", "mode": "per_second", "blockSeconds": 10, "blockCredits": 1, "minCredits": 2 }`
+(`minCredits` optional).
 
-Returns the new rule: the next version, **inactive**. Field limits: `credits` and
-`perJobCredits` 0–100000; `upToSeconds` 1–86400 or `null`; 1–50 tiers.
+Returns the new rule: the next version, **inactive**. Field limits: `credits`,
+`perJobCredits`, `blockCredits` and `minCredits` 0–100000; `upToSeconds` 1–86400 or `null`;
+`blockSeconds` 1–86400; 1–50 tiers.
 
 Beyond field limits, the tiers must make sense together. Otherwise `422 VALIDATION_FAILED`
 with `details.problems`, a list of sentences to show as they are:
 - the last tier must be open-ended (`null`), and only the last;
 - each `upToSeconds` must be greater than the one before;
-- a `per_job` rule needs `perJobCredits`.
+- a `per_job` rule needs `perJobCredits`;
+- a `per_second` rule needs `blockSeconds` and `blockCredits`.
 
 ### `POST /pricing-rules/{id}/activate` (`credits.manage`) → `200`
 
