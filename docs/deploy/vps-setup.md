@@ -20,6 +20,22 @@ After that, deploying new code is one command.
 
 Commands marked **PC** run in PowerShell on your computer. The others run on the VPS.
 
+### The order at a glance
+
+| Step | Where | What | When |
+|---|---|---|---|
+| 0 | PC, DNS, GitHub | DNS record, push `main`, gather the `.env` values | once |
+| 1 | PC | SSH key login | once (skip if root already logs in without a password) |
+| 2 | VPS, as root | Deploy key, clone into `/var/www/slimshot_server` | once |
+| 3 | VPS, as root | `setup-vps.sh`: firewall, Docker, nginx, `deploy` user | once |
+| 4 | VPS, as deploy | `.env`: generate one, or bring yours from the PC | once |
+| 5 | VPS, as deploy | `setup-nginx.sh`: HTTPS certificate | once |
+| 6 | VPS, as deploy | `deploy.sh`: first deploy, then check `/health` | once |
+| 7 | Dashboard, AdMob, Play Console | Point everything at the live API | once |
+| 8 | VPS and PC | Google Drive backups (`rclone`) | once |
+| 9 | VPS and GitHub | Automatic deploys on push (webhook) | once, optional |
+| 10 | VPS | Everyday commands | as needed |
+
 ---
 
 ## 0. Before you start
@@ -51,6 +67,10 @@ You need:
 ## 1. Your SSH key (PC)
 
 A key lets you log in without a password; step 3 then turns password logins off.
+
+> **Already logging in as root?** Run `ssh root@VPS_IP` once more. If it lets you in
+> **without** asking for a password, you already have a key: skip to step 2. If it asks for
+> the password, do this step, or step 3 will leave password logins on.
 
 ```powershell
 ssh-keygen -t ed25519 -C "slimshot-vps"
@@ -126,6 +146,10 @@ cd /var/www/slimshot_server
 
 ## 4. Settings: `.env` (as deploy)
 
+Use **one** of the two ways below.
+
+### 4A. Generate a new `.env` (recommended)
+
 ```bash
 ./deploy/scripts/init-env.sh
 nano .env
@@ -146,9 +170,34 @@ Replace every `CHANGE_ME`:
 | `CLOUDINARY_CLOUD_NAME` / `_API_KEY` / `_API_SECRET` | Cloudinary dashboard → API Keys |
 | `GOOGLE_CLIENT_IDS` | Google Cloud → Credentials → the OAuth **Web** client ID |
 | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` | Your mail provider. Port 587 goes with `SMTP_SECURE=false`; port 465 with `SMTP_SECURE=true` |
-| `ADMOB_AD_UNIT_IDS` | AdMob → your app → Ad units → the **rewarded** unit's ID (`ca-app-pub-…/…`) |
+| `ADMOB_AD_UNIT_IDS` | AdMob → your app → Ad units → the **rewarded** unit's ID (`ca-app-pub-…/…`). **Required:** the server won't start in production without it, so create the ad unit first |
 
 Save with **Ctrl+O**, **Enter**, then exit with **Ctrl+X**.
+
+### 4B. Bring the `.env` from your PC
+
+If your PC's `.env` already holds the Docker database and Redis lines (`POSTGRES_PASSWORD`,
+`DATABASE_URL=…@postgres:5432/…`, `REDIS_PASSWORD`, `REDIS_URL=…@redis:6379`), copy it
+instead (**PC**):
+
+```powershell
+scp "C:\Users\HP\Desktop\Slimshot workspace\slimshot_server\.env" deploy@VPS_IP:/var/www/slimshot_server/.env
+```
+
+Then on the VPS: `chmod 600 .env` and `nano .env`, and change these for production:
+
+| Line | Production value |
+|---|---|
+| `NODE_ENV` | `production` (add the line if it's missing) |
+| `TRUST_PROXY` | `1` |
+| `EMAIL_SENDER` | `smtp`, with a matching `SMTP_PORT`/`SMTP_SECURE` pair (587 + `false`, or 465 + `true`) |
+| `ADMOB_AD_UNIT_IDS` | your rewarded ad unit ID (required) |
+| `ADMIN_BASE_URL` | where the dashboard runs |
+| `JWT_ACCESS_TTL_SECONDS`, `JWT_REFRESH_TTL_SECONDS` | keep **one** of each if they appear twice |
+
+Don't run `init-env.sh` after copying: it never overwrites an existing `.env`.
+
+### Either way
 
 - **A value containing `$`** must be wrapped in single quotes, e.g. `SMTP_PASSWORD='pa$word'`.
 - **Copy the whole finished `.env` into your password manager now.** Two values must never be lost or changed:
@@ -382,6 +431,22 @@ Docker and every container come back on their own.
   - If the secret ever leaks, replace it: delete that file, re-run `setup-webhook.sh`, and paste
     the new secret into GitHub.
 
+**Check it yourself** after the first deploy:
+
+```bash
+sudo ufw status verbose            # only 22, 80 and 443 allowed
+sudo fail2ban-client status sshd   # the SSH jail and any banned addresses
+sudo ss -tlnp                      # 22, 80, 443 public; 2700 and 9000 on 127.0.0.1 only; no 5432 or 6379
+```
+
+From the **PC**, both of these must fail, which proves the database and Redis are not
+exposed:
+
+```powershell
+Test-NetConnection VPS_IP -Port 5432
+Test-NetConnection VPS_IP -Port 6379
+```
+
 ## Where things live
 
 | Path | What it is |
@@ -394,12 +459,19 @@ Docker and every container come back on their own.
 | `deploy/scripts/setup-nginx.sh` | nginx and the Let's Encrypt certificate |
 | `deploy/scripts/deploy.sh` | Pull, build, migrate, restart, health check |
 | `deploy/scripts/backup-db.sh` / `restore-db.sh` | Nightly backup and restore |
-| `deploy/nginx/` | The nginx site, the proxy settings and the certificate-request config |
 | `deploy/scripts/setup-webhook.sh` | Turns on automatic deploys (run once, with sudo) |
 | `deploy/scripts/webhook-deploy.sh` | What the webhook runs: deploys pushes to `main`, logs everything |
+| `deploy/nginx/` | The nginx site, the proxy settings and the certificate-request config |
 | `deploy/webhook/` | The listener's rule (`hooks.json`) and its systemd service |
-| On the VPS: `/etc/slimshot/webhook.env` | The webhook secret |
-| On the VPS: `/var/log/slimshot-deploy.log` | Every automatic deploy's output |
-| On the VPS: `/var/www/slimshot_server` | The code and `.env` |
-| On the VPS: `/var/backups/slimshot` | Local database dumps |
-| On the VPS: Docker volumes `slimshot_pgdata`, `slimshot_redisdata` | The database and Redis data |
+
+On the VPS:
+
+| Path | What it is |
+|---|---|
+| `/var/www/slimshot_server` | The code and `.env` |
+| Docker volumes `slimshot_pgdata`, `slimshot_redisdata` | The database and Redis data (survive restarts and deploys) |
+| `/var/backups/slimshot` | Local database dumps (14 days) |
+| `/var/log/slimshot-backup.log` | Nightly backup results |
+| `/var/log/slimshot-deploy.log` | Every automatic deploy's output |
+| `/etc/slimshot/webhook.env` | The webhook secret |
+| `/etc/nginx/sites-available/slimshot-api` | The installed nginx site |
