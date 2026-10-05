@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Run by the webhook listener (deploy/webhook/hooks.json) once GitHub's
-# signature has checked out. Deploys pushes to main; logs and ignores the rest.
-# Everything it does goes to /var/log/slimshot-deploy.log:
+# Run (as root, through one sudo rule) by the webhook listener
+# (deploy/webhook/hooks.json) once GitHub's signature has checked out.
+# Deploys pushes to main; logs and ignores the rest. Arguments, from GitHub's
+# request: event, ref, commit, pusher. Everything goes to the deploy log:
 #
 #   tail -f /var/log/slimshot-deploy.log
 #
@@ -16,8 +17,7 @@ log() { printf '%s %s\n' "$(date -u +%FT%TZ)" "$*"; }
 
 main() {
   cd "$(dirname "${BASH_SOURCE[0]}")/../.."
-  local event="${GITHUB_EVENT:-}" ref="${GITHUB_REF:-}" sha="${GITHUB_SHA:-}"
-  local who="${GITHUB_PUSHER:-someone}" branch="${DEPLOY_BRANCH:-main}"
+  local event="${1:-}" ref="${2:-}" sha="${3:-}" who="${4:-someone}" branch="${DEPLOY_BRANCH:-main}"
 
   case "$event" in
     ping)

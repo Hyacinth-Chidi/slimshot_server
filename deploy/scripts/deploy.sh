@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploys the latest code. Run as the deploy user, from anywhere:
+# Deploys the latest code. Run as root, from anywhere:
 #
 #   ./deploy/scripts/deploy.sh
 #

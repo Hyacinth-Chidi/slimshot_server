@@ -1,29 +1,43 @@
 #!/usr/bin/env bash
 # Turns on automatic deploys: a GitHub push to main runs deploy.sh.
-# Run once, after the first manual deploy works:
+# Run once, as root, after the first manual deploy works:
 #
-#   sudo ./deploy/scripts/setup-webhook.sh
+#   ./deploy/scripts/setup-webhook.sh
 #
-# It installs the `webhook` listener (Ubuntu package), creates a secret in
-# /etc/slimshot/webhook.env, starts the slimshot-webhook service, and prints
-# what to paste into GitHub. Re-running is safe and keeps the secret.
+# It installs the `webhook` listener (Ubuntu package) and runs it as the
+# unprivileged `slimshot-hook` user, with one sudo rule allowing exactly
+# deploy/scripts/webhook-deploy.sh as root. It creates a secret in
+# /etc/slimshot/webhook.env and prints what to paste into GitHub.
+# Re-running is safe and keeps the secret.
 
 set -euo pipefail
+
+HOOK_USER=slimshot-hook
 
 die() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 warn() { printf '\033[1;33mWARNING: %s\033[0m\n' "$*"; }
 
 main() {
-  [ "$(id -u)" -eq 0 ] || die "Run with sudo."
-  local repo user
+  [ "$(id -u)" -eq 0 ] || die "Run as root."
+  local repo
   repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-  user="${DEPLOY_USER:-deploy}"
-  id "$user" >/dev/null 2>&1 || die "No '$user' user. Run setup-vps.sh first."
 
   echo "==> Installing the webhook listener"
   apt-get install -y webhook jq >/dev/null
   # Ubuntu's package brings its own webhook.service (for /etc/webhook.conf); ours replaces it.
   systemctl disable --now webhook.service >/dev/null 2>&1 || true
+
+  echo "==> The ${HOOK_USER} user and its one sudo rule"
+  if ! id "$HOOK_USER" >/dev/null 2>&1; then
+    adduser --system --group --no-create-home --home /nonexistent "$HOOK_USER"
+  fi
+  local rule
+  rule="$(mktemp)"
+  printf '# The deploy webhook may run this one script as root, nothing else.\n%s ALL=(root) NOPASSWD: %s/deploy/scripts/webhook-deploy.sh\n' \
+    "$HOOK_USER" "$repo" > "$rule"
+  visudo -cf "$rule" >/dev/null || { rm -f "$rule"; die "The sudo rule did not validate."; }
+  install -m 440 -o root -g root "$rule" /etc/sudoers.d/slimshot-webhook
+  rm -f "$rule"
 
   echo "==> The shared secret"
   install -d -m 755 /etc/slimshot
@@ -37,7 +51,7 @@ main() {
 
   echo "==> Deploy log"
   touch /var/log/slimshot-deploy.log
-  chown "$user:$user" /var/log/slimshot-deploy.log
+  chown root:root /var/log/slimshot-deploy.log
   cat > /etc/logrotate.d/slimshot-deploy <<'EOF'
 /var/log/slimshot-deploy.log {
   monthly
@@ -50,8 +64,8 @@ main() {
 EOF
 
   echo "==> The slimshot-webhook service"
-  sed -e "s#__APP_DIR__#${repo}#g" -e "s#__DEPLOY_USER__#${user}#g" \
-    "$repo/deploy/webhook/slimshot-webhook.service" > /etc/systemd/system/slimshot-webhook.service
+  sed -e "s#__APP_DIR__#${repo}#g" "$repo/deploy/webhook/slimshot-webhook.service" \
+    > /etc/systemd/system/slimshot-webhook.service
   systemctl daemon-reload
   systemctl enable slimshot-webhook >/dev/null
   systemctl restart slimshot-webhook
@@ -66,14 +80,14 @@ EOF
   if [ "$code" = "403" ]; then
     echo "Listener is up, and it refuses unsigned requests (403), as it should."
   else
-    warn "The listener did not answer as expected (got '${code}'). See: sudo journalctl -u slimshot-webhook -n 50"
+    warn "The listener did not answer as expected (got '${code}'). See: journalctl -u slimshot-webhook -n 50"
   fi
 
   local site=/etc/nginx/sites-available/slimshot-api domain=""
   if [ -f "$site" ]; then
     domain="$(awk '/server_name/ {gsub(";", "", $2); print $2; exit}' "$site")"
     grep -q 'location /hooks/' "$site" \
-      || warn "nginx has no /hooks/ route yet. Re-run: sudo ./deploy/scripts/setup-nginx.sh ${domain:-<domain>} <email>"
+      || warn "nginx has no /hooks/ route yet. Re-run: ./deploy/scripts/setup-nginx.sh ${domain:-<domain>} <email>"
   else
     warn "nginx is not set up yet (setup-nginx.sh); GitHub cannot reach the listener until it is."
   fi

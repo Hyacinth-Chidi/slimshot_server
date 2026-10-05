@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Dumps the Postgres database to /var/backups/slimshot and, when rclone is set
 # up, copies it to Google Drive. Cron runs it nightly at 03:15 UTC (installed by
-# setup-vps.sh); run it by hand any time as the deploy user:
+# setup-vps.sh); run it by hand any time as root:
 #
 #   ./deploy/scripts/backup-db.sh
 #

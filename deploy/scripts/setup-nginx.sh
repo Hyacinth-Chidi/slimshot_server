@@ -2,7 +2,7 @@
 # Puts the API behind nginx with a free Let's Encrypt certificate.
 # Run once the domain's DNS points at this VPS:
 #
-#   sudo ./deploy/scripts/setup-nginx.sh slimshot-server.techfamz.com you@example.com
+#   ./deploy/scripts/setup-nginx.sh slimshot-server.techfamz.com you@example.com
 #
 # Re-running it is safe: it keeps an existing certificate and just reinstalls
 # the nginx config from the repo (do that after changing deploy/nginx/*).
@@ -13,9 +13,9 @@ set -euo pipefail
 die() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 main() {
-  [ "$(id -u)" -eq 0 ] || die "Run with sudo."
+  [ "$(id -u)" -eq 0 ] || die "Run as root."
   local domain="${1:-}" email="${2:-}"
-  [ -n "$domain" ] && [ -n "$email" ] || die "Usage: sudo $0 <domain> <email for Let's Encrypt notices>"
+  [ -n "$domain" ] && [ -n "$email" ] || die "Usage: $0 <domain> <email for Let's Encrypt notices>"
 
   local repo
   repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -59,7 +59,7 @@ main() {
   if certbot renew --dry-run --quiet; then
     echo "Renewal works."
   else
-    echo "WARNING: the renewal dry run failed; check 'sudo certbot renew --dry-run' before the certificate expires." >&2
+    echo "WARNING: the renewal dry run failed; check 'certbot renew --dry-run' before the certificate expires." >&2
   fi
 
   echo

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Creates .env from .env.production.example with fresh random secrets:
 # database and Redis passwords, JWT secrets, the identity HMAC secret and the
-# master encryption key. Run once, as the deploy user, from anywhere:
+# master encryption key. Run once, as root, from anywhere:
 #
 #   ./deploy/scripts/init-env.sh
 #

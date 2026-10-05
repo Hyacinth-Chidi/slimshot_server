@@ -1,35 +1,38 @@
 #!/usr/bin/env bash
 # First-time setup of a fresh Ubuntu 24.04 VPS for the SlimShot API.
-# Run ONCE, as root, from the cloned repo:
+# Everything runs and is managed as root. Run from the cloned repo:
 #
-#   sudo bash deploy/scripts/setup-vps.sh
+#   bash deploy/scripts/setup-vps.sh
 #
 # What it does (safe to re-run; every step checks before it changes anything):
-#   - updates the system; installs git, nginx, certbot, rclone, fail2ban, ufw
+#   - updates the system; installs git, nginx, certbot, rclone, fail2ban, ufw, jq
 #   - UTC clock, a 4 GB swap file, automatic security updates
 #   - Docker Engine + Compose plugin, with log rotation
-#   - a `deploy` user (sudo + docker) that owns the app; your SSH key and the
-#     GitHub deploy key are handed over to it
+#   - gives this repo its own GitHub host alias (github-slimshot), so `git pull`
+#     uses its deploy key and other apps' repos can use their own keys
 #   - firewall: only SSH, HTTP and HTTPS are open
-#   - SSH: key-only, no root login (only if `deploy` has a key; HARDEN_SSH=no skips it)
-#   - the nightly database backup (cron, 03:15 UTC)
+#   - SSH: key-only; root may log in with a key, never a password
+#     (only once root has a key; HARDEN_SSH=no skips it)
+#   - the nightly database backup (cron, as root, 03:15 UTC)
 #
-# Settings (environment variables): DEPLOY_USER (deploy), SWAP_SIZE (4G), HARDEN_SSH (yes).
+# The server-wide parts (firewall, SSH, Docker, nginx, swap) suit other apps on
+# the same VPS too; see "Hosting other apps" in docs/deploy/vps-setup.md.
 
 set -euo pipefail
 
-DEPLOY_USER="${DEPLOY_USER:-deploy}"
 SWAP_SIZE="${SWAP_SIZE:-4G}"
 HARDEN_SSH="${HARDEN_SSH:-yes}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 BACKUP_DIR=/var/backups/slimshot
+GITHUB_ALIAS=github-slimshot
+DEPLOY_KEY=/root/.ssh/github_slimshot
 
 step() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33mWARNING: %s\033[0m\n' "$*"; }
 die() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 
 main() {
-  [ "$(id -u)" -eq 0 ] || die "Run as root: sudo bash deploy/scripts/setup-vps.sh"
+  [ "$(id -u)" -eq 0 ] || die "Run as root."
   # shellcheck disable=SC1091
   . /etc/os-release
   if [ "${ID:-}" != "ubuntu" ] || [ "${VERSION_ID:-}" != "24.04" ]; then
@@ -39,7 +42,7 @@ main() {
 
   step "Updating the system"
   apt-get update -y
-  apt-get upgrade -y
+  apt-get -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade -y
   apt-get install -y ca-certificates curl gnupg git ufw fail2ban unattended-upgrades \
     nginx certbot rclone openssl jq htop
 
@@ -75,43 +78,29 @@ main() {
   fi
   systemctl enable --now docker
 
-  step "The ${DEPLOY_USER} user"
-  if ! id "$DEPLOY_USER" >/dev/null 2>&1; then
-    adduser --disabled-password --gecos "" "$DEPLOY_USER"
+  step "The app folder and its GitHub access"
+  # An earlier version of this script handed the folder to a `deploy` user;
+  # root manages everything now, and git refuses repos owned by another user.
+  chown -R root:root "$APP_DIR"
+  if [ -f "$DEPLOY_KEY" ]; then
+    install -d -m 700 /root/.ssh
+    touch /root/.ssh/config
+    chmod 600 /root/.ssh/config
+    if ! grep -q "^Host ${GITHUB_ALIAS}\$" /root/.ssh/config; then
+      printf '\n# SlimShot API repo: its own deploy key (GitHub allows one repo per key).\nHost %s\n  HostName github.com\n  User git\n  IdentityFile %s\n  IdentitiesOnly yes\n' \
+        "$GITHUB_ALIAS" "$DEPLOY_KEY" >> /root/.ssh/config
+    fi
+    grep -q '^github.com ' /root/.ssh/known_hosts 2>/dev/null \
+      || ssh-keyscan -t ed25519 github.com >> /root/.ssh/known_hosts 2>/dev/null
+    local url
+    url="$(git -C "$APP_DIR" remote get-url origin)"
+    if [[ "$url" == git@github.com:* ]]; then
+      git -C "$APP_DIR" remote set-url origin "git@${GITHUB_ALIAS}:${url#git@github.com:}"
+    fi
+    echo "origin: $(git -C "$APP_DIR" remote get-url origin)"
+  else
+    warn "No $DEPLOY_KEY: if the repo is private, git pull will fail. See step 2 of the guide."
   fi
-  usermod -aG sudo,docker "$DEPLOY_USER"
-  if ! passwd -S "$DEPLOY_USER" | awk '{exit ($2 == "P") ? 0 : 1}'; then
-    echo "Choose a password for ${DEPLOY_USER} (sudo asks for it; SSH will use your key):"
-    passwd "$DEPLOY_USER"
-  fi
-  local home ssh_dir
-  home="$(getent passwd "$DEPLOY_USER" | cut -d: -f6)"
-  ssh_dir="$home/.ssh"
-  install -d -m 700 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$ssh_dir"
-  if [ -s /root/.ssh/authorized_keys ]; then
-    touch "$ssh_dir/authorized_keys"
-    while IFS= read -r key; do
-      if [ -n "$key" ] && ! grep -qxF "$key" "$ssh_dir/authorized_keys"; then
-        echo "$key" >> "$ssh_dir/authorized_keys"
-      fi
-    done < /root/.ssh/authorized_keys
-    chmod 600 "$ssh_dir/authorized_keys"
-    chown "$DEPLOY_USER:$DEPLOY_USER" "$ssh_dir/authorized_keys"
-  fi
-  # The read-only GitHub deploy key made while cloning (see the guide) moves to deploy.
-  if [ -f /root/.ssh/github_slimshot ] && [ ! -f "$ssh_dir/github_slimshot" ]; then
-    install -m 600 -o "$DEPLOY_USER" -g "$DEPLOY_USER" /root/.ssh/github_slimshot "$ssh_dir/github_slimshot"
-    install -m 644 -o "$DEPLOY_USER" -g "$DEPLOY_USER" /root/.ssh/github_slimshot.pub "$ssh_dir/github_slimshot.pub"
-  fi
-  if [ -f "$ssh_dir/github_slimshot" ] && ! grep -q 'github_slimshot' "$ssh_dir/config" 2>/dev/null; then
-    printf 'Host github.com\n  IdentityFile ~/.ssh/github_slimshot\n  IdentitiesOnly yes\n' >> "$ssh_dir/config"
-    chmod 600 "$ssh_dir/config"
-    chown "$DEPLOY_USER:$DEPLOY_USER" "$ssh_dir/config"
-    sudo -H -u "$DEPLOY_USER" sh -c 'ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null'
-  fi
-  # The app folder only (e.g. /var/www/slimshot_server), never its parent: /var/www
-  # also holds nginx's own files, which stay root's.
-  chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_DIR"
 
   step "Firewall: SSH, HTTP and HTTPS only"
   ufw default deny incoming
@@ -132,14 +121,14 @@ main() {
   systemctl enable --now nginx
 
   step "Nightly database backup"
-  install -d -m 750 -o "$DEPLOY_USER" -g "$DEPLOY_USER" "$BACKUP_DIR"
+  install -d -m 700 -o root -g root "$BACKUP_DIR"
   touch /var/log/slimshot-backup.log
-  chown "$DEPLOY_USER:$DEPLOY_USER" /var/log/slimshot-backup.log
+  chown root:root /var/log/slimshot-backup.log
   cat > /etc/cron.d/slimshot-backup <<EOF
 # Nightly Postgres backup for the SlimShot API (see docs/deploy/vps-setup.md).
 SHELL=/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-15 3 * * * ${DEPLOY_USER} ${APP_DIR}/deploy/scripts/backup-db.sh >> /var/log/slimshot-backup.log 2>&1
+15 3 * * * root ${APP_DIR}/deploy/scripts/backup-db.sh >> /var/log/slimshot-backup.log 2>&1
 EOF
   chmod 644 /etc/cron.d/slimshot-backup
   cat > /etc/logrotate.d/slimshot-backup <<'EOF'
@@ -154,29 +143,34 @@ EOF
 
   step "SSH hardening"
   if [ "$HARDEN_SSH" != "yes" ]; then
-    warn "Skipped (HARDEN_SSH=$HARDEN_SSH). Password and root logins stay ON."
-  elif [ ! -s "$ssh_dir/authorized_keys" ]; then
-    warn "Skipped: ${DEPLOY_USER} has no SSH key yet, so turning off passwords would lock you out."
-    warn "Add your key (see the guide), then re-run this script."
+    warn "Skipped (HARDEN_SSH=$HARDEN_SSH). Password logins stay ON."
+  elif [ ! -s /root/.ssh/authorized_keys ]; then
+    warn "Skipped: root has no SSH key yet, so turning off passwords would lock you out."
+    warn "Add your key (step 1 of the guide), then re-run this script."
   else
     # 00-: sshd keeps the FIRST value it reads, and cloud-init's 50-cloud-init.conf
     # often says PasswordAuthentication yes. Ours must sort before it.
     rm -f /etc/ssh/sshd_config.d/99-slimshot.conf
     cat > /etc/ssh/sshd_config.d/00-slimshot.conf <<'EOF'
-# SlimShot: key-only SSH, no direct root login.
-PermitRootLogin no
+# SlimShot: key-only SSH. Root may log in with a key, never with a password.
+PermitRootLogin prohibit-password
 PasswordAuthentication no
 KbdInteractiveAuthentication no
 EOF
     sshd -t
     systemctl reload ssh
-    warn "Root and password logins are now OFF. Before closing this session, open a NEW terminal and check: ssh ${DEPLOY_USER}@<server-ip>"
+    warn "Password logins are now OFF. Before closing this session, open a NEW terminal and check: ssh root@<server-ip> (it must not ask for a password)"
+  fi
+
+  if id deploy >/dev/null 2>&1; then
+    echo
+    echo "Note: an earlier version of this script created a 'deploy' user; nothing uses it now."
+    echo "Remove it if you like:  deluser --remove-home deploy"
   fi
 
   step "Done"
   cat <<EOF
-Next, log in as ${DEPLOY_USER} and continue with docs/deploy/vps-setup.md:
-  ssh ${DEPLOY_USER}@<server-ip>
+Next, as root, continue with docs/deploy/vps-setup.md step 4:
   cd ${APP_DIR}
   ./deploy/scripts/init-env.sh
 EOF

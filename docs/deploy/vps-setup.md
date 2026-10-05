@@ -2,7 +2,7 @@
 
 This guide sets up the Contabo VPS (Ubuntu 24.04, 4 vCPU, 8 GB RAM) to serve the API at
 **https://slimshot-server.techfamz.com**. You do the first setup once (about 45 minutes).
-After that, deploying new code is one command.
+After that, deploying new code is one command, or automatic on push (step 9).
 
 ```
                       ┌──────────────────────────── VPS ────────────────────────────┐
@@ -15,22 +15,24 @@ After that, deploying new code is one command.
 - **nginx** and **certbot** run on the VPS itself: HTTPS, the free certificate and its renewal.
 - **Docker Compose** runs three containers: the API, Postgres 17 and Redis 7. Postgres
   and Redis are on a private network and cannot be reached from the internet.
+- **Everything is managed as root.** SSH accepts root with a key, never with a password.
 - The database starts empty. Migrations build it, and the first owner account comes
   from `.env`.
+- The VPS can host other apps too; see "Hosting other apps on this VPS" near the end.
 
-Commands marked **PC** run in PowerShell on your computer. The others run on the VPS.
+Commands marked **PC** run in PowerShell on your computer. The others run on the VPS, as root.
 
 ### The order at a glance
 
 | Step | Where | What | When |
 |---|---|---|---|
 | 0 | PC, DNS, GitHub | DNS record, push `main`, gather the `.env` values | once |
-| 1 | PC | SSH key login | once (skip if root already logs in without a password) |
-| 2 | VPS, as root | Deploy key, clone into `/var/www/slimshot_server` | once |
-| 3 | VPS, as root | `setup-vps.sh`: firewall, Docker, nginx, `deploy` user | once |
-| 4 | VPS, as deploy | `.env`: generate one, or bring yours from the PC | once |
-| 5 | VPS, as deploy | `setup-nginx.sh`: HTTPS certificate | once |
-| 6 | VPS, as deploy | `deploy.sh`: first deploy, then check `/health` | once |
+| 1 | PC | SSH key login for root | once (skip if root already logs in without a password) |
+| 2 | VPS | Deploy key, clone into `/var/www/slimshot_server` | once |
+| 3 | VPS | `setup-vps.sh`: firewall, Docker, nginx, key-only SSH, backups | once |
+| 4 | VPS | `.env`: generate one, or bring yours from the PC | once |
+| 5 | VPS | `setup-nginx.sh`: HTTPS certificate | once |
+| 6 | VPS | `deploy.sh`: first deploy, then check `/health` | once |
 | 7 | Dashboard, AdMob, Play Console | Point everything at the live API | once |
 | 8 | VPS and PC | Google Drive backups (`rclone`) | once |
 | 9 | VPS and GitHub | Automatic deploys on push (webhook) | once, optional |
@@ -64,9 +66,10 @@ You need:
    - the dashboard's address.
 5. **An email address** for Let's Encrypt's expiry notices.
 
-## 1. Your SSH key (PC)
+## 1. Your SSH key for root (PC)
 
-A key lets you log in without a password; step 3 then turns password logins off.
+A key lets you log in without a password; step 3 then turns password logins off, which stops
+the bots that guess root passwords all day.
 
 > **Already logging in as root?** Run `ssh root@VPS_IP` once more. If it lets you in
 > **without** asking for a password, you already have a key: skip to step 2. If it asks for
@@ -84,7 +87,7 @@ ssh root@VPS_IP
 The last command must log you in **without** asking for the root password. If it still asks,
 the key wasn't added: repeat the `type …` line.
 
-## 2. Get the code onto the VPS (as root)
+## 2. Get the code onto the VPS
 
 The VPS gets its own **read-only deploy key** for the repository. That works whether the repo
 is private or public, and the key can pull but never push:
@@ -120,7 +123,9 @@ cd slimshot_server
 ```
 
 Keep the word `export`. Without it, the setting doesn't reach `git` and the clone fails with
-`Permission denied (publickey)` even though the key works.
+`Permission denied (publickey)` even though the key works. You need it only for this first
+clone: step 3 points the repo at its own GitHub alias (`github-slimshot`), so every later
+`git pull` uses the key by itself.
 
 nginx doesn't read this folder: it forwards requests to the API container. Any other folder
 works too, because every script finds its own location.
@@ -130,40 +135,48 @@ works too, because every script finds its own location.
 > copied from your PC except **`.env`**, the one git-ignored file that holds the secrets
 > (step 4). `node_modules` and `dist` aren't needed: the Docker image builds them on the VPS.
 
-## 3. First-time server setup (as root)
+## 3. First-time server setup
 
 ```bash
+cd /var/www/slimshot_server
 bash deploy/scripts/setup-vps.sh
 ```
 
-It takes about 5 minutes and asks you once to choose a password for the `deploy` user. You
-need that password for `sudo`; SSH keeps using your key. The script:
+It takes about 5 minutes. If the upgrade stops on a screen about a configuration file or
+"services to restart", press **Enter** for the default. The script:
 
 - updates the system;
 - installs Docker, nginx, certbot, rclone and fail2ban;
 - adds a 4 GB swap file and sets the clock to UTC;
 - turns on automatic security updates;
-- creates the `deploy` user and gives it your SSH key and the GitHub deploy key;
+- points the repo at the `github-slimshot` alias (in `/root/.ssh/config`), so `git pull` uses the deploy key;
 - opens only ports 22, 80 and 443;
 - installs the nightly backup;
-- finally turns off root and password logins over SSH.
+- finally makes SSH key-only: root may log in with a key, never with a password.
 
-> **Before closing this root session**, open a **new** PowerShell window and check you can
-> get in as `deploy`:
-> ```powershell
-> ssh deploy@VPS_IP
+At the end, the **SSH hardening** part says one of two things:
+
+| It says | What to do |
+|---|---|
+| `Password logins are now OFF…` | **Before closing this window**, open a new PowerShell and run `ssh root@VPS_IP`. It must log you in without a password |
+| `Skipped: root has no SSH key yet…` | Do step 1, then run `bash deploy/scripts/setup-vps.sh` again. It's safe to re-run |
+
+If you ever lock yourself out, Contabo's control panel has a **VNC console**: log in there
+as root with the root password (passwords still work on the console, just not over SSH).
+
+> **Ran an earlier version of this script?** It created a `deploy` user and gave it the app
+> folder. Pull the new scripts and re-run; it hands the folder back to root and moves the
+> backup job to root:
+> ```bash
+> cd /var/www/slimshot_server
+> chown -R root:root /var/www/slimshot_server
+> export GIT_SSH_COMMAND="ssh -i /root/.ssh/github_slimshot -o IdentitiesOnly=yes"
+> git pull
+> bash deploy/scripts/setup-vps.sh
+> deluser --remove-home deploy        # optional: nothing uses it any more
 > ```
-> If that fails, fix it from the still-open root session. If you ever lock yourself out,
-> Contabo's control panel has a **VNC console** that works without SSH.
 
-From now on, work as `deploy`:
-
-```bash
-ssh deploy@VPS_IP
-cd /var/www/slimshot_server
-```
-
-## 4. Settings: `.env` (as deploy)
+## 4. Settings: `.env`
 
 `.env` is git-ignored, so it never comes with the clone: it's the only file you provide
 yourself. Use **one** of the two ways below.
@@ -201,7 +214,7 @@ If your PC's `.env` already holds the Docker database and Redis lines (`POSTGRES
 instead (**PC**):
 
 ```powershell
-scp "C:\Users\HP\Desktop\Slimshot workspace\slimshot_server\.env" deploy@VPS_IP:/var/www/slimshot_server/.env
+scp "C:\Users\HP\Desktop\Slimshot workspace\slimshot_server\.env" root@VPS_IP:/var/www/slimshot_server/.env
 ```
 
 Then on the VPS: `chmod 600 .env` and `nano .env`, and change these for production:
@@ -227,7 +240,7 @@ Don't run `init-env.sh` after copying: it never overwrites an existing `.env`.
 ## 5. HTTPS with a free certificate
 
 ```bash
-sudo ./deploy/scripts/setup-nginx.sh slimshot-server.techfamz.com you@techfamz.com
+./deploy/scripts/setup-nginx.sh slimshot-server.techfamz.com you@techfamz.com
 ```
 
 It checks that the domain points at this VPS, gets a Let's Encrypt certificate, installs the
@@ -279,7 +292,7 @@ curl https://slimshot-server.techfamz.com/health/ready
 
 ## 8. Backups to Google Drive
 
-A dump runs every night at 03:15 UTC:
+A dump runs every night at 03:15 UTC (as root):
 - kept on the VPS for **14 days**;
 - copied to Google Drive and kept there for **30 days**.
 
@@ -355,11 +368,13 @@ share one secret, and pulls still use the read-only deploy key from step 2.
 **On the VPS:**
 
 ```bash
-sudo ./deploy/scripts/setup-webhook.sh
+./deploy/scripts/setup-webhook.sh
 ```
 
 It:
 - installs the listener (Ubuntu's `webhook` package);
+- runs it as an unprivileged `slimshot-hook` user, the one piece that answers the internet;
+- adds one `sudo` rule so that user can run exactly one thing as root: this app's deploy script;
 - creates the secret in `/etc/slimshot/webhook.env`;
 - starts the `slimshot-webhook` service, which listens only on `127.0.0.1:9000` behind nginx;
 - prints what to paste into GitHub.
@@ -370,7 +385,7 @@ It:
 |---|---|
 | Payload URL | `https://slimshot-server.techfamz.com/hooks/deploy` |
 | Content type | `application/json` |
-| Secret | the one the script printed (`sudo cat /etc/slimshot/webhook.env` shows it again) |
+| Secret | the one the script printed (`cat /etc/slimshot/webhook.env` shows it again) |
 | SSL verification | Enable |
 | Which events | Just the push event |
 
@@ -392,12 +407,12 @@ From then on, after you push to `main`, watch the deploy with
 
 Two deploys never overlap: a webhook deploy and a manual `deploy.sh` wait for each other.
 
-**To pause automatic deploys:** `sudo systemctl stop slimshot-webhook`.
-**To resume them:** `sudo systemctl start slimshot-webhook`.
+**To pause automatic deploys:** `systemctl stop slimshot-webhook`.
+**To resume them:** `systemctl start slimshot-webhook`.
 
 ## 10. Everyday use
 
-| To | Run (as deploy, in `/var/www/slimshot_server`) |
+| To | Run (as root, in `/var/www/slimshot_server`) |
 |---|---|
 | Deploy new code (push from your PC first; automatic once step 9 is set up) | `./deploy/scripts/deploy.sh` |
 | Watch automatic deploys | `tail -f /var/log/slimshot-deploy.log` |
@@ -406,14 +421,14 @@ Two deploys never overlap: a webhook deploy and a manual `deploy.sh` wait for ea
 | See what's running | `docker compose -f docker-compose.prod.yml ps` |
 | Restart the API only | `docker compose -f docker-compose.prod.yml restart api` |
 | Open the database | `docker compose -f docker-compose.prod.yml exec postgres psql -U slimshot` |
-| nginx logs | `sudo tail -f /var/log/nginx/slimshot-api.error.log` |
+| nginx logs | `tail -f /var/log/nginx/slimshot-api.error.log` |
 | Disk and memory | `df -h`, `free -h`, `docker system df` |
-| Reinstall nginx config after editing `deploy/nginx/*` | `sudo ./deploy/scripts/setup-nginx.sh slimshot-server.techfamz.com you@techfamz.com` |
+| Reinstall nginx config after editing `deploy/nginx/*` | `./deploy/scripts/setup-nginx.sh slimshot-server.techfamz.com you@techfamz.com` |
 
 Tip: `echo "alias dc='docker compose -f /var/www/slimshot_server/docker-compose.prod.yml'" >> ~/.bashrc`
 then log in again, and `dc logs -f api` works.
 
-Security updates install themselves. After a kernel update, `sudo reboot` when convenient:
+Security updates install themselves. After a kernel update, `reboot` when convenient:
 Docker and every container come back on their own.
 
 ## 11. Troubleshooting
@@ -425,15 +440,17 @@ Docker and every container come back on their own.
 | Browser shows **502 Bad Gateway** | The API isn't running: `dc ps`, then `dc logs --tail=100 api` |
 | App upload fails with **413** | The file is over 60 MB (nginx limit; captions allow 50 MB) |
 | `setup-nginx.sh`: "does not resolve" / "points to …" | The A record is missing or wrong, or hasn't spread yet; wait and re-run |
-| certbot fails | Port 80 must reach the VPS (`sudo ufw status` shows `Nginx Full`), and DNS must point here |
+| certbot fails | Port 80 must reach the VPS (`ufw status` shows `Nginx Full`), and DNS must point here |
 | Dashboard shows a CORS error | `ADMIN_BASE_URL` must equal the dashboard's address exactly (scheme, host and port) |
 | Sign-in emails don't arrive | `dc logs api` shows the SMTP error; check host, port and `SMTP_SECURE` together |
-| Locked out of SSH | Contabo control panel → VNC console, log in as `deploy` with its password |
+| Locked out of SSH | Contabo control panel → VNC console, log in as root with the root password |
 | `git clone`: `Permission denied (publickey)` | The clone didn't use the deploy key: run the step 2 `export GIT_SSH_COMMAND=…` line (with `export`), then the clone. If `ssh -i /root/.ssh/github_slimshot -T git@github.com` also fails, add the `.pub` key to the repo's **Deploy keys** |
+| `git pull`: `detected dubious ownership` | The folder isn't owned by root: `chown -R root:root /var/www/slimshot_server` (or re-run `setup-vps.sh`) |
+| `git pull`: `Permission denied (publickey)` | Re-run `setup-vps.sh`: it adds the `github-slimshot` alias and points the repo at it |
 | GitHub webhook delivery shows **403** | No signature reached the listener: the GitHub secret field is empty, or the content type isn't `application/json` |
 | GitHub webhook delivery shows **500** | The signature didn't match: the secret in GitHub differs from `/etc/slimshot/webhook.env`. Paste it again |
-| GitHub webhook delivery shows **502** | The listener isn't running: `sudo systemctl status slimshot-webhook`, then `sudo journalctl -u slimshot-webhook -n 50` |
-| Webhook says delivered but nothing deployed | `tail -n 50 /var/log/slimshot-deploy.log`. It says why: another branch, a failed build, or a health check |
+| GitHub webhook delivery shows **502** | The listener isn't running: `systemctl status slimshot-webhook`, then `journalctl -u slimshot-webhook -n 50` |
+| Webhook says delivered but nothing deployed | `tail -n 50 /var/log/slimshot-deploy.log`. It says why: another branch, a failed build, or a health check. If it's empty, check `journalctl -u slimshot-webhook -n 50` for a `sudo` error |
 
 ## 12. Security notes
 
@@ -441,23 +458,26 @@ Docker and every container come back on their own.
   - The API listens on `127.0.0.1:2700`, reachable only through nginx.
   - Postgres and Redis publish no ports at all. Docker's published ports bypass the UFW
     firewall, so never add a `ports:` line to them in `docker-compose.prod.yml`.
-- **SSH:** key-only, no root login, and fail2ban bans repeated failures.
-- **`.env`:** readable only by `deploy` and never committed (it's in `.gitignore`); keep a
-  copy in your password manager.
+- **SSH:** key-only, so no password can be guessed. Root logs in with a key
+  (`PermitRootLogin prohibit-password`), and fail2ban bans repeated failures.
+- **`.env`:** readable only by root and never committed (it's in `.gitignore`); keep a copy in
+  your password manager.
 - **Redis:** requires a password, and nothing outside the private Docker network can reach it.
 - **The deploy webhook** (`/hooks/deploy`):
   - It runs nothing unless the request carries GitHub's signature, made with the secret in
     `/etc/slimshot/webhook.env` (root-only).
-  - It can only start `deploy.sh` for `main`; it takes no commands from the request.
+  - The listener runs as the unprivileged `slimshot-hook` user. Its only power is one `sudo`
+    rule (`/etc/sudoers.d/slimshot-webhook`) to run `webhook-deploy.sh`, which only deploys
+    `main` from GitHub and takes no commands from the request.
   - If the secret ever leaks, replace it: delete that file, re-run `setup-webhook.sh`, and paste
     the new secret into GitHub.
 
 **Check it yourself** after the first deploy:
 
 ```bash
-sudo ufw status verbose            # only 22, 80 and 443 allowed
-sudo fail2ban-client status sshd   # the SSH jail and any banned addresses
-sudo ss -tlnp                      # 22, 80, 443 public; 2700 and 9000 on 127.0.0.1 only; no 5432 or 6379
+ufw status verbose            # only 22, 80 and 443 allowed
+fail2ban-client status sshd   # the SSH jail and any banned addresses
+ss -tlnp                      # 22, 80, 443 public; 2700 and 9000 on 127.0.0.1 only; no 5432 or 6379
 ```
 
 From the **PC**, both of these must fail, which proves the database and Redis are not
@@ -468,19 +488,48 @@ Test-NetConnection VPS_IP -Port 5432
 Test-NetConnection VPS_IP -Port 6379
 ```
 
+## Hosting other apps on this VPS
+
+The server-wide setup (firewall, key-only SSH, fail2ban, Docker, nginx, swap, automatic
+updates) serves every app. For each new app:
+
+- **Its own folder,** e.g. `/var/www/other-app`, cloned with its **own** deploy key. GitHub
+  allows one repo per deploy key, so give each repo its own alias in `/root/.ssh/config`, the
+  way this one uses `github-slimshot`:
+  ```
+  Host github-otherapp
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/github_otherapp
+    IdentitiesOnly yes
+  ```
+  and clone with `git clone git@github-otherapp:owner/other-app.git`.
+- **Its own nginx site** in `/etc/nginx/sites-available/` for its own domain, plus its own
+  certificate (`certbot certonly --webroot -w /var/www/certbot -d its.domain`). Don't edit
+  `slimshot-api`; this repo's `setup-nginx.sh` rewrites it.
+- **Different ports.** SlimShot uses `127.0.0.1:2700` (API) and `127.0.0.1:9000` (webhook);
+  give other apps other ports, also bound to `127.0.0.1` only.
+- **Its own Compose project name** (`name:` in its compose file) so containers, volumes and
+  networks don't mix with `slimshot_*`.
+- **Memory:** SlimShot's Postgres is tuned for about 1.5 GB and Redis is capped at 512 MB.
+  If other apps bring their own databases, lower `shared_buffers` and `effective_cache_size`
+  in `docker-compose.prod.yml`, or share one Postgres between apps.
+- **Webhooks:** each app can have its own listener service on its own port and `/hooks/`
+  path, or you can add more hooks to one listener.
+
 ## Where things live
 
 | Path | What it is |
 |---|---|
-| `Dockerfile` | The API image: Node 24 on Debian slim, built in stages, runs as a non-root user |
+| `Dockerfile` | The API image: Node 24 on Debian slim, built in stages; the app runs as a non-root user inside the container |
 | `docker-compose.prod.yml` | The API, Postgres, Redis, and the one-off `migrate` step |
 | `.env.production.example` | Template for the server's `.env` |
-| `deploy/scripts/setup-vps.sh` | First-time server setup (run once, as root) |
+| `deploy/scripts/setup-vps.sh` | First-time server setup (run once; safe to re-run) |
 | `deploy/scripts/init-env.sh` | Creates `.env` with fresh secrets (run once) |
 | `deploy/scripts/setup-nginx.sh` | nginx and the Let's Encrypt certificate |
 | `deploy/scripts/deploy.sh` | Pull, build, migrate, restart, health check |
 | `deploy/scripts/backup-db.sh` / `restore-db.sh` | Nightly backup and restore |
-| `deploy/scripts/setup-webhook.sh` | Turns on automatic deploys (run once, with sudo) |
+| `deploy/scripts/setup-webhook.sh` | Turns on automatic deploys (run once) |
 | `deploy/scripts/webhook-deploy.sh` | What the webhook runs: deploys pushes to `main`, logs everything |
 | `deploy/nginx/` | The nginx site, the proxy settings and the certificate-request config |
 | `deploy/webhook/` | The listener's rule (`hooks.json`) and its systemd service |
@@ -491,8 +540,10 @@ On the VPS:
 |---|---|
 | `/var/www/slimshot_server` | The code and `.env` |
 | Docker volumes `slimshot_pgdata`, `slimshot_redisdata` | The database and Redis data (survive restarts and deploys) |
+| `/root/.ssh/github_slimshot`, `/root/.ssh/config` | The repo's deploy key and its `github-slimshot` alias |
 | `/var/backups/slimshot` | Local database dumps (14 days) |
 | `/var/log/slimshot-backup.log` | Nightly backup results |
 | `/var/log/slimshot-deploy.log` | Every automatic deploy's output |
 | `/etc/slimshot/webhook.env` | The webhook secret |
+| `/etc/sudoers.d/slimshot-webhook` | The webhook user's one `sudo` rule |
 | `/etc/nginx/sites-available/slimshot-api` | The installed nginx site |

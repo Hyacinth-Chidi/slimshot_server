@@ -1,16 +1,18 @@
 [
   {
     "id": "deploy",
-    "execute-command": "{{ getenv "APP_DIR" }}/deploy/scripts/webhook-deploy.sh",
+    "execute-command": "/usr/bin/sudo",
     "command-working-directory": "{{ getenv "APP_DIR" }}",
     "http-methods": ["POST"],
     "response-message": "Received.",
     "trigger-rule-mismatch-http-response-code": 403,
-    "pass-environment-to-command": [
-      { "source": "header", "name": "X-Github-Event", "envname": "GITHUB_EVENT" },
-      { "source": "payload", "name": "ref", "envname": "GITHUB_REF" },
-      { "source": "payload", "name": "after", "envname": "GITHUB_SHA" },
-      { "source": "payload", "name": "pusher.name", "envname": "GITHUB_PUSHER" }
+    "pass-arguments-to-command": [
+      { "source": "string", "name": "-n" },
+      { "source": "string", "name": "{{ getenv "APP_DIR" }}/deploy/scripts/webhook-deploy.sh" },
+      { "source": "header", "name": "X-Github-Event" },
+      { "source": "payload", "name": "ref" },
+      { "source": "payload", "name": "after" },
+      { "source": "payload", "name": "pusher.name" }
     ],
     "trigger-rule": {
       "match": {
