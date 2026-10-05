@@ -24,6 +24,13 @@ main() {
   cd "$(dirname "${BASH_SOURCE[0]}")/../.."
   local compose=(docker compose -f docker-compose.prod.yml)
 
+  # One deploy at a time: a webhook deploy and a manual one wait for each other.
+  exec 9>.deploy.lock
+  if ! flock -n 9; then
+    echo "Another deploy is running; waiting for it to finish…"
+    flock 9
+  fi
+
   [ -f .env ] || die "No .env yet. Run ./deploy/scripts/init-env.sh and fill it in."
   if grep -nE '^[A-Z0-9_]+=.*(CHANGE_ME|__GENERATED_[A-Z_]+__)' .env; then
     die "Fill in the values listed above in .env first."

@@ -272,11 +272,66 @@ The restore script:
 - backs up the current database first;
 - stops the API, restores the dump, then starts the API again.
 
-## 9. Everyday use
+## 9. Automatic deploys on push (webhook)
+
+Once the first manual deploy works, a push to `main` can deploy by itself:
+
+1. GitHub calls `https://slimshot-server.techfamz.com/hooks/deploy`.
+2. A small listener on the VPS checks GitHub's signature.
+3. It runs `deploy.sh`: pull, build, migrate, restart, health check.
+
+Pushes to any other branch are ignored. No GitHub token is needed: the listener and GitHub
+share one secret, and pulls still use the read-only deploy key from step 2.
+
+**On the VPS:**
+
+```bash
+sudo ./deploy/scripts/setup-webhook.sh
+```
+
+It:
+- installs the listener (Ubuntu's `webhook` package);
+- creates the secret in `/etc/slimshot/webhook.env`;
+- starts the `slimshot-webhook` service, which listens only on `127.0.0.1:9000` behind nginx;
+- prints what to paste into GitHub.
+
+**On GitHub:** open the repository's **Settings → Webhooks → Add webhook**:
+
+| Field | Value |
+|---|---|
+| Payload URL | `https://slimshot-server.techfamz.com/hooks/deploy` |
+| Content type | `application/json` |
+| Secret | the one the script printed (`sudo cat /etc/slimshot/webhook.env` shows it again) |
+| SSL verification | Enable |
+| Which events | Just the push event |
+
+GitHub sends a **ping** straight away. Check it arrived:
+
+```bash
+tail -n 5 /var/log/slimshot-deploy.log
+# … GitHub ping received: the webhook is connected.
+```
+
+From then on, after you push to `main`, watch the deploy with
+`tail -f /var/log/slimshot-deploy.log`.
+
+> **GitHub only sees "delivered".** It shows the request reached the server, not whether the
+> deploy worked, because the deploy runs after GitHub has had its answer. The result, including
+> any failure, is in `/var/log/slimshot-deploy.log`. A push that breaks the build or fails the
+> health check leaves the API down until you push a fix, so run `npm test` before pushing to
+> `main`.
+
+Two deploys never overlap: a webhook deploy and a manual `deploy.sh` wait for each other.
+
+**To pause automatic deploys:** `sudo systemctl stop slimshot-webhook`.
+**To resume them:** `sudo systemctl start slimshot-webhook`.
+
+## 10. Everyday use
 
 | To | Run (as deploy, in `/var/www/slimshot_server`) |
 |---|---|
-| Deploy new code (push from your PC first) | `./deploy/scripts/deploy.sh` |
+| Deploy new code (push from your PC first; automatic once step 9 is set up) | `./deploy/scripts/deploy.sh` |
+| Watch automatic deploys | `tail -f /var/log/slimshot-deploy.log` |
 | Apply a `.env` change | `SKIP_PULL=1 ./deploy/scripts/deploy.sh` |
 | Follow the API's log | `docker compose -f docker-compose.prod.yml logs -f api` |
 | See what's running | `docker compose -f docker-compose.prod.yml ps` |
@@ -292,7 +347,7 @@ then log in again, and `dc logs -f api` works.
 Security updates install themselves. After a kernel update, `sudo reboot` when convenient:
 Docker and every container come back on their own.
 
-## 10. Troubleshooting
+## 11. Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
@@ -305,8 +360,12 @@ Docker and every container come back on their own.
 | Dashboard shows a CORS error | `ADMIN_BASE_URL` must equal the dashboard's address exactly (scheme, host and port) |
 | Sign-in emails don't arrive | `dc logs api` shows the SMTP error; check host, port and `SMTP_SECURE` together |
 | Locked out of SSH | Contabo control panel → VNC console, log in as `deploy` with its password |
+| GitHub webhook delivery shows **403** | No signature reached the listener: the GitHub secret field is empty, or the content type isn't `application/json` |
+| GitHub webhook delivery shows **500** | The signature didn't match: the secret in GitHub differs from `/etc/slimshot/webhook.env`. Paste it again |
+| GitHub webhook delivery shows **502** | The listener isn't running: `sudo systemctl status slimshot-webhook`, then `sudo journalctl -u slimshot-webhook -n 50` |
+| Webhook says delivered but nothing deployed | `tail -n 50 /var/log/slimshot-deploy.log`. It says why: another branch, a failed build, or a health check |
 
-## 11. Security notes
+## 12. Security notes
 
 - **Only ports 22, 80 and 443 are open.**
   - The API listens on `127.0.0.1:2700`, reachable only through nginx.
@@ -316,6 +375,12 @@ Docker and every container come back on their own.
 - **`.env`:** readable only by `deploy` and never committed (it's in `.gitignore`); keep a
   copy in your password manager.
 - **Redis:** requires a password, and nothing outside the private Docker network can reach it.
+- **The deploy webhook** (`/hooks/deploy`):
+  - It runs nothing unless the request carries GitHub's signature, made with the secret in
+    `/etc/slimshot/webhook.env` (root-only).
+  - It can only start `deploy.sh` for `main`; it takes no commands from the request.
+  - If the secret ever leaks, replace it: delete that file, re-run `setup-webhook.sh`, and paste
+    the new secret into GitHub.
 
 ## Where things live
 
@@ -330,6 +395,11 @@ Docker and every container come back on their own.
 | `deploy/scripts/deploy.sh` | Pull, build, migrate, restart, health check |
 | `deploy/scripts/backup-db.sh` / `restore-db.sh` | Nightly backup and restore |
 | `deploy/nginx/` | The nginx site, the proxy settings and the certificate-request config |
+| `deploy/scripts/setup-webhook.sh` | Turns on automatic deploys (run once, with sudo) |
+| `deploy/scripts/webhook-deploy.sh` | What the webhook runs: deploys pushes to `main`, logs everything |
+| `deploy/webhook/` | The listener's rule (`hooks.json`) and its systemd service |
+| On the VPS: `/etc/slimshot/webhook.env` | The webhook secret |
+| On the VPS: `/var/log/slimshot-deploy.log` | Every automatic deploy's output |
 | On the VPS: `/var/www/slimshot_server` | The code and `.env` |
 | On the VPS: `/var/backups/slimshot` | Local database dumps |
 | On the VPS: Docker volumes `slimshot_pgdata`, `slimshot_redisdata` | The database and Redis data |

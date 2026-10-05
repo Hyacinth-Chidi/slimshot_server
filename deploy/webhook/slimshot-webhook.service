@@ -1,0 +1,26 @@
+# Listens for GitHub's push webhook and runs deploy.sh for pushes to main.
+# Installed as /etc/systemd/system/slimshot-webhook.service by
+# deploy/scripts/setup-webhook.sh, which fills in __APP_DIR__ and __DEPLOY_USER__.
+#
+# hooks.json is a template: the secret comes from /etc/slimshot/webhook.env
+# (never from git), and only requests signed with it run anything. The
+# listener is reachable from nginx only (127.0.0.1:9000).
+
+[Unit]
+Description=SlimShot deploy webhook (signed GitHub push to main runs deploy.sh)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__DEPLOY_USER__
+Group=__DEPLOY_USER__
+EnvironmentFile=/etc/slimshot/webhook.env
+Environment=APP_DIR=__APP_DIR__
+ExecStart=/usr/bin/webhook -hooks __APP_DIR__/deploy/webhook/hooks.json -template -hotreload -ip 127.0.0.1 -port 9000 -verbose
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

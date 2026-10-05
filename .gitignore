@@ -8,3 +8,6 @@ coverage
 
 .worktrees
 .superpowers
+
+# Held while deploy/scripts/deploy.sh runs
+.deploy.lock
