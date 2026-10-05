@@ -109,14 +109,18 @@ ssh -i /root/.ssh/github_slimshot -o IdentitiesOnly=yes -o StrictHostKeyChecking
 If it says `Permission denied (publickey)`, the key isn't on the repository's **Deploy keys**
 page yet: paste `cat /root/.ssh/github_slimshot.pub` there.
 
-The app lives in **`/var/www/slimshot_server`**. Paste the clone as **one line**: the
-`GIT_SSH_COMMAND=…` part only applies when it's on the same line as `git clone`.
+The app lives in **`/var/www/slimshot_server`**. `export` makes git use the deploy key for
+the rest of this session, so the lines work even when pasted one at a time:
 
 ```bash
 mkdir -p /var/www && cd /var/www
-GIT_SSH_COMMAND="ssh -i /root/.ssh/github_slimshot -o IdentitiesOnly=yes" git clone git@github.com:Hyacinth-Chidi/slimshot_server.git
+export GIT_SSH_COMMAND="ssh -i /root/.ssh/github_slimshot -o IdentitiesOnly=yes"
+git clone git@github.com:Hyacinth-Chidi/slimshot_server.git
 cd slimshot_server
 ```
+
+Keep the word `export`. Without it, the setting doesn't reach `git` and the clone fails with
+`Permission denied (publickey)` even though the key works.
 
 nginx doesn't read this folder: it forwards requests to the API container. Any other folder
 works too, because every script finds its own location.
@@ -425,7 +429,7 @@ Docker and every container come back on their own.
 | Dashboard shows a CORS error | `ADMIN_BASE_URL` must equal the dashboard's address exactly (scheme, host and port) |
 | Sign-in emails don't arrive | `dc logs api` shows the SMTP error; check host, port and `SMTP_SECURE` together |
 | Locked out of SSH | Contabo control panel → VNC console, log in as `deploy` with its password |
-| `git clone`: `Permission denied (publickey)` | The clone didn't use the deploy key: paste the step 2 command as one line. If `ssh -i /root/.ssh/github_slimshot -T git@github.com` also fails, add the `.pub` key to the repo's **Deploy keys** |
+| `git clone`: `Permission denied (publickey)` | The clone didn't use the deploy key: run the step 2 `export GIT_SSH_COMMAND=…` line (with `export`), then the clone. If `ssh -i /root/.ssh/github_slimshot -T git@github.com` also fails, add the `.pub` key to the repo's **Deploy keys** |
 | GitHub webhook delivery shows **403** | No signature reached the listener: the GitHub secret field is empty, or the content type isn't `application/json` |
 | GitHub webhook delivery shows **500** | The signature didn't match: the secret in GitHub differs from `/etc/slimshot/webhook.env`. Paste it again |
 | GitHub webhook delivery shows **502** | The listener isn't running: `sudo systemctl status slimshot-webhook`, then `sudo journalctl -u slimshot-webhook -n 50` |
