@@ -198,7 +198,7 @@ Replace every `CHANGE_ME`:
 
 | Variable | What to put |
 |---|---|
-| `ADMIN_BASE_URL` | Where the dashboard runs. While it still runs on your PC: `http://localhost:3001`. Later, its real address, e.g. `https://admin.techfamz.com` |
+| `ADMIN_BASE_URL` | Already `https://slimshot-admin.techfamz.com`, the dashboard on this VPS. To use a dashboard running on your PC, add `http://localhost:3001` to `CORS_ALLOWED_ORIGINS` |
 | `ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD` | The first owner account, created on the first start |
 | `CLOUDINARY_CLOUD_NAME` / `_API_KEY` / `_API_SECRET` | Cloudinary dashboard → API Keys |
 | `GOOGLE_CLIENT_IDS` | Google Cloud → Credentials → the OAuth **Web** client ID |
@@ -225,7 +225,7 @@ Then on the VPS: `chmod 600 .env` and `nano .env`, and change these for producti
 | `TRUST_PROXY` | `1` |
 | `EMAIL_SENDER` | `smtp`, with a matching `SMTP_PORT`/`SMTP_SECURE` pair (587 + `false`, or 465 + `true`) |
 | `ADMOB_AD_UNIT_IDS` | your rewarded ad unit ID (required) |
-| `ADMIN_BASE_URL` | where the dashboard runs |
+| `ADMIN_BASE_URL` | `https://slimshot-admin.techfamz.com` |
 | `JWT_ACCESS_TTL_SECONDS`, `JWT_REFRESH_TTL_SECONDS` | keep **one** of each if they appear twice |
 
 Don't run `init-env.sh` after copying: it never overwrites an existing `.env`.
@@ -273,8 +273,8 @@ curl https://slimshot-server.techfamz.com/health/ready
 
 ## 7. Connect everything to the live API
 
-1. **Dashboard.** In `slimshot-admin/.env` set
-   `NEXT_PUBLIC_API_BASE=https://slimshot-server.techfamz.com/api/admin/v1` and restart it.
+1. **Dashboard.** Host it on this VPS at `https://slimshot-admin.techfamz.com` by following
+   the **slimshot-admin** repo's `docs/deploy/vps-setup.md` (about 15 minutes). Then:
    - Sign in with the bootstrap owner, then delete the two `ADMIN_BOOTSTRAP_*` lines from
      the server's `.env` and run `SKIP_PULL=1 ./deploy/scripts/deploy.sh`.
    - If the browser shows a CORS error, `ADMIN_BASE_URL` doesn't match the address the
