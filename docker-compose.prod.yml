@@ -1,0 +1,116 @@
+# Production stack for one VPS: the API, Postgres and Redis on a private network.
+# nginx (on the VPS itself) terminates HTTPS and forwards to 127.0.0.1:2700.
+# Day to day, use deploy/scripts/deploy.sh rather than calling this directly.
+#
+# Postgres and Redis publish NO ports: Docker's published ports bypass the UFW
+# firewall, so anything published here would be open to the whole internet.
+
+name: slimshot
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '5'
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: slimshot
+      POSTGRES_DB: slimshot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (deploy/scripts/init-env.sh does)}
+    # Sized for an 8 GB VPS that also runs the API and Redis.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - max_connections=100
+      - -c
+      - wal_compression=on
+    shm_size: 512mb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U slimshot -d slimshot']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env (deploy/scripts/init-env.sh does)}
+    # appendonly: sign-in codes, rate limits, ad sessions and caption jobs survive a restart.
+    # noeviction: BullMQ requires it; evicting keys would silently lose queued jobs.
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --appendfsync everysec --maxmemory 512mb --maxmemory-policy noeviction --requirepass "$$REDIS_PASSWORD"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$$REDIS_PASSWORD" --no-auth-warning ping | grep -q PONG']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [backend]
+    logging: *logging
+
+  # One-off: applies database migrations and seeds the default storage row
+  # (idempotent). deploy.sh runs it before every restart of the API.
+  migrate:
+    profiles: ['tools']
+    build:
+      context: .
+      target: build
+    image: slimshot-api-build
+    env_file: .env
+    command:
+      - sh
+      - -c
+      - npx prisma migrate deploy && npx ts-node --transpile-only prisma/seed.ts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+  api:
+    build:
+      context: .
+      target: runtime
+    image: slimshot-api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+    # Reachable from the VPS itself only; nginx is the public entrance.
+    ports:
+      - '127.0.0.1:${PORT:-2700}:${PORT:-2700}'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stop_grace_period: 30s
+    networks: [backend]
+    logging: *logging
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  backend:

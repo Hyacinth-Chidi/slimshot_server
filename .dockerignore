@@ -1,0 +1,21 @@
+# Never bake secrets or local state into the image: the API gets its settings
+# from the server's .env through docker-compose.prod.yml at run time.
+.env
+.env.*
+!.env.example
+!.env.production.example
+
+node_modules
+dist
+coverage
+.git
+.github
+.worktrees
+.superpowers
+*.log
+*.tsbuildinfo
+Dockerfile
+docker-compose*.yml
+deploy
+docs
+test

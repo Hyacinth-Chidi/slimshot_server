@@ -1,0 +1,8 @@
+# Files that run on the Linux VPS keep Linux line endings even when committed
+# from Windows: a CRLF in a shell script breaks it ("bash\r: not found").
+*.sh text eol=lf
+Dockerfile text eol=lf
+.dockerignore text eol=lf
+docker-compose*.yml text eol=lf
+deploy/** text eol=lf
+.env.production.example text eol=lf
