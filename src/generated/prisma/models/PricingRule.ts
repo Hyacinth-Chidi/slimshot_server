@@ -29,11 +29,17 @@ export type AggregatePricingRule = {
 export type PricingRuleAvgAggregateOutputType = {
   version: number | null
   perJobCredits: number | null
+  blockSeconds: number | null
+  blockCredits: number | null
+  minCredits: number | null
 }
 
 export type PricingRuleSumAggregateOutputType = {
   version: number | null
   perJobCredits: number | null
+  blockSeconds: number | null
+  blockCredits: number | null
+  minCredits: number | null
 }
 
 export type PricingRuleMinAggregateOutputType = {
@@ -42,6 +48,9 @@ export type PricingRuleMinAggregateOutputType = {
   version: number | null
   mode: $Enums.PricingMode | null
   perJobCredits: number | null
+  blockSeconds: number | null
+  blockCredits: number | null
+  minCredits: number | null
   isActive: boolean | null
   note: string | null
   createdById: string | null
@@ -55,6 +64,9 @@ export type PricingRuleMaxAggregateOutputType = {
   version: number | null
   mode: $Enums.PricingMode | null
   perJobCredits: number | null
+  blockSeconds: number | null
+  blockCredits: number | null
+  minCredits: number | null
   isActive: boolean | null
   note: string | null
   createdById: string | null
@@ -69,6 +81,9 @@ export type PricingRuleCountAggregateOutputType = {
   mode: number
   perJobCredits: number
   tiers: number
+  blockSeconds: number
+  blockCredits: number
+  minCredits: number
   isActive: number
   note: number
   createdById: number
@@ -81,11 +96,17 @@ export type PricingRuleCountAggregateOutputType = {
 export type PricingRuleAvgAggregateInputType = {
   version?: true
   perJobCredits?: true
+  blockSeconds?: true
+  blockCredits?: true
+  minCredits?: true
 }
 
 export type PricingRuleSumAggregateInputType = {
   version?: true
   perJobCredits?: true
+  blockSeconds?: true
+  blockCredits?: true
+  minCredits?: true
 }
 
 export type PricingRuleMinAggregateInputType = {
@@ -94,6 +115,9 @@ export type PricingRuleMinAggregateInputType = {
   version?: true
   mode?: true
   perJobCredits?: true
+  blockSeconds?: true
+  blockCredits?: true
+  minCredits?: true
   isActive?: true
   note?: true
   createdById?: true
@@ -107,6 +131,9 @@ export type PricingRuleMaxAggregateInputType = {
   version?: true
   mode?: true
   perJobCredits?: true
+  blockSeconds?: true
+  blockCredits?: true
+  minCredits?: true
   isActive?: true
   note?: true
   createdById?: true
@@ -121,6 +148,9 @@ export type PricingRuleCountAggregateInputType = {
   mode?: true
   perJobCredits?: true
   tiers?: true
+  blockSeconds?: true
+  blockCredits?: true
+  minCredits?: true
   isActive?: true
   note?: true
   createdById?: true
@@ -222,6 +252,9 @@ export type PricingRuleGroupByOutputType = {
   mode: $Enums.PricingMode
   perJobCredits: number | null
   tiers: runtime.JsonValue | null
+  blockSeconds: number | null
+  blockCredits: number | null
+  minCredits: number | null
   isActive: boolean
   note: string | null
   createdById: string
@@ -259,6 +292,9 @@ export type PricingRuleWhereInput = {
   mode?: Prisma.EnumPricingModeFilter<"PricingRule"> | $Enums.PricingMode
   perJobCredits?: Prisma.IntNullableFilter<"PricingRule"> | number | null
   tiers?: Prisma.JsonNullableFilter<"PricingRule">
+  blockSeconds?: Prisma.IntNullableFilter<"PricingRule"> | number | null
+  blockCredits?: Prisma.IntNullableFilter<"PricingRule"> | number | null
+  minCredits?: Prisma.IntNullableFilter<"PricingRule"> | number | null
   isActive?: Prisma.BoolFilter<"PricingRule"> | boolean
   note?: Prisma.StringNullableFilter<"PricingRule"> | string | null
   createdById?: Prisma.StringFilter<"PricingRule"> | string
@@ -273,6 +309,9 @@ export type PricingRuleOrderByWithRelationInput = {
   mode?: Prisma.SortOrder
   perJobCredits?: Prisma.SortOrderInput | Prisma.SortOrder
   tiers?: Prisma.SortOrderInput | Prisma.SortOrder
+  blockSeconds?: Prisma.SortOrderInput | Prisma.SortOrder
+  blockCredits?: Prisma.SortOrderInput | Prisma.SortOrder
+  minCredits?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
   note?: Prisma.SortOrderInput | Prisma.SortOrder
   createdById?: Prisma.SortOrder
@@ -291,6 +330,9 @@ export type PricingRuleWhereUniqueInput = Prisma.AtLeast<{
   mode?: Prisma.EnumPricingModeFilter<"PricingRule"> | $Enums.PricingMode
   perJobCredits?: Prisma.IntNullableFilter<"PricingRule"> | number | null
   tiers?: Prisma.JsonNullableFilter<"PricingRule">
+  blockSeconds?: Prisma.IntNullableFilter<"PricingRule"> | number | null
+  blockCredits?: Prisma.IntNullableFilter<"PricingRule"> | number | null
+  minCredits?: Prisma.IntNullableFilter<"PricingRule"> | number | null
   isActive?: Prisma.BoolFilter<"PricingRule"> | boolean
   note?: Prisma.StringNullableFilter<"PricingRule"> | string | null
   createdById?: Prisma.StringFilter<"PricingRule"> | string
@@ -305,6 +347,9 @@ export type PricingRuleOrderByWithAggregationInput = {
   mode?: Prisma.SortOrder
   perJobCredits?: Prisma.SortOrderInput | Prisma.SortOrder
   tiers?: Prisma.SortOrderInput | Prisma.SortOrder
+  blockSeconds?: Prisma.SortOrderInput | Prisma.SortOrder
+  blockCredits?: Prisma.SortOrderInput | Prisma.SortOrder
+  minCredits?: Prisma.SortOrderInput | Prisma.SortOrder
   isActive?: Prisma.SortOrder
   note?: Prisma.SortOrderInput | Prisma.SortOrder
   createdById?: Prisma.SortOrder
@@ -327,6 +372,9 @@ export type PricingRuleScalarWhereWithAggregatesInput = {
   mode?: Prisma.EnumPricingModeWithAggregatesFilter<"PricingRule"> | $Enums.PricingMode
   perJobCredits?: Prisma.IntNullableWithAggregatesFilter<"PricingRule"> | number | null
   tiers?: Prisma.JsonNullableWithAggregatesFilter<"PricingRule">
+  blockSeconds?: Prisma.IntNullableWithAggregatesFilter<"PricingRule"> | number | null
+  blockCredits?: Prisma.IntNullableWithAggregatesFilter<"PricingRule"> | number | null
+  minCredits?: Prisma.IntNullableWithAggregatesFilter<"PricingRule"> | number | null
   isActive?: Prisma.BoolWithAggregatesFilter<"PricingRule"> | boolean
   note?: Prisma.StringNullableWithAggregatesFilter<"PricingRule"> | string | null
   createdById?: Prisma.StringWithAggregatesFilter<"PricingRule"> | string
@@ -341,6 +389,9 @@ export type PricingRuleCreateInput = {
   mode: $Enums.PricingMode
   perJobCredits?: number | null
   tiers?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  blockSeconds?: number | null
+  blockCredits?: number | null
+  minCredits?: number | null
   isActive?: boolean
   note?: string | null
   createdById: string
@@ -355,6 +406,9 @@ export type PricingRuleUncheckedCreateInput = {
   mode: $Enums.PricingMode
   perJobCredits?: number | null
   tiers?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  blockSeconds?: number | null
+  blockCredits?: number | null
+  minCredits?: number | null
   isActive?: boolean
   note?: string | null
   createdById: string
@@ -369,6 +423,9 @@ export type PricingRuleUpdateInput = {
   mode?: Prisma.EnumPricingModeFieldUpdateOperationsInput | $Enums.PricingMode
   perJobCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   tiers?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  blockSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  blockCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  minCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
@@ -383,6 +440,9 @@ export type PricingRuleUncheckedUpdateInput = {
   mode?: Prisma.EnumPricingModeFieldUpdateOperationsInput | $Enums.PricingMode
   perJobCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   tiers?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  blockSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  blockCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  minCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
@@ -397,6 +457,9 @@ export type PricingRuleCreateManyInput = {
   mode: $Enums.PricingMode
   perJobCredits?: number | null
   tiers?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  blockSeconds?: number | null
+  blockCredits?: number | null
+  minCredits?: number | null
   isActive?: boolean
   note?: string | null
   createdById: string
@@ -411,6 +474,9 @@ export type PricingRuleUpdateManyMutationInput = {
   mode?: Prisma.EnumPricingModeFieldUpdateOperationsInput | $Enums.PricingMode
   perJobCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   tiers?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  blockSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  blockCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  minCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
@@ -425,6 +491,9 @@ export type PricingRuleUncheckedUpdateManyInput = {
   mode?: Prisma.EnumPricingModeFieldUpdateOperationsInput | $Enums.PricingMode
   perJobCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   tiers?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  blockSeconds?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  blockCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  minCredits?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
   note?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdById?: Prisma.StringFieldUpdateOperationsInput | string
@@ -444,6 +513,9 @@ export type PricingRuleCountOrderByAggregateInput = {
   mode?: Prisma.SortOrder
   perJobCredits?: Prisma.SortOrder
   tiers?: Prisma.SortOrder
+  blockSeconds?: Prisma.SortOrder
+  blockCredits?: Prisma.SortOrder
+  minCredits?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   note?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
@@ -454,6 +526,9 @@ export type PricingRuleCountOrderByAggregateInput = {
 export type PricingRuleAvgOrderByAggregateInput = {
   version?: Prisma.SortOrder
   perJobCredits?: Prisma.SortOrder
+  blockSeconds?: Prisma.SortOrder
+  blockCredits?: Prisma.SortOrder
+  minCredits?: Prisma.SortOrder
 }
 
 export type PricingRuleMaxOrderByAggregateInput = {
@@ -462,6 +537,9 @@ export type PricingRuleMaxOrderByAggregateInput = {
   version?: Prisma.SortOrder
   mode?: Prisma.SortOrder
   perJobCredits?: Prisma.SortOrder
+  blockSeconds?: Prisma.SortOrder
+  blockCredits?: Prisma.SortOrder
+  minCredits?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   note?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
@@ -475,6 +553,9 @@ export type PricingRuleMinOrderByAggregateInput = {
   version?: Prisma.SortOrder
   mode?: Prisma.SortOrder
   perJobCredits?: Prisma.SortOrder
+  blockSeconds?: Prisma.SortOrder
+  blockCredits?: Prisma.SortOrder
+  minCredits?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
   note?: Prisma.SortOrder
   createdById?: Prisma.SortOrder
@@ -485,6 +566,9 @@ export type PricingRuleMinOrderByAggregateInput = {
 export type PricingRuleSumOrderByAggregateInput = {
   version?: Prisma.SortOrder
   perJobCredits?: Prisma.SortOrder
+  blockSeconds?: Prisma.SortOrder
+  blockCredits?: Prisma.SortOrder
+  minCredits?: Prisma.SortOrder
 }
 
 export type EnumCreditFeatureFieldUpdateOperationsInput = {
@@ -504,6 +588,9 @@ export type PricingRuleSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   mode?: boolean
   perJobCredits?: boolean
   tiers?: boolean
+  blockSeconds?: boolean
+  blockCredits?: boolean
+  minCredits?: boolean
   isActive?: boolean
   note?: boolean
   createdById?: boolean
@@ -518,6 +605,9 @@ export type PricingRuleSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   mode?: boolean
   perJobCredits?: boolean
   tiers?: boolean
+  blockSeconds?: boolean
+  blockCredits?: boolean
+  minCredits?: boolean
   isActive?: boolean
   note?: boolean
   createdById?: boolean
@@ -532,6 +622,9 @@ export type PricingRuleSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   mode?: boolean
   perJobCredits?: boolean
   tiers?: boolean
+  blockSeconds?: boolean
+  blockCredits?: boolean
+  minCredits?: boolean
   isActive?: boolean
   note?: boolean
   createdById?: boolean
@@ -546,6 +639,9 @@ export type PricingRuleSelectScalar = {
   mode?: boolean
   perJobCredits?: boolean
   tiers?: boolean
+  blockSeconds?: boolean
+  blockCredits?: boolean
+  minCredits?: boolean
   isActive?: boolean
   note?: boolean
   createdById?: boolean
@@ -553,7 +649,7 @@ export type PricingRuleSelectScalar = {
   activatedAt?: boolean
 }
 
-export type PricingRuleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "feature" | "version" | "mode" | "perJobCredits" | "tiers" | "isActive" | "note" | "createdById" | "createdAt" | "activatedAt", ExtArgs["result"]["pricingRule"]>
+export type PricingRuleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "feature" | "version" | "mode" | "perJobCredits" | "tiers" | "blockSeconds" | "blockCredits" | "minCredits" | "isActive" | "note" | "createdById" | "createdAt" | "activatedAt", ExtArgs["result"]["pricingRule"]>
 
 export type $PricingRulePayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "PricingRule"
@@ -565,6 +661,12 @@ export type $PricingRulePayload<ExtArgs extends runtime.Types.Extensions.Interna
     mode: $Enums.PricingMode
     perJobCredits: number | null
     tiers: runtime.JsonValue | null
+    /**
+     * per_second: credits per started block of this many seconds, never below minCredits.
+     */
+    blockSeconds: number | null
+    blockCredits: number | null
+    minCredits: number | null
     isActive: boolean
     note: string | null
     createdById: string
@@ -999,6 +1101,9 @@ export interface PricingRuleFieldRefs {
   readonly mode: Prisma.FieldRef<"PricingRule", 'PricingMode'>
   readonly perJobCredits: Prisma.FieldRef<"PricingRule", 'Int'>
   readonly tiers: Prisma.FieldRef<"PricingRule", 'Json'>
+  readonly blockSeconds: Prisma.FieldRef<"PricingRule", 'Int'>
+  readonly blockCredits: Prisma.FieldRef<"PricingRule", 'Int'>
+  readonly minCredits: Prisma.FieldRef<"PricingRule", 'Int'>
   readonly isActive: Prisma.FieldRef<"PricingRule", 'Boolean'>
   readonly note: Prisma.FieldRef<"PricingRule", 'String'>
   readonly createdById: Prisma.FieldRef<"PricingRule", 'String'>

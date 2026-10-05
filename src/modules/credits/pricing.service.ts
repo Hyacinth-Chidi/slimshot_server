@@ -7,18 +7,22 @@ import { isUniqueViolation } from '../../core/errors/prisma-errors';
 import type { Prisma, PricingRule } from '../../generated/prisma/client';
 import { CreditFeature, PricingMode } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
-import { type PricedRule, type PriceTier, priceFor, tierProblems } from './pricing';
+import { blockProblems, type PricedRule, type PriceTier, priceFor, tierProblems } from './pricing';
 
 export interface NewPricingRule {
   feature: CreditFeature;
   mode: PricingMode;
   perJobCredits?: number;
   tiers?: PriceTier[];
+  blockSeconds?: number;
+  blockCredits?: number;
+  minCredits?: number;
   note?: string;
 }
 
 function ruleProblems(input: NewPricingRule): string[] {
   if (input.mode === PricingMode.duration_tiers) return tierProblems(input.tiers ?? []);
+  if (input.mode === PricingMode.per_second) return blockProblems(input);
   const credits = input.perJobCredits;
   return credits === undefined || !Number.isInteger(credits) || credits < 0
     ? ['A per-job rule needs perJobCredits, a whole number ≥ 0.']
@@ -41,6 +45,9 @@ export class PricingService {
       mode: row.mode,
       perJobCredits: row.perJobCredits,
       tiers: (row.tiers as unknown as PriceTier[] | null) ?? null,
+      blockSeconds: row.blockSeconds,
+      blockCredits: row.blockCredits,
+      minCredits: row.minCredits,
     };
   }
 
@@ -70,6 +77,7 @@ export class PricingService {
       });
     }
     const tiered = input.mode === PricingMode.duration_tiers;
+    const perSecond = input.mode === PricingMode.per_second;
     const last = await this.prisma.pricingRule.findFirst({
       where: { feature: input.feature },
       orderBy: { version: 'desc' },
@@ -81,8 +89,12 @@ export class PricingService {
           feature: input.feature,
           version: (last?.version ?? 0) + 1,
           mode: input.mode,
-          perJobCredits: tiered ? null : input.perJobCredits,
+          // Each mode stores only its own fields, so a row never carries a stray price.
+          perJobCredits: input.mode === PricingMode.per_job ? input.perJobCredits : null,
           ...(tiered ? { tiers: input.tiers as unknown as Prisma.InputJsonValue } : {}),
+          blockSeconds: perSecond ? input.blockSeconds : null,
+          blockCredits: perSecond ? input.blockCredits : null,
+          minCredits: perSecond ? (input.minCredits ?? null) : null,
           note: input.note,
           createdById: adminId,
         },

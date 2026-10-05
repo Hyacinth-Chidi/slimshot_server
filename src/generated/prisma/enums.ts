@@ -141,7 +141,8 @@ export type CreditFeature = (typeof CreditFeature)[keyof typeof CreditFeature]
 
 export const PricingMode = {
   per_job: 'per_job',
-  duration_tiers: 'duration_tiers'
+  duration_tiers: 'duration_tiers',
+  per_second: 'per_second'
 } as const
 
 export type PricingMode = (typeof PricingMode)[keyof typeof PricingMode]

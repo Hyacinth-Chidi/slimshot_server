@@ -63,6 +63,11 @@ export class CreatePricingRuleDto {
 
   @IsOptional() @IsInt() @Min(0) @Max(100_000) perJobCredits?: number;
 
+  /** per_second: credits per started block of this many seconds, never below minCredits. */
+  @IsOptional() @IsInt() @Min(1) @Max(86_400) blockSeconds?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(100_000) blockCredits?: number;
+  @IsOptional() @IsInt() @Min(0) @Max(100_000) minCredits?: number;
+
   @IsOptional()
   @IsArray()
   @ArrayMinSize(1)

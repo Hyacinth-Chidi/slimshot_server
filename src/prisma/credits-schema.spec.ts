@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { CreditTxType } from '../generated/prisma/enums';
+import { CreditTxType, PricingMode } from '../generated/prisma/enums';
 
 const sql = readFileSync(
   join(__dirname, '../../prisma/migrations/20261003120000_accounts_and_credits/migration.sql'),
@@ -21,6 +21,21 @@ describe('accounts and credits schema', () => {
       'account_deleted',
       'purchase',
     ]);
+  });
+
+  it('prices captions per job, by length brackets, or by the second', () => {
+    expect(Object.values(PricingMode)).toEqual(['per_job', 'duration_tiers', 'per_second']);
+  });
+
+  it('adds the by-the-second mode and its three columns in its own migration', () => {
+    const perSecond = readFileSync(
+      join(__dirname, '../../prisma/migrations/20261005120000_pricing_per_second/migration.sql'),
+      'utf8',
+    );
+    expect(perSecond).toContain(`ALTER TYPE "PricingMode" ADD VALUE 'per_second';`);
+    for (const column of ['blockSeconds', 'blockCredits', 'minCredits']) {
+      expect(perSecond).toContain(`ADD COLUMN     "${column}" INTEGER`);
+    }
   });
 
   // Prisma's schema language cannot express these three; they live only in

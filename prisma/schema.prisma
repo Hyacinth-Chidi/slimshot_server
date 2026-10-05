@@ -356,6 +356,7 @@ enum CreditFeature {
 enum PricingMode {
   per_job
   duration_tiers
+  per_second
 }
 
 enum BonusClaimKind {
@@ -468,6 +469,10 @@ model PricingRule {
   mode          PricingMode
   perJobCredits Int?
   tiers         Json?
+  /// per_second: credits per started block of this many seconds, never below minCredits.
+  blockSeconds  Int?
+  blockCredits  Int?
+  minCredits    Int?
   isActive      Boolean       @default(false)
   note          String?
   createdById   String

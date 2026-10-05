@@ -59,10 +59,22 @@ describe('admin pricing rules API over HTTP', () => {
     );
   });
 
+  it('creates a by-the-second rule with its block rate and minimum', async () => {
+    const res = await post({ feature: 'auto_captions', mode: 'per_second', blockSeconds: 10, blockCredits: 1, minCredits: 2 });
+    expect(res.status).toBe(201);
+    expect(pricing.createRule).toHaveBeenLastCalledWith(
+      expect.objectContaining({ mode: 'per_second', blockSeconds: 10, blockCredits: 1, minCredits: 2 }),
+      'admin-1',
+    );
+  });
+
   it.each([
     [{ feature: 'auto_captions', mode: 'duration_tiers', tiers: [{ upToSeconds: 0, credits: 2 }] }],
     [{ feature: 'auto_captions', mode: 'monthly' }],
     [{ feature: 'nope', mode: 'per_job', perJobCredits: 2 }],
+    [{ feature: 'auto_captions', mode: 'per_second', blockSeconds: 0, blockCredits: 1 }],
+    [{ feature: 'auto_captions', mode: 'per_second', blockSeconds: 10, blockCredits: 1.5 }],
+    [{ feature: 'auto_captions', mode: 'per_second', blockSeconds: 10, blockCredits: 1, minCredits: -1 }],
   ])('422s an invalid rule %j', async (body) => {
     expect((await post(body)).status).toBe(422);
   });

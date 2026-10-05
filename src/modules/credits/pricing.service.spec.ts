@@ -113,6 +113,44 @@ describe('PricingService admin', () => {
     expect(error.getStatus()).toBe(422);
   });
 
+  it('stores a by-the-second rule with its block rate and minimum, and nothing else', async () => {
+    const { svc, prisma } = build();
+    await svc.createRule(
+      { feature: 'auto_captions' as never, mode: 'per_second' as never, blockSeconds: 10, blockCredits: 1, minCredits: 2 },
+      'admin-1',
+    );
+    expect(prisma.pricingRule.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        mode: 'per_second',
+        blockSeconds: 10,
+        blockCredits: 1,
+        minCredits: 2,
+        perJobCredits: null,
+      }),
+    });
+  });
+
+  it('stores no block rate on a per-job rule', async () => {
+    const { svc, prisma } = build();
+    await svc.createRule(
+      { feature: 'auto_captions' as never, mode: 'per_job' as never, perJobCredits: 3, blockSeconds: 10 },
+      'admin-1',
+    );
+    expect(prisma.pricingRule.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ perJobCredits: 3, blockSeconds: null, blockCredits: null, minCredits: null }),
+    });
+  });
+
+  it('refuses a by-the-second rule without a block length', async () => {
+    const error = await errorOf(
+      build().svc.createRule({ feature: 'auto_captions' as never, mode: 'per_second' as never, blockCredits: 1 }, 'admin-1'),
+    );
+    expect(error.getStatus()).toBe(422);
+    expect(error.getResponse()).toMatchObject({
+      details: { problems: [expect.stringContaining('blockSeconds')] },
+    });
+  });
+
   it('activates a rule and switches the old one off in one transaction', async () => {
     const { svc, rows, prisma, audit } = build([rule({ id: 'r1', isActive: true }), rule({ id: 'r2', version: 2, isActive: false })]);
     await svc.activate('r2', 'admin-1');
