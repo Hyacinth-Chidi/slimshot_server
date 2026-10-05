@@ -111,6 +111,11 @@ cd slimshot_server
 nginx doesn't read this folder: it forwards requests to the API container. Any other folder
 works too, because every script finds its own location.
 
+> **Everything the server needs comes from this clone** (and later `git pull`): the code, the
+> `Dockerfile`, `docker-compose.prod.yml`, the nginx config and every script. Nothing is
+> copied from your PC except **`.env`**, the one git-ignored file that holds the secrets
+> (step 4). `node_modules` and `dist` aren't needed: the Docker image builds them on the VPS.
+
 ## 3. First-time server setup (as root)
 
 ```bash
@@ -146,7 +151,8 @@ cd /var/www/slimshot_server
 
 ## 4. Settings: `.env` (as deploy)
 
-Use **one** of the two ways below.
+`.env` is git-ignored, so it never comes with the clone: it's the only file you provide
+yourself. Use **one** of the two ways below.
 
 ### 4A. Generate a new `.env` (recommended)
 
