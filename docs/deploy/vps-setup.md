@@ -79,12 +79,17 @@ Copy the line it prints. On GitHub, open **Hyacinth-Chidi/slimshot_server → Se
 keys → Add deploy key**, paste it, name it `slimshot-vps`, and leave **Allow write access**
 off.
 
+The app lives in **`/var/www/slimshot_server`**:
+
 ```bash
-mkdir -p /opt/slimshot && cd /opt/slimshot
+mkdir -p /var/www && cd /var/www
 GIT_SSH_COMMAND="ssh -i /root/.ssh/github_slimshot -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" \
   git clone git@github.com:Hyacinth-Chidi/slimshot_server.git
 cd slimshot_server
 ```
+
+nginx doesn't read this folder: it forwards requests to the API container. Any other folder
+works too, because every script finds its own location.
 
 ## 3. First-time server setup (as root)
 
@@ -116,7 +121,7 @@ From now on, work as `deploy`:
 
 ```bash
 ssh deploy@VPS_IP
-cd /opt/slimshot/slimshot_server
+cd /var/www/slimshot_server
 ```
 
 ## 4. Settings: `.env` (as deploy)
@@ -269,7 +274,7 @@ The restore script:
 
 ## 9. Everyday use
 
-| To | Run (as deploy, in `/opt/slimshot/slimshot_server`) |
+| To | Run (as deploy, in `/var/www/slimshot_server`) |
 |---|---|
 | Deploy new code (push from your PC first) | `./deploy/scripts/deploy.sh` |
 | Apply a `.env` change | `SKIP_PULL=1 ./deploy/scripts/deploy.sh` |
@@ -281,7 +286,7 @@ The restore script:
 | Disk and memory | `df -h`, `free -h`, `docker system df` |
 | Reinstall nginx config after editing `deploy/nginx/*` | `sudo ./deploy/scripts/setup-nginx.sh slimshot-server.techfamz.com you@techfamz.com` |
 
-Tip: `echo "alias dc='docker compose -f /opt/slimshot/slimshot_server/docker-compose.prod.yml'" >> ~/.bashrc`
+Tip: `echo "alias dc='docker compose -f /var/www/slimshot_server/docker-compose.prod.yml'" >> ~/.bashrc`
 then log in again, and `dc logs -f api` works.
 
 Security updates install themselves. After a kernel update, `sudo reboot` when convenient:
@@ -325,6 +330,6 @@ Docker and every container come back on their own.
 | `deploy/scripts/deploy.sh` | Pull, build, migrate, restart, health check |
 | `deploy/scripts/backup-db.sh` / `restore-db.sh` | Nightly backup and restore |
 | `deploy/nginx/` | The nginx site, the proxy settings and the certificate-request config |
-| On the VPS: `/opt/slimshot/slimshot_server` | The code and `.env` |
+| On the VPS: `/var/www/slimshot_server` | The code and `.env` |
 | On the VPS: `/var/backups/slimshot` | Local database dumps |
 | On the VPS: Docker volumes `slimshot_pgdata`, `slimshot_redisdata` | The database and Redis data |

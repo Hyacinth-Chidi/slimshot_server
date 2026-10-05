@@ -22,7 +22,6 @@ DEPLOY_USER="${DEPLOY_USER:-deploy}"
 SWAP_SIZE="${SWAP_SIZE:-4G}"
 HARDEN_SSH="${HARDEN_SSH:-yes}"
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_PARENT="$(dirname "$APP_DIR")"
 BACKUP_DIR=/var/backups/slimshot
 
 step() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
@@ -110,7 +109,9 @@ main() {
     chown "$DEPLOY_USER:$DEPLOY_USER" "$ssh_dir/config"
     sudo -H -u "$DEPLOY_USER" sh -c 'ssh-keyscan -t ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null'
   fi
-  chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_PARENT"
+  # The app folder only (e.g. /var/www/slimshot_server), never its parent: /var/www
+  # also holds nginx's own files, which stay root's.
+  chown -R "$DEPLOY_USER:$DEPLOY_USER" "$APP_DIR"
 
   step "Firewall: SSH, HTTP and HTTPS only"
   ufw default deny incoming
