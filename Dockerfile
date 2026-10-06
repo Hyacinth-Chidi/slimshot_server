@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# SlimShot API image. Built by docker-compose.prod.yml; see docs/deploy/vps-setup.md.
+# SlimShot API image. Built by docker-compose.yml; see docs/deploy/vps-setup.md.
 #
 #   build   — every dependency, the compiled app, and the Prisma CLI. The one-off
 #             `migrate` service runs from this stage (migrations + seed).

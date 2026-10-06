@@ -131,7 +131,7 @@ nginx doesn't read this folder: it forwards requests to the API container. Any o
 works too, because every script finds its own location.
 
 > **Everything the server needs comes from this clone** (and later `git pull`): the code, the
-> `Dockerfile`, `docker-compose.prod.yml`, the nginx config and every script. Nothing is
+> `Dockerfile`, `docker-compose.yml`, the nginx config and every script. Nothing is
 > copied from your PC except **`.env`**, the one git-ignored file that holds the secrets
 > (step 4). `node_modules` and `dist` aren't needed: the Docker image builds them on the VPS.
 
@@ -416,17 +416,60 @@ Two deploys never overlap: a webhook deploy and a manual `deploy.sh` wait for ea
 |---|---|
 | Deploy new code (push from your PC first; automatic once step 9 is set up) | `./deploy/scripts/deploy.sh` |
 | Watch automatic deploys | `tail -f /var/log/slimshot-deploy.log` |
-| Apply a `.env` change | `SKIP_PULL=1 ./deploy/scripts/deploy.sh` |
-| Follow the API's log | `docker compose -f docker-compose.prod.yml logs -f api` |
-| See what's running | `docker compose -f docker-compose.prod.yml ps` |
-| Restart the API only | `docker compose -f docker-compose.prod.yml restart api` |
-| Open the database | `docker compose -f docker-compose.prod.yml exec postgres psql -U slimshot` |
+| Apply a `.env` change | `docker compose up -d --force-recreate --wait api` |
+| Follow the API's log | `docker compose logs -f --tail=100 api` |
+| See what's running | `docker compose ps` |
+| Restart the API only (keeps the old `.env` values) | `docker compose restart api` |
+| Open the database | `docker compose exec postgres psql -U slimshot` |
 | nginx logs | `tail -f /var/log/nginx/slimshot-api.error.log` |
 | Disk and memory | `df -h`, `free -h`, `docker system df` |
 | Reinstall nginx config after editing `deploy/nginx/*` | `./deploy/scripts/setup-nginx.sh slimshot-server.techfamz.com you@techfamz.com` |
 
-Tip: `echo "alias dc='docker compose -f /var/www/slimshot_server/docker-compose.prod.yml'" >> ~/.bashrc`
-then log in again, and `dc logs -f api` works.
+`docker compose …` commands work as they are inside `/var/www/slimshot_server`. To run them
+from any folder: `echo "alias dc='docker compose -f /var/www/slimshot_server/docker-compose.yml'" >> ~/.bashrc`,
+log in again, and `docker compose logs -f api` works anywhere.
+
+### Changing `.env`
+
+A container reads `.env` only when it's created; `restart` keeps the old values. After editing
+`.env`, recreate the API (Postgres, Redis and the data are untouched):
+
+```bash
+nano .env
+docker compose up -d --force-recreate --wait api
+curl -s https://slimshot-server.techfamz.com/health/ready
+```
+
+- **`REDIS_PASSWORD`** changed: recreate both, `… up -d --force-recreate --wait redis api`.
+- **`POSTGRES_PASSWORD`**: Postgres reads it only when the database is first created. Changing
+  it later doesn't change the real password and the API can't connect. Leave it, unless you
+  mean to wipe the database (`docker compose down -v`, then
+  `SKIP_PULL=1 ./deploy/scripts/deploy.sh`).
+
+### Checking the logs
+
+```bash
+cd /var/www/slimshot_server
+docker compose logs --since 24h api                    # the last day
+docker compose logs --since 24h api | grep -iE "error|warn|exception"
+docker compose logs --since 2026-10-05T12:00:00 --until 2026-10-05T18:00:00 api
+docker compose logs -f --tail=50 api                   # live; Ctrl+C stops
+docker logs -f --tail=100 slimshot-api-1                                          # same, from any folder
+```
+
+`--since` also takes `1h`, `30m`, `7d`. Add `| less` for long output (`/error` searches, `q` quits).
+Swap `api` for `postgres` or `redis`, or leave it off for all three.
+
+| Log | Command |
+|---|---|
+| Automatic deploys | `tail -n 50 /var/log/slimshot-deploy.log` |
+| nginx errors | `tail -n 50 /var/log/nginx/slimshot-api.error.log` |
+| Every request | `tail -f /var/log/nginx/slimshot-api.access.log` |
+| Nightly backups | `ls -lh /var/backups/slimshot \| tail -n 3` |
+
+Each container keeps at most 50 MB of logs (five 10 MB files), oldest lines dropped first, so
+logs never fill the disk. A recreated container (every deploy, every `.env` change) starts an
+empty log: read what you need before redeploying.
 
 Security updates install themselves. After a kernel update, `reboot` when convenient:
 Docker and every container come back on their own.
@@ -437,12 +480,12 @@ Docker and every container come back on their own.
 |---|---|
 | `deploy.sh`: "Fill in the values listed above" | `.env` still has `CHANGE_ME`; edit it |
 | `deploy.sh`: "The API did not become healthy" | Read the log lines it printed. "Invalid environment configuration" lists exactly which `.env` value is wrong |
-| Browser shows **502 Bad Gateway** | The API isn't running: `dc ps`, then `dc logs --tail=100 api` |
+| Browser shows **502 Bad Gateway** | The API isn't running: `docker compose ps`, then `docker compose logs --tail=100 api` |
 | App upload fails with **413** | The file is over 60 MB (nginx limit; captions allow 50 MB) |
 | `setup-nginx.sh`: "does not resolve" / "points to …" | The A record is missing or wrong, or hasn't spread yet; wait and re-run |
 | certbot fails | Port 80 must reach the VPS (`ufw status` shows `Nginx Full`), and DNS must point here |
 | Dashboard shows a CORS error | `ADMIN_BASE_URL` must equal the dashboard's address exactly (scheme, host and port) |
-| Sign-in emails don't arrive | `dc logs api` shows the SMTP error; check host, port and `SMTP_SECURE` together |
+| Sign-in emails don't arrive | `docker compose logs api` shows the SMTP error; check host, port and `SMTP_SECURE` together |
 | Locked out of SSH | Contabo control panel → VNC console, log in as root with the root password |
 | `git clone`: `Permission denied (publickey)` | The clone didn't use the deploy key: run the step 2 `export GIT_SSH_COMMAND=…` line (with `export`), then the clone. If `ssh -i /root/.ssh/github_slimshot -T git@github.com` also fails, add the `.pub` key to the repo's **Deploy keys** |
 | `git pull`: `detected dubious ownership` | The folder isn't owned by root: `chown -R root:root /var/www/slimshot_server` (or re-run `setup-vps.sh`) |
@@ -457,7 +500,7 @@ Docker and every container come back on their own.
 - **Only ports 22, 80 and 443 are open.**
   - The API listens on `127.0.0.1:2700`, reachable only through nginx.
   - Postgres and Redis publish no ports at all. Docker's published ports bypass the UFW
-    firewall, so never add a `ports:` line to them in `docker-compose.prod.yml`.
+    firewall, so never add a `ports:` line to them in `docker-compose.yml`.
 - **SSH:** key-only, so no password can be guessed. Root logs in with a key
   (`PermitRootLogin prohibit-password`), and fail2ban bans repeated failures.
 - **`.env`:** readable only by root and never committed (it's in `.gitignore`); keep a copy in
@@ -513,7 +556,7 @@ updates) serves every app. For each new app:
   networks don't mix with `slimshot_*`.
 - **Memory:** SlimShot's Postgres is tuned for about 1.5 GB and Redis is capped at 512 MB.
   If other apps bring their own databases, lower `shared_buffers` and `effective_cache_size`
-  in `docker-compose.prod.yml`, or share one Postgres between apps.
+  in `docker-compose.yml`, or share one Postgres between apps.
 - **Webhooks:** each app can have its own listener service on its own port and `/hooks/`
   path, or you can add more hooks to one listener.
 
@@ -522,7 +565,7 @@ updates) serves every app. For each new app:
 | Path | What it is |
 |---|---|
 | `Dockerfile` | The API image: Node 24 on Debian slim, built in stages; the app runs as a non-root user inside the container |
-| `docker-compose.prod.yml` | The API, Postgres, Redis, and the one-off `migrate` step |
+| `docker-compose.yml` | The API, Postgres, Redis, and the one-off `migrate` step |
 | `.env.production.example` | Template for the server's `.env` |
 | `deploy/scripts/setup-vps.sh` | First-time server setup (run once; safe to re-run) |
 | `deploy/scripts/init-env.sh` | Creates `.env` with fresh secrets (run once) |

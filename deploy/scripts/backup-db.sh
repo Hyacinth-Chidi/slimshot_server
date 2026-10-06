@@ -25,7 +25,7 @@ main() {
   mkdir -p "$dir"
   echo "$(date -u +%FT%TZ) backup start"
   # Custom format (-Fc) is compressed and restores with pg_restore.
-  docker compose -f docker-compose.prod.yml exec -T postgres \
+  docker compose -f docker-compose.yml exec -T postgres \
     pg_dump -U slimshot -d slimshot -Fc > "$file.partial"
   [ -s "$file.partial" ] || { echo "ERROR: empty dump" >&2; rm -f "$file.partial"; exit 1; }
   mv "$file.partial" "$file"

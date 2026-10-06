@@ -1,5 +1,5 @@
 # Never bake secrets or local state into the image: the API gets its settings
-# from the server's .env through docker-compose.prod.yml at run time.
+# from the server's .env through docker-compose.yml at run time.
 .env
 .env.*
 !.env.example

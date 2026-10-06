@@ -13,7 +13,7 @@ main() {
   [ -n "$dump" ] && [ -s "$dump" ] || { echo "Usage: $0 <file.dump>" >&2; exit 1; }
   dump="$(cd "$(dirname "$dump")" && pwd)/$(basename "$dump")"
   cd "$(dirname "${BASH_SOURCE[0]}")/../.."
-  local compose=(docker compose -f docker-compose.prod.yml)
+  local compose=(docker compose -f docker-compose.yml)
 
   echo "This replaces the live database with: $dump"
   echo "Everything written since that backup will be lost."
