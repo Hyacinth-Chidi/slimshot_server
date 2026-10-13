@@ -12,6 +12,10 @@ import { AssetKind, AssetStatus, FileRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { QueueService } from '../../core/queue/queue.service';
+import {
+  StorageProviderAdapter,
+  UnreadableUploadError,
+} from '../../core/storage/storage-adapter.interface';
 import { StorageRegistry } from '../../core/storage/storage.registry';
 import { KindRegistry } from '../assets/kind-registry';
 import { CreateUploadTicketDto } from './dto/create-upload-ticket.dto';
@@ -20,9 +24,11 @@ import { FinalizeUploadDto } from './dto/finalize-upload.dto';
 export interface TicketResponse {
   assetId: string;
   sessionId: string;
+  /** Presigned: send the file here with `method` and exactly these `headers`. */
   uploadUrl: string;
+  method: 'PUT';
+  headers: Record<string, string>;
   storageKey: string;
-  fields: Record<string, string>;
   expiresAt: Date;
 }
 
@@ -55,7 +61,6 @@ export class IngestService {
     dto: CreateUploadTicketDto,
     actorId: string,
   ): Promise<TicketResponse> {
-    const descriptor = this.kinds.get(dto.kind);
     const { mimeTypes: allowedMimeTypes, maxBytes } = this.limitsFor(dto.kind);
 
     this.kinds.assertAccepts(
@@ -70,18 +75,14 @@ export class IngestService {
     const adapter = await this.storage.getDefault();
     const ttlSeconds = this.upload.ticketTtlSeconds;
 
+    // The ticket is signed for this exact size and type, so a leaked one can
+    // store nothing else; finalize then checks what actually landed.
     const ticket = await adapter.createUploadTicket({
       folder: `slimshot/${dto.kind}`,
       filename: dto.filename,
       mimeType: dto.mimeType,
+      byteSize: dto.byteSize,
       ttlSeconds,
-      // Bound what the ticket itself can write. Cloudinary cannot honour a
-      // shorter lifetime than its own staleness window, so constraining size and
-      // format is what actually limits the damage a leaked ticket can do.
-      maxBytes,
-      allowedFormats: descriptor.accepts.extensions.map((e) =>
-        e.replace(/^\./, ''),
-      ),
     });
 
     const asset = await this.prisma.asset.create({
@@ -122,8 +123,9 @@ export class IngestService {
       assetId: asset.id,
       sessionId: session.id,
       uploadUrl: ticket.uploadUrl,
+      method: ticket.method,
+      headers: ticket.headers,
       storageKey: ticket.storageKey,
-      fields: ticket.fields,
       expiresAt: ticket.expiresAt,
     };
   }
@@ -158,15 +160,16 @@ export class IngestService {
 
     const adapter = await this.storage.get(session.storageId);
 
-    // The only source of truth for size, format and duration is the provider.
+    // The only source of truth for size, format and duration is the stored
+    // file itself, read back from the provider.
     let remote;
     try {
       remote = await adapter.verifyUpload(session.storageKey);
     } catch (error) {
-      await this.prisma.asset.update({
-        where: { id: session.assetId },
-        data: { status: AssetStatus.failed },
-      });
+      if (error instanceof UnreadableUploadError) {
+        await this.refuse(session, adapter, error.message);
+      }
+      await this.markFailed(session.assetId);
       throw new BadRequestException(
         `Upload could not be verified in storage: ${(error as Error).message}`,
       );
@@ -174,20 +177,34 @@ export class IngestService {
 
     const kind = (session as { asset: { kind: AssetKind } }).asset.kind;
     const descriptor = this.kinds.get(kind);
-    const { mimeTypes: allowedMimeTypes } = this.limitsFor(kind);
+    const { mimeTypes: allowedMimeTypes, maxBytes } = this.limitsFor(kind);
 
-    // createTicket validated the DECLARED mime type; this validates what actually
-    // landed. Without it an admin could declare audio/mpeg, upload an MP4, and
-    // have it stored and catalogued — the provider is the source of truth, so the
-    // allowlist has to be applied to the provider's answer too.
+    // createTicket validated what was DECLARED; these check what actually
+    // landed. Without them an admin could declare audio/mpeg, upload an MP4,
+    // and have it stored and catalogued.
     if (!allowedMimeTypes.includes(remote.mimeType)) {
-      await this.prisma.asset.update({
-        where: { id: session.assetId },
-        data: { status: AssetStatus.failed },
-      });
-      throw new BadRequestException(
+      await this.refuse(
+        session,
+        adapter,
         `The uploaded file is ${remote.mimeType}, which is not accepted for ${kind}. ` +
           `Allowed: ${allowedMimeTypes.join(', ')}`,
+      );
+    }
+    // R2 serves a file with the type it was uploaded as: a WAV declared as MP3
+    // would reach players as audio/mpeg and fail to play.
+    if (remote.mimeType !== session.declaredMime) {
+      await this.refuse(
+        session,
+        adapter,
+        `The file is ${remote.format.toUpperCase()} audio (${remote.mimeType}), but it was uploaded as ` +
+          `${session.declaredMime}. Give it the right extension and upload it again.`,
+      );
+    }
+    if (remote.byteSize > maxBytes) {
+      await this.refuse(
+        session,
+        adapter,
+        `File size ${remote.byteSize} exceeds the configured maximum of ${maxBytes} bytes.`,
       );
     }
 
@@ -261,6 +278,28 @@ export class IngestService {
       assetId: session.assetId,
       status: willProcess ? AssetStatus.processing : AssetStatus.ready,
     };
+  }
+
+  private async markFailed(assetId: string): Promise<void> {
+    await this.prisma.asset.update({
+      where: { id: assetId },
+      data: { status: AssetStatus.failed },
+    });
+  }
+
+  /**
+   * The upload landed but cannot be catalogued: mark the asset failed, remove
+   * the file (R2 keeps whatever it is sent, and nothing will ever point at it),
+   * and answer with the reason. A failed removal must not hide that reason.
+   */
+  private async refuse(
+    session: { assetId: string; storageKey: string },
+    adapter: StorageProviderAdapter,
+    reason: string,
+  ): Promise<never> {
+    await this.markFailed(session.assetId);
+    await adapter.delete(session.storageKey).catch(() => undefined);
+    throw new BadRequestException(reason);
   }
 }
 

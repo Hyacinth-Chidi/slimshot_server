@@ -8,7 +8,7 @@ export interface AudioTrack {
   preview_url: string;
   download_url: string;
   type: AudioType;
-  source: 'cloudinary';
+  source: 'r2';
   tags: string[];
 }
 

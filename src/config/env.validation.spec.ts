@@ -15,9 +15,11 @@ const BASE = {
   DATABASE_URL: 'postgresql://u:p@host/db',
   REDIS_URL: 'redis://localhost:6379',
   JWT_ACCESS_SECRET: 's'.repeat(48),
-  CLOUDINARY_CLOUD_NAME: 'demo',
-  CLOUDINARY_API_KEY: 'key',
-  CLOUDINARY_API_SECRET: 'secret',
+  R2_ACCOUNT_ID: '0123456789abcdef0123456789abcdef',
+  R2_ACCESS_KEY_ID: 'access-key',
+  R2_SECRET_ACCESS_KEY: 'secret-key',
+  R2_BUCKET: 'slimshot-audio',
+  R2_PUBLIC_BASE_URL: 'https://cdn.example.com',
   MASTER_ENCRYPTION_KEY: 'ab'.repeat(32),
   USER_JWT_SECRET: 'u'.repeat(48),
   IDENTITY_HMAC_SECRET: 'i'.repeat(48),
@@ -37,7 +39,6 @@ describe('parseEnv', () => {
       UPLOAD_AUDIO_MAX_BYTES: 52_428_800,
       UPLOAD_AUDIO_MIME_TYPES: ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/ogg', 'audio/flac'],
       UPLOAD_TICKET_TTL_SECONDS: 900,
-      CLOUDINARY_AUDIO_FOLDER: 'slimshot/audio',
     });
     expect(env.ADMIN_BASE_URL).toBeUndefined();
     expect(env.ADMIN_BOOTSTRAP_EMAIL).toBeUndefined();
@@ -63,8 +64,25 @@ describe('parseEnv', () => {
   });
 
   it('trims stray whitespace around values', () => {
-    const env = parseEnv({ ...BASE, CLOUDINARY_CLOUD_NAME: ' dtdvob79f ' });
-    expect(env.CLOUDINARY_CLOUD_NAME).toBe('dtdvob79f');
+    const env = parseEnv({ ...BASE, R2_BUCKET: ' slimshot-audio ' });
+    expect(env.R2_BUCKET).toBe('slimshot-audio');
+  });
+
+  it('strips a trailing slash from R2_PUBLIC_BASE_URL, since keys are joined with one', () => {
+    expect(parseEnv({ ...BASE, R2_PUBLIC_BASE_URL: 'https://cdn.example.com/' }).R2_PUBLIC_BASE_URL).toBe(
+      'https://cdn.example.com',
+    );
+  });
+
+  it('rejects an R2_PUBLIC_BASE_URL that is not a full URL', () => {
+    expect(() => parseEnv({ ...BASE, R2_PUBLIC_BASE_URL: 'cdn.example.com' })).toThrow('R2_PUBLIC_BASE_URL');
+  });
+
+  it('rejects an R2_ACCOUNT_ID that is not the 32-character account ID', () => {
+    // A pasted endpoint URL is the likely mistake; it would sign for the wrong host.
+    expect(() =>
+      parseEnv({ ...BASE, R2_ACCOUNT_ID: 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com' }),
+    ).toThrow('R2_ACCOUNT_ID');
   });
 
   it('strips trailing slashes from CORS origins, which browsers never send', () => {
@@ -84,9 +102,11 @@ describe('parseEnv', () => {
     'DATABASE_URL',
     'REDIS_URL',
     'JWT_ACCESS_SECRET',
-    'CLOUDINARY_CLOUD_NAME',
-    'CLOUDINARY_API_KEY',
-    'CLOUDINARY_API_SECRET',
+    'R2_ACCOUNT_ID',
+    'R2_ACCESS_KEY_ID',
+    'R2_SECRET_ACCESS_KEY',
+    'R2_BUCKET',
+    'R2_PUBLIC_BASE_URL',
     'MASTER_ENCRYPTION_KEY',
     'USER_JWT_SECRET',
     'IDENTITY_HMAC_SECRET',

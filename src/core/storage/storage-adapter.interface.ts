@@ -4,26 +4,23 @@ export interface UploadTicketInput {
   folder: string;
   filename: string;
   mimeType: string;
-  ttlSeconds: number;
   /**
-   * Upper bound the provider should enforce on the uploaded object, in bytes.
-   * Signed into the ticket where the provider supports it, so a leaked ticket
-   * cannot be used to upload something far larger than intended.
+   * The exact size of the file, in bytes. Signed into the upload URL, so the
+   * provider refuses a body of any other length: a leaked ticket cannot be used
+   * to store something larger than what was approved.
    */
-  maxBytes?: number;
-  /** File extensions the provider should accept, e.g. ['mp3', 'wav']. */
-  allowedFormats?: string[];
+  byteSize: number;
+  ttlSeconds: number;
 }
 
 export interface UploadTicket {
+  /** Presigned URL: the client sends the file body here, with no other credentials. */
   uploadUrl: string;
+  method: 'PUT';
+  /** Headers the client must send exactly as given, or the signature does not match. */
+  headers: Record<string, string>;
   storageKey: string;
-  fields: Record<string, string>;
-  /**
-   * Advisory only. Cloudinary validates the signature against `timestamp` using its own
-   * staleness window, so a ticket may remain usable after this passes. Callers must not
-   * treat it as an enforced deadline.
-   */
+  /** When the URL stops working; the provider enforces it. */
   expiresAt: Date;
 }
 
@@ -44,15 +41,30 @@ export interface StorageProviderAdapter {
   readonly id: string;
   readonly kind: StorageKind;
   createUploadTicket(input: UploadTicketInput): Promise<UploadTicket>;
+  /**
+   * Reads what actually landed. Throws UnreadableUploadError when the object
+   * exists but is not an acceptable file; any other error means it could not be
+   * read at all (missing, or storage unreachable).
+   */
   verifyUpload(storageKey: string): Promise<RemoteObject>;
   getDeliveryUrl(storageKey: string): string;
   getSignedUrl(storageKey: string, ttlSeconds: number): Promise<string>;
   delete(storageKey: string): Promise<void>;
 }
 
-export interface CloudinaryConfig {
-  cloudName: string;
-  apiKey: string;
-  apiSecret: string;
-  folder: string;
+/** The upload arrived, but its content is not something the catalogue accepts. */
+export class UnreadableUploadError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'UnreadableUploadError';
+  }
+}
+
+export interface R2Config {
+  accountId: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucket: string;
+  /** Public custom domain of the bucket, no trailing slash. */
+  publicBaseUrl: string;
 }

@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { cloudinaryConfig, type CloudinaryEnvConfig } from '../../config';
+import { r2Config, type R2EnvConfig } from '../../config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { CloudinaryAdapter } from './adapters/cloudinary.adapter';
+import { R2Adapter } from './adapters/r2.adapter';
 import { StorageProviderAdapter } from './storage-adapter.interface';
 
 /** Provider rows are identity only (what asset files point at); credentials come from env. */
@@ -20,7 +20,7 @@ export class StorageRegistry {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(cloudinaryConfig.KEY) private readonly cloudinary: CloudinaryEnvConfig,
+    @Inject(r2Config.KEY) private readonly r2: R2EnvConfig,
   ) {}
 
   async getDefault(): Promise<StorageProviderAdapter> {
@@ -73,8 +73,12 @@ export class StorageRegistry {
 
   private build(row: ProviderRow): StorageProviderAdapter {
     switch (row.kind) {
+      case 'r2':
+        return new R2Adapter(row.id, this.r2);
       case 'cloudinary':
-        return new CloudinaryAdapter(row.id, this.cloudinary);
+        throw new Error(
+          `Cloudinary storage was removed; files on provider ${row.id} can no longer be served or verified.`,
+        );
       default:
         throw new Error(`Unsupported storage kind: ${row.kind}`);
     }

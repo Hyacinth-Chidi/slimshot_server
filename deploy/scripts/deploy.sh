@@ -5,10 +5,11 @@
 #
 #   1. git pull (fast-forward only; SKIP_PULL=1 skips it)
 #   2. build the images
-#   3. start Postgres and Redis, wait until healthy
-#   4. apply database migrations and the idempotent seed
-#   5. restart the API and wait for its health check
-#   6. remove old images
+#   3. check .env with the new code (stops here, API untouched, if it is invalid)
+#   4. start Postgres and Redis, wait until healthy
+#   5. apply database migrations and the idempotent seed
+#   6. restart the API and wait for its health check
+#   7. remove old images
 #
 # If the API fails its health check, the script prints its last log lines and
 # exits non-zero. Postgres and Redis keep running; nothing is deleted.
@@ -16,6 +17,9 @@
 set -euo pipefail
 
 die() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
+
+# Runs inside the new API image: the same validation the API does at start-up.
+ENV_CHECK="try { require('./dist/config/env.validation').parseEnv(process.env); console.log('.env is valid.'); } catch (e) { console.error(e.message); process.exit(1); }"
 step() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 
 # Everything runs inside main() so bash reads the whole file before `git pull`
@@ -44,6 +48,14 @@ main() {
 
   step "Building images"
   "${compose[@]}" --profile tools build
+
+  # .env checked by the code just built, before anything restarts: a value the
+  # new code needs (a new variable, say) stops the deploy here with the current
+  # API still running, rather than replacing it with one that cannot start.
+  step "Checking .env against the new code"
+  if ! "${compose[@]}" run --rm --no-deps --entrypoint node api -e "$ENV_CHECK"; then
+    die "Fix the .env values listed above, then run this script again (SKIP_PULL=1 skips the pull). The running API was not touched."
+  fi
 
   step "Starting Postgres and Redis"
   "${compose[@]}" up -d --wait postgres redis

@@ -58,13 +58,63 @@ You need:
    git push origin main
    ```
 4. **The values for `.env`.** Each one is explained in step 4:
-   - your Cloudinary keys;
+   - your Cloudflare R2 bucket, its API token and public address (set up below);
    - the Google OAuth **Web** client ID;
    - your SMTP login;
    - your AdMob rewarded ad unit ID;
    - an email and a strong password for the first owner account;
    - the dashboard's address.
 5. **An email address** for Let's Encrypt's expiry notices.
+
+### Cloudflare R2: where uploaded files live
+
+Every audio file uploaded in the dashboard is stored in an R2 bucket, and the app downloads
+it from your own domain. R2 charges nothing for downloads. Do this once, at
+[dash.cloudflare.com](https://dash.cloudflare.com) → **R2 Object Storage** (R2 asks for a
+payment method even on the free tier).
+
+1. **Create the bucket.** **Create bucket** → name `slimshot-audio` → location **Automatic** →
+   **Create bucket**.
+2. **Give it a public address.** Open the bucket → **Settings** → **Custom Domains** → **Add** →
+   `cdn.techfamz.com` → **Continue** → **Connect domain**. Cloudflare adds the DNS record
+   itself; this needs `techfamz.com`'s DNS to be on Cloudflare. The status turns **Active**
+   after a minute or two.
+   (The bucket's **Public Development URL**, `https://pub-….r2.dev`, works for testing but is
+   rate-limited: don't use it for the live app.)
+3. **Allow the dashboard to upload.** Same **Settings** page → **CORS Policy** → **Add CORS
+   policy** → paste and **Save**:
+   ```json
+   [
+     {
+       "AllowedOrigins": ["https://slimshot-admin.techfamz.com", "http://localhost:3001"],
+       "AllowedMethods": ["PUT"],
+       "AllowedHeaders": ["Content-Type"],
+       "MaxAgeSeconds": 3600
+     }
+   ]
+   ```
+   Without it the browser blocks every upload. `http://localhost:3001` is for a dashboard
+   running on your PC; remove it if you never do that.
+4. **Create an API token.** Back on the R2 overview → **Manage API tokens** (under **Account
+   details**) → **Create Account API token** → name `slimshot-server` → permission **Object
+   Read & Write** → **Apply to specific buckets only** → `slimshot-audio` → **Create**.
+   Copy the **Access Key ID** and **Secret Access Key** now: the secret is shown only once.
+5. **Note the account ID**: the 32-character **Account ID** on the R2 overview page.
+
+These become five `.env` lines (step 4):
+
+| Variable | Value |
+|---|---|
+| `R2_ACCOUNT_ID` | the 32-character account ID (not the endpoint URL) |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | the API token's two keys |
+| `R2_BUCKET` | `slimshot-audio` |
+| `R2_PUBLIC_BASE_URL` | `https://cdn.techfamz.com` (no trailing slash) |
+
+**Already deployed with Cloudinary?** Add these five lines to the VPS's `.env` **before** you
+push the R2 change. If the push lands first, nothing breaks: the deploy stops at "Checking .env
+against the new code" and the running API stays as it was. Add the lines, then run
+`SKIP_PULL=1 ./deploy/scripts/deploy.sh`. That deploy also makes R2 the default storage, and
+the `CLOUDINARY_*` lines can be deleted.
 
 ## 1. Your SSH key for root (PC)
 
@@ -200,7 +250,7 @@ Replace every `CHANGE_ME`:
 |---|---|
 | `ADMIN_BASE_URL` | Already `https://slimshot-admin.techfamz.com`, the dashboard on this VPS. To use a dashboard running on your PC, add `http://localhost:3001` to `CORS_ALLOWED_ORIGINS` |
 | `ADMIN_BOOTSTRAP_EMAIL` / `ADMIN_BOOTSTRAP_PASSWORD` | The first owner account, created on the first start |
-| `CLOUDINARY_CLOUD_NAME` / `_API_KEY` / `_API_SECRET` | Cloudinary dashboard → API Keys |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_PUBLIC_BASE_URL` | Cloudflare R2, from step 0 ("Cloudflare R2"). `R2_BUCKET` is already `slimshot-audio` |
 | `GOOGLE_CLIENT_IDS` | Google Cloud → Credentials → the OAuth **Web** client ID |
 | `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM` | Your mail provider. Port 587 goes with `SMTP_SECURE=false`; port 465 with `SMTP_SECURE=true` |
 | `ADMOB_AD_UNIT_IDS` | AdMob → your app → Ad units → the **rewarded** unit's ID (`ca-app-pub-…/…`). **Required:** the server won't start in production without it, so create the ad unit first |
@@ -258,9 +308,11 @@ Until the first deploy, the site answers **502**. That's expected.
 The first build takes 3–5 minutes. The script:
 1. pulls the code;
 2. builds the image;
-3. starts Postgres and Redis;
-4. applies the migrations and seeds the default storage row;
-5. starts the API and waits for its health check.
+3. checks `.env` with the new code, and stops before restarting anything if a value is
+   missing or wrong;
+4. starts Postgres and Redis;
+5. applies the migrations and makes Cloudflare R2 the default storage;
+6. starts the API and waits for its health check.
 
 Check it from anywhere (**PC** or the VPS):
 
@@ -479,6 +531,10 @@ Docker and every container come back on their own.
 | Symptom | Cause and fix |
 |---|---|
 | `deploy.sh`: "Fill in the values listed above" | `.env` still has `CHANGE_ME`; edit it |
+| `deploy.sh`: "Fix the .env values listed above" | The new code needs a value `.env` lacks or has wrong (for example the `R2_*` lines). The running API was not touched: fix `.env`, then `SKIP_PULL=1 ./deploy/scripts/deploy.sh` |
+| Dashboard upload fails: "Couldn't reach file storage" | The bucket's CORS policy is missing or doesn't list the dashboard's exact address (step 0, "Cloudflare R2", point 3) |
+| Dashboard upload fails: `SignatureDoesNotMatch` / `InvalidAccessKeyId` / `AccessDenied` | The `R2_*` keys are wrong, or the API token doesn't cover the `slimshot-audio` bucket with **Object Read & Write**. Fix `.env`, then `docker compose up -d --force-recreate --wait api` |
+| App can't load an uploaded file (404 or no answer from `cdn.…`) | The bucket's custom domain isn't **Active** yet, or `R2_PUBLIC_BASE_URL` doesn't match it |
 | `deploy.sh`: "The API did not become healthy" | Read the log lines it printed. "Invalid environment configuration" lists exactly which `.env` value is wrong |
 | Browser shows **502 Bad Gateway** | The API isn't running: `docker compose ps`, then `docker compose logs --tail=100 api` |
 | App upload fails with **413** | The file is over 60 MB (nginx limit; captions allow 50 MB) |

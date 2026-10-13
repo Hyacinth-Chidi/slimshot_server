@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
+import { UnreadableUploadError } from '../../core/storage/storage-adapter.interface';
 import { AssetKind, FileRole } from '../../generated/prisma/enums';
 import { AUDIO_DESCRIPTOR } from '../assets/kinds/audio/audio.descriptor';
 import { KindRegistry } from '../assets/kind-registry';
@@ -17,15 +18,17 @@ const REMOTE = {
 function build(overrides: { session?: Record<string, unknown> | null } = {}) {
   const adapter = {
     id: 'prov-1',
-    kind: 'cloudinary',
+    kind: 'r2',
     createUploadTicket: jest.fn(async () => ({
-      uploadUrl: 'https://api.cloudinary.com/v1_1/demo/video/upload',
+      uploadUrl: 'https://acct.r2.cloudflarestorage.com/bucket/slimshot/audio/abc?X-Amz-Signature=sig',
+      method: 'PUT' as const,
+      headers: { 'Content-Type': 'audio/mpeg' },
       storageKey: 'slimshot/audio/abc',
-      fields: { signature: 'sig', api_key: 'key' },
       expiresAt: new Date(Date.now() + 900_000),
     })),
-    verifyUpload: jest.fn(async () => REMOTE),
+    verifyUpload: jest.fn(async (): Promise<typeof REMOTE> => REMOTE),
     getDeliveryUrl: jest.fn(() => REMOTE.deliveryUrl),
+    delete: jest.fn(async (): Promise<void> => undefined),
   };
 
   const sessions = new Map<string, Record<string, unknown>>();
@@ -153,7 +156,30 @@ describe('IngestService.createTicket', () => {
   it('never returns the provider api secret in the ticket', async () => {
     const { svc } = build();
     const res = await svc.createTicket(DTO, 'admin-1');
-    expect(JSON.stringify(res)).not.toContain('apiSecret');
+    expect(JSON.stringify(res)).not.toMatch(/secret/i);
+  });
+
+  it('asks storage for a ticket bound to the exact declared size and type', async () => {
+    const { svc, adapter } = build();
+    await svc.createTicket(DTO, 'admin-1');
+    expect(adapter.createUploadTicket).toHaveBeenCalledWith({
+      folder: 'slimshot/audio',
+      filename: 'Rise Up.mp3',
+      mimeType: 'audio/mpeg',
+      byteSize: 812_340,
+      ttlSeconds: 900,
+    });
+  });
+
+  it('tells the client how to upload: method, URL and the headers to send', async () => {
+    const { svc } = build();
+    const res = await svc.createTicket(DTO, 'admin-1');
+    expect(res).toMatchObject({
+      method: 'PUT',
+      headers: { 'Content-Type': 'audio/mpeg' },
+      uploadUrl: expect.stringContaining('X-Amz-Signature'),
+      storageKey: 'slimshot/audio/abc',
+    });
   });
 });
 
@@ -241,6 +267,55 @@ describe('IngestService.finalize', () => {
     expect(prisma.asset.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
     );
+    // R2 keeps whatever it is sent: a refused file is removed, not left behind.
+    expect(adapter.delete).toHaveBeenCalledWith('slimshot/audio/abc');
+  });
+
+  it('refuses audio whose real format is not the one declared', async () => {
+    // A WAV renamed to .mp3: R2 would serve it as audio/mpeg, which players reject.
+    const { svc, adapter, prisma } = build({ session: pendingSession() });
+    adapter.verifyUpload.mockResolvedValue({ ...REMOTE, format: 'wav', mimeType: 'audio/wav' });
+
+    await expect(svc.finalize({ sessionId: 'sess-1' }, 'admin-1')).rejects.toThrow(
+      'The file is WAV audio (audio/wav), but it was uploaded as audio/mpeg. Give it the right extension and upload it again.',
+    );
+    expect(prisma.asset.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
+    );
+    expect(adapter.delete).toHaveBeenCalledWith('slimshot/audio/abc');
+    expect(prisma.assetFile.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a file that is not audio with the reason, and removes it', async () => {
+    const { svc, adapter, prisma } = build({ session: pendingSession() });
+    const reason = 'The file is not a supported audio file (MP3, WAV, AAC, OGG or FLAC).';
+    adapter.verifyUpload.mockRejectedValue(new UnreadableUploadError(reason));
+
+    const error = await svc.finalize({ sessionId: 'sess-1' }, 'admin-1').catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(BadRequestException);
+    expect((error as Error).message).toBe(reason);
+    expect(prisma.asset.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
+    );
+    expect(adapter.delete).toHaveBeenCalledWith('slimshot/audio/abc');
+  });
+
+  it('refuses a stored file over the size cap, whatever the ticket said', async () => {
+    const { svc, adapter } = build({ session: pendingSession() });
+    adapter.verifyUpload.mockResolvedValue({ ...REMOTE, byteSize: 52_428_801 });
+
+    await expect(svc.finalize({ sessionId: 'sess-1' }, 'admin-1')).rejects.toThrow(
+      /exceeds the configured maximum/,
+    );
+    expect(adapter.delete).toHaveBeenCalledWith('slimshot/audio/abc');
+  });
+
+  it('keeps the real reason when removing the refused file also fails', async () => {
+    const { svc, adapter } = build({ session: pendingSession() });
+    adapter.verifyUpload.mockResolvedValue({ ...REMOTE, format: 'wav', mimeType: 'audio/wav' });
+    adapter.delete.mockRejectedValue(new Error('R2 unreachable'));
+
+    await expect(svc.finalize({ sessionId: 'sess-1' }, 'admin-1')).rejects.toThrow(/WAV audio/);
   });
 
   it('marks the session finalized so it cannot be replayed', async () => {
@@ -276,9 +351,13 @@ describe('IngestService.finalize', () => {
     const { svc, adapter, prisma } = build({ session: pendingSession() });
     adapter.verifyUpload.mockRejectedValue(new Error('Uploaded object not found'));
 
-    await expect(svc.finalize({ sessionId: 'sess-1' }, 'admin-1')).rejects.toThrow();
+    await expect(svc.finalize({ sessionId: 'sess-1' }, 'admin-1')).rejects.toThrow(
+      /could not be verified in storage: Uploaded object not found/,
+    );
     expect(prisma.asset.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ status: 'failed' }) }),
     );
+    // Nothing is known to be there, or storage is unreachable: deleting is pointless.
+    expect(adapter.delete).not.toHaveBeenCalled();
   });
 });

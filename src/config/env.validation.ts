@@ -174,24 +174,35 @@ export class Env {
   @Max(86_400)
   UPLOAD_TICKET_TTL_SECONDS = 900;
 
+  // Cloudflare R2 holds every uploaded file. The S3 endpoint is built from the
+  // account ID, so a pasted endpoint URL is refused rather than signed against.
   @Transform(text)
-  @IsDefined({ message: 'CLOUDINARY_CLOUD_NAME is required' })
-  @IsString()
-  CLOUDINARY_CLOUD_NAME!: string;
+  @IsDefined({ message: 'R2_ACCOUNT_ID is required' })
+  @Matches(/^[0-9a-fA-F]{32}$/, {
+    message: 'R2_ACCOUNT_ID must be the 32-character Cloudflare account ID, not a URL',
+  })
+  R2_ACCOUNT_ID!: string;
 
   @Transform(text)
-  @IsDefined({ message: 'CLOUDINARY_API_KEY is required' })
+  @IsDefined({ message: 'R2_ACCESS_KEY_ID is required' })
   @IsString()
-  CLOUDINARY_API_KEY!: string;
+  R2_ACCESS_KEY_ID!: string;
 
   @Transform(text)
-  @IsDefined({ message: 'CLOUDINARY_API_SECRET is required' })
+  @IsDefined({ message: 'R2_SECRET_ACCESS_KEY is required' })
   @IsString()
-  CLOUDINARY_API_SECRET!: string;
+  R2_SECRET_ACCESS_KEY!: string;
 
-  @Transform(({ value }) => (blank(value) ? 'slimshot/audio' : String(value).trim()))
+  @Transform(text)
+  @IsDefined({ message: 'R2_BUCKET is required' })
   @IsString()
-  CLOUDINARY_AUDIO_FOLDER = 'slimshot/audio';
+  R2_BUCKET!: string;
+
+  // Where the app downloads files from: the bucket's public custom domain.
+  @Transform(origin)
+  @IsDefined({ message: 'R2_PUBLIC_BASE_URL is required' })
+  @IsUrl(URL_OPTIONS, { message: 'R2_PUBLIC_BASE_URL must be a full URL, e.g. https://cdn.example.com' })
+  R2_PUBLIC_BASE_URL!: string;
 
   // Encrypts the provider API keys stored in the database. It cannot live
   // there itself: it is what decrypts them.
