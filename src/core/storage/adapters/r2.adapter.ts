@@ -35,6 +35,9 @@ function buildClient(config: R2Config): S3Client {
     // which a browser upload can never match. Checksums only where R2 needs them.
     requestChecksumCalculation: 'WHEN_REQUIRED',
     responseChecksumValidation: 'WHEN_REQUIRED',
+    // A stalled connection fails finalize after 30 s of silence instead of
+    // holding the request open indefinitely.
+    requestHandler: { connectionTimeout: 5_000, requestTimeout: 30_000 },
   });
 }
 
@@ -69,8 +72,9 @@ export class R2Adapter implements StorageProviderAdapter {
   }
 
   async createUploadTicket(input: UploadTicketInput): Promise<UploadTicket> {
-    // A fresh key every time: a ticket can only create a new object, never
-    // replace one that is already in the catalogue.
+    // A fresh key every time, and the PUT is create-only (If-None-Match: *):
+    // once the file exists, R2 answers 412 to the same URL, so a leaked ticket
+    // cannot swap a checked, catalogued file for other bytes before it expires.
     const storageKey = `${input.folder}/${randomUUID()}${extensionOf(input.filename)}`;
 
     const uploadUrl = await getSignedUrl(
@@ -80,19 +84,20 @@ export class R2Adapter implements StorageProviderAdapter {
         Key: storageKey,
         ContentType: input.mimeType,
         ContentLength: input.byteSize,
+        IfNoneMatch: '*',
       }),
       {
         expiresIn: input.ttlSeconds,
-        // content-length is signed by default; content-type is not unless asked.
-        // Both signed, R2 refuses a body of any other size or declared type.
-        signableHeaders: new Set(['content-type']),
+        // content-length is signed by default; the others only when asked.
+        // All signed, R2 refuses any other size or type, and any overwrite.
+        signableHeaders: new Set(['content-type', 'if-none-match']),
       },
     );
 
     return {
       uploadUrl,
       method: 'PUT',
-      headers: { 'Content-Type': input.mimeType },
+      headers: { 'Content-Type': input.mimeType, 'If-None-Match': '*' },
       storageKey,
       expiresAt: new Date(Date.now() + input.ttlSeconds * 1000),
     };

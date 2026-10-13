@@ -41,6 +41,19 @@ describe('probeAudio (real parser, in a child process)', () => {
     });
   });
 
+  it('refuses a damaged file claiming an impossible length, before it overflows the catalogue', () => {
+    expect(results.absurdlyLong).toEqual({
+      error: 'UnreadableUploadError',
+      message: expect.stringMatching(/longer than 24 hours/i),
+    });
+  });
+
+  it('lets a dropped connection through as a storage error, never as "not audio"', () => {
+    // UnreadableUploadError makes finalize delete the file: a network fault
+    // while reading a good upload must not cost the admin their upload.
+    expect(results.networkDrop).toEqual({ error: 'Error', message: 'read ECONNRESET' });
+  });
+
   it('refuses audio whose length cannot be read, since pricing and the app need it', () => {
     expect(results.flacWithoutLength).toEqual({
       error: 'UnreadableUploadError',

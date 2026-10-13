@@ -10,6 +10,26 @@ export interface AudioProbe {
 }
 
 /**
+ * Longest track the catalogue accepts. Far above anything real (50 MB at 8 kbps
+ * is under 14 hours), so a longer claim means a damaged header, and it keeps
+ * the value inside the database's 32-bit column.
+ */
+const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * music-metadata's own errors for content it cannot parse. Anything else (a
+ * dropped connection, a stream cut short, a bug in the parser) says nothing
+ * about the file, and must not be reported as "not audio": that answer deletes
+ * the upload.
+ */
+const CONTENT_ERRORS = new Set([
+  'CouldNotDetermineFileTypeError',
+  'UnsupportedFileTypeError',
+  'UnexpectedFileContentError',
+  'FieldDecodingError',
+]);
+
+/**
  * music-metadata's container name, mapped to what the catalogue stores. Only
  * the formats uploads accept are listed; anything else is refused. AAC arrives
  * as "ADTS/MPEG-4" or "ADTS/MPEG-2", so ADTS matches by prefix.
@@ -36,21 +56,23 @@ function known(container: string | undefined): { format: string; mimeType: strin
  * The format is detected from the content, never the name.
  */
 export async function probeAudio(stream: Readable, size: number): Promise<AudioProbe> {
-  // ESM-only package: loading it here, not at the top of the file, keeps every
-  // module that imports the storage layer loadable under Jest. Node's require()
-  // loads it fine at run time.
-  const { parseStream } = await import('music-metadata');
-
   let container: string | undefined;
   let seconds: number | undefined;
   try {
+    // ESM-only package: loading it here, not at the top of the file, keeps every
+    // module that imports the storage layer loadable under Jest. Node's require()
+    // loads it fine at run time.
+    const { parseStream } = await import('music-metadata');
     // duration: true scans every MP3 frame, so a VBR file without a header still
     // gets an exact length instead of an estimate.
     const { format } = await parseStream(stream, { size }, { duration: true, skipCovers: true });
     container = format.container;
     seconds = format.duration;
-  } catch {
-    throw new UnreadableUploadError('The file is not a supported audio file (MP3, WAV, AAC, OGG or FLAC).');
+  } catch (error) {
+    if (CONTENT_ERRORS.has((error as Error)?.name)) {
+      throw new UnreadableUploadError('The file is not a supported audio file (MP3, WAV, AAC, OGG or FLAC).');
+    }
+    throw error;
   } finally {
     stream.destroy();
   }
@@ -65,5 +87,10 @@ export async function probeAudio(stream: Readable, size: number): Promise<AudioP
     throw new UnreadableUploadError('Could not read how long the audio is. The file may be damaged.');
   }
 
-  return { ...type, durationMs: Math.round(seconds * 1000) };
+  const durationMs = Math.round(seconds * 1000);
+  if (durationMs > MAX_DURATION_MS) {
+    throw new UnreadableUploadError('The audio claims to be longer than 24 hours. The file looks damaged.');
+  }
+
+  return { ...type, durationMs };
 }

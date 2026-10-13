@@ -45,7 +45,7 @@ describe('R2Adapter.createUploadTicket', () => {
 
     expect(signed).toEqual(expect.arrayContaining(['content-length', 'content-type', 'host']));
     // The browser must send the same type it was signed for; it sets the length itself.
-    expect(ticket.headers).toEqual({ 'Content-Type': 'audio/mpeg' });
+    expect(ticket.headers['Content-Type']).toBe('audio/mpeg');
   });
 
   it('adds no checksum the browser cannot compute', async () => {
@@ -61,6 +61,15 @@ describe('R2Adapter.createUploadTicket', () => {
     expect(new URL(ticket.uploadUrl).searchParams.get('X-Amz-Expires')).toBe('900');
     expect(ticket.expiresAt.getTime()).toBeGreaterThanOrEqual(before + 900_000);
     expect(ticket.expiresAt.getTime()).toBeLessThanOrEqual(Date.now() + 900_000);
+  });
+
+  it('is create-only: once the file exists, the same URL cannot replace it', async () => {
+    // Without this a leaked URL could swap a checked, catalogued file for any
+    // bytes of the same size and type until the URL expires. R2 answers 412.
+    const ticket = await adapter.createUploadTicket(INPUT);
+    const signed = new URL(ticket.uploadUrl).searchParams.get('X-Amz-SignedHeaders')?.split(';');
+    expect(signed).toContain('if-none-match');
+    expect(ticket.headers['If-None-Match']).toBe('*');
   });
 
   it('never reuses a key, so an upload cannot replace an existing file', async () => {

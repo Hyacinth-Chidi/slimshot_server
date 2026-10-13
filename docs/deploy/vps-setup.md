@@ -88,12 +88,13 @@ payment method even on the free tier).
      {
        "AllowedOrigins": ["https://slimshot-admin.techfamz.com", "http://localhost:3001"],
        "AllowedMethods": ["PUT"],
-       "AllowedHeaders": ["Content-Type"],
+       "AllowedHeaders": ["Content-Type", "If-None-Match"],
        "MaxAgeSeconds": 3600
      }
    ]
    ```
-   Without it the browser blocks every upload. `http://localhost:3001` is for a dashboard
+   Without it the browser blocks every upload. (`If-None-Match` is how each upload link
+   refuses to overwrite a file that already exists.) `http://localhost:3001` is for a dashboard
    running on your PC; remove it if you never do that.
 4. **Create an API token.** Back on the R2 overview → **Manage API tokens** (under **Account
    details**) → **Create Account API token** → name `slimshot-server` → permission **Object
