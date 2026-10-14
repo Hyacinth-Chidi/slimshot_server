@@ -39,8 +39,31 @@ function build(rows: Row[] = [], assetCounts: Record<string, number> = {}) {
     $transaction: jest.fn(async (ops: unknown[]) => ops),
   };
   const audit = { record: jest.fn(async () => undefined) };
-  return { svc: new CategoryService(prisma as never, audit as never), prisma, audit, rows };
+  const cache = { bumpGeneration: jest.fn(async () => true) };
+  return {
+    svc: new CategoryService(prisma as never, audit as never, cache as never),
+    prisma,
+    audit,
+    cache,
+    rows,
+  };
 }
+
+describe('CategoryService and the app catalogue cache', () => {
+  const c1 = { id: 'c1', kind: AssetKind.audio, parentId: null, slug: 'ui', name: 'UI', sortOrder: 0 };
+
+  it.each([
+    ['create', (svc: CategoryService) => svc.create({ kind: AssetKind.audio, name: 'Clicks' }, 'admin-1')],
+    ['update', (svc: CategoryService) => svc.update('c1', { name: 'UI 2' }, 'admin-1')],
+    ['remove', (svc: CategoryService) => svc.remove('c1', 'admin-1')],
+    ['reorder', (svc: CategoryService) => svc.reorder([{ id: 'c1', sortOrder: 2 }], 'admin-1')],
+  ])('clears the app catalogue cache after %s', async (_name, act) => {
+    // The app lists categories and filters sounds by them, so any change must show at once.
+    const { svc, cache } = build([{ ...c1 }]);
+    await act(svc);
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:audio');
+  });
+});
 
 describe('CategoryService.create', () => {
   it('derives a slug from the name', async () => {

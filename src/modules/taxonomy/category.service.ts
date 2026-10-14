@@ -8,6 +8,7 @@ import {
 import { AssetKind } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
+import { CacheService } from '../../core/cache/cache.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
@@ -34,6 +35,7 @@ export class CategoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   async tree(kind: AssetKind): Promise<CategoryNode[]> {
@@ -76,6 +78,7 @@ export class CategoryService {
       entityId: created.id,
       after: { kind: dto.kind, name: dto.name },
     });
+    await this.invalidate(dto.kind);
 
     return created;
   }
@@ -106,12 +109,13 @@ export class CategoryService {
       before: { name: before.name },
       after: dto,
     });
+    await this.invalidate(before.kind);
 
     return updated;
   }
 
   async remove(id: string, actorId: string): Promise<void> {
-    await this.load(id);
+    const row = await this.load(id);
 
     // Children first: deleting a parent would orphan a subtree whose rows still
     // carry its id.
@@ -142,6 +146,7 @@ export class CategoryService {
       entityType: 'Category',
       entityId: id,
     });
+    await this.invalidate(row.kind);
   }
 
   async reorder(items: ReorderItem[], actorId: string): Promise<void> {
@@ -161,6 +166,17 @@ export class CategoryService {
       entityType: 'Category',
       after: { count: items.length },
     });
+
+    const kinds = (await this.prisma.category.findMany({
+      where: { id: { in: items.map((i) => i.id) } },
+      select: { kind: true },
+    })) as Array<{ kind: AssetKind }>;
+    for (const kind of new Set(kinds.map((k) => k.kind))) await this.invalidate(kind);
+  }
+
+  /** The app lists categories and filters sounds by them: any change must show at once. */
+  private async invalidate(kind: AssetKind): Promise<void> {
+    await this.cache.bumpGeneration(`catalog:${kind}`);
   }
 
   private async load(id: string): Promise<CategoryRow> {
