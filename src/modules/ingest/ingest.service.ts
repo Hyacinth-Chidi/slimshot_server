@@ -12,6 +12,7 @@ import { AssetKind, AssetStatus, FileRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
 import { QueueService } from '../../core/queue/queue.service';
+import { probeAudio } from '../../core/storage/audio-probe';
 import {
   StorageProviderAdapter,
   UnreadableUploadError,
@@ -167,7 +168,7 @@ export class IngestService {
     // file itself, read back from the provider.
     let remote;
     try {
-      remote = await adapter.verifyUpload(session.storageKey);
+      remote = await adapter.verifyUpload(session.storageKey, probeAudio);
     } catch (error) {
       if (error instanceof UnreadableUploadError) {
         await this.refuse(session, adapter, error.message);

@@ -1,4 +1,15 @@
+import type { Readable } from 'node:stream';
+
 import { StorageKind } from '../../generated/prisma/enums';
+
+/**
+ * Reads an uploaded object's real format (and, for audio, its length) from its
+ * bytes. Throws UnreadableUploadError for content it does not accept.
+ */
+export type ContentInspector = (
+  stream: Readable,
+  size: number,
+) => Promise<{ format: string; mimeType: string; durationMs?: number }>;
 
 export interface UploadTicketInput {
   folder: string;
@@ -42,11 +53,12 @@ export interface StorageProviderAdapter {
   readonly kind: StorageKind;
   createUploadTicket(input: UploadTicketInput): Promise<UploadTicket>;
   /**
-   * Reads what actually landed. Throws UnreadableUploadError when the object
-   * exists but is not an acceptable file; any other error means it could not be
-   * read at all (missing, or storage unreachable).
+   * Reads what actually landed and runs `inspect` over its bytes. Throws
+   * UnreadableUploadError (from `inspect`) when the object exists but is not an
+   * acceptable file; any other error means it could not be read at all
+   * (missing, or storage unreachable).
    */
-  verifyUpload(storageKey: string): Promise<RemoteObject>;
+  verifyUpload(storageKey: string, inspect: ContentInspector): Promise<RemoteObject>;
   getDeliveryUrl(storageKey: string): string;
   getSignedUrl(storageKey: string, ttlSeconds: number): Promise<string>;
   delete(storageKey: string): Promise<void>;

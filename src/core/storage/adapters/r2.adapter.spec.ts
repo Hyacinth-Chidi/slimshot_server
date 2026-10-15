@@ -90,9 +90,9 @@ describe('R2Adapter.verifyUpload', () => {
     const body = Readable.from([Buffer.from('audio')], { objectMode: false });
     const client = clientReturning(() => ({ Body: body, ContentLength: 812_340 }));
     const probe = jest.fn(async () => ({ format: 'mp3', mimeType: 'audio/mpeg', durationMs: 145_200 }));
-    const adapter = new R2Adapter('prov-r2', CONFIG, { client, probe });
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
 
-    const remote = await adapter.verifyUpload('slimshot/audio/abc.mp3');
+    const remote = await adapter.verifyUpload('slimshot/audio/abc.mp3', probe);
 
     const command = client.send.mock.calls[0][0] as GetObjectCommand;
     expect(command).toBeInstanceOf(GetObjectCommand);
@@ -108,6 +108,22 @@ describe('R2Adapter.verifyUpload', () => {
     });
   });
 
+  it('leaves out the duration for content that has none, such as a cover', async () => {
+    const client = clientReturning(() => ({ Body: Readable.from([Buffer.from('png')], { objectMode: false }), ContentLength: 3 }));
+    const inspect = jest.fn(async () => ({ format: 'png', mimeType: 'image/png' }));
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
+
+    const remote = await adapter.verifyUpload('slimshot/covers/c.png', inspect);
+
+    expect(remote).toEqual({
+      storageKey: 'slimshot/covers/c.png',
+      byteSize: 3,
+      format: 'png',
+      mimeType: 'image/png',
+      deliveryUrl: 'https://cdn.example.com/slimshot/covers/c.png',
+    });
+  });
+
   it('says the file is missing when nothing was uploaded under the key', async () => {
     const client = clientReturning(() => {
       throw Object.assign(new Error('The specified key does not exist.'), {
@@ -115,9 +131,9 @@ describe('R2Adapter.verifyUpload', () => {
         $metadata: { httpStatusCode: 404 },
       });
     });
-    const adapter = new R2Adapter('prov-r2', CONFIG, { client, probe: jest.fn() });
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
 
-    await expect(adapter.verifyUpload('slimshot/audio/missing.mp3')).rejects.toThrow(
+    await expect(adapter.verifyUpload('slimshot/audio/missing.mp3', jest.fn())).rejects.toThrow(
       'Uploaded object not found in storage: slimshot/audio/missing.mp3',
     );
   });
@@ -127,17 +143,17 @@ describe('R2Adapter.verifyUpload', () => {
     const probe = jest.fn(async () => {
       throw new UnreadableUploadError('The file is not a supported audio file.');
     });
-    const adapter = new R2Adapter('prov-r2', CONFIG, { client, probe });
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
 
-    await expect(adapter.verifyUpload('slimshot/audio/x.mp3')).rejects.toBeInstanceOf(UnreadableUploadError);
+    await expect(adapter.verifyUpload('slimshot/audio/x.mp3', probe)).rejects.toBeInstanceOf(UnreadableUploadError);
   });
 
   it('lets storage outages through as they are, not as "missing"', async () => {
     const client = clientReturning(() => {
       throw Object.assign(new Error('getaddrinfo ENOTFOUND'), { name: 'Error' });
     });
-    const adapter = new R2Adapter('prov-r2', CONFIG, { client, probe: jest.fn() });
-    await expect(adapter.verifyUpload('slimshot/audio/x.mp3')).rejects.toThrow('getaddrinfo ENOTFOUND');
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
+    await expect(adapter.verifyUpload('slimshot/audio/x.mp3', jest.fn())).rejects.toThrow('getaddrinfo ENOTFOUND');
   });
 });
 

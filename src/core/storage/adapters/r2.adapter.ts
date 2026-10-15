@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 import type { Readable } from 'node:stream';
 
 import { StorageKind } from '../../../generated/prisma/enums';
-import { probeAudio } from '../audio-probe';
 import {
+  ContentInspector,
   R2Config,
   RemoteObject,
   StorageProviderAdapter,
@@ -20,7 +20,6 @@ interface CommandSender {
 
 interface R2Deps {
   client?: CommandSender;
-  probe?: (stream: Readable, size: number) => Promise<{ format: string; mimeType: string; durationMs: number }>;
 }
 
 function buildClient(config: R2Config): S3Client {
@@ -60,7 +59,6 @@ function isMissing(error: unknown): boolean {
 export class R2Adapter implements StorageProviderAdapter {
   readonly kind = StorageKind.r2;
   private readonly client: CommandSender;
-  private readonly probe: NonNullable<R2Deps['probe']>;
 
   constructor(
     readonly id: string,
@@ -68,7 +66,6 @@ export class R2Adapter implements StorageProviderAdapter {
     deps: R2Deps = {},
   ) {
     this.client = deps.client ?? buildClient(config);
-    this.probe = deps.probe ?? probeAudio;
   }
 
   async createUploadTicket(input: UploadTicketInput): Promise<UploadTicket> {
@@ -103,7 +100,7 @@ export class R2Adapter implements StorageProviderAdapter {
     };
   }
 
-  async verifyUpload(storageKey: string): Promise<RemoteObject> {
+  async verifyUpload(storageKey: string, inspect: ContentInspector): Promise<RemoteObject> {
     let object: { Body?: unknown; ContentLength?: number };
     try {
       object = (await this.client.send(
@@ -115,14 +112,14 @@ export class R2Adapter implements StorageProviderAdapter {
     }
 
     const byteSize = object.ContentLength ?? 0;
-    const { format, mimeType, durationMs } = await this.probe(object.Body as Readable, byteSize);
+    const { format, mimeType, durationMs } = await inspect(object.Body as Readable, byteSize);
 
     return {
       storageKey,
       byteSize,
       format,
       mimeType,
-      durationMs,
+      ...(durationMs !== undefined ? { durationMs } : {}),
       deliveryUrl: this.getDeliveryUrl(storageKey),
     };
   }

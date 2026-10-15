@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
+import { probeAudio } from '../../core/storage/audio-probe';
 import { UnreadableUploadError } from '../../core/storage/storage-adapter.interface';
 import { AssetKind, FileRole } from '../../generated/prisma/enums';
 import { AUDIO_DESCRIPTOR } from '../assets/kinds/audio/audio.descriptor';
@@ -224,7 +225,8 @@ describe('IngestService.finalize', () => {
     const { svc, adapter, created } = build({ session: pendingSession() });
     await svc.finalize({ sessionId: 'sess-1' }, 'admin-1');
 
-    expect(adapter.verifyUpload).toHaveBeenCalledWith('slimshot/audio/abc');
+    // The original is checked as audio, from its bytes.
+    expect(adapter.verifyUpload).toHaveBeenCalledWith('slimshot/audio/abc', probeAudio);
     expect(created[0].byteSize).toBe(812_340);
     expect(created[0].durationMs).toBe(145_200);
   });
