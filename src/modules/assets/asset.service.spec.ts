@@ -14,6 +14,9 @@ function assetRow(overrides: Record<string, unknown> = {}) {
     authorName: 'SlimShot',
     status: AssetStatus.ready,
     downloadCount: 0,
+    visibility: 'public',
+    categoryId: null,
+    createdAt: new Date('2026-10-01T10:00:00.000Z'),
     publishedAt: null,
     deletedAt: null,
     files: [
@@ -33,8 +36,23 @@ function assetRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const CATEGORIES = [
+  { id: 'cat-ui', kind: AssetKind.audio, parentId: null, isActive: true },
+  { id: 'cat-ui-clicks', kind: AssetKind.audio, parentId: 'cat-ui', isActive: false },
+  { id: 'cat-other', kind: AssetKind.audio, parentId: null, isActive: true },
+  { id: 'cat-font', kind: AssetKind.font, parentId: null, isActive: true },
+];
+
 function build(rows: Array<Record<string, unknown>> = [assetRow()]) {
   const prisma = {
+    category: {
+      findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
+        CATEGORIES.find((c) => c.id === where.id) ?? null,
+      ),
+      findMany: jest.fn(async ({ where }: { where: { kind: string } }) =>
+        CATEGORIES.filter((c) => c.kind === where.kind),
+      ),
+    },
     asset: {
       findMany: jest.fn(async () => rows),
       findFirst: jest.fn(async ({ where }: { where: { id?: string } }) =>
@@ -168,9 +186,82 @@ describe('AssetService.update', () => {
     expect(rows[0].updatedById).toBe('admin-1');
   });
 
-  it('invalidates the cache only for a published asset', async () => {
-    const { svc, cache } = build([assetRow({ status: AssetStatus.draft })]);
-    await svc.update('asset-1', { title: 'x' }, 'admin-1');
-    expect(cache.bumpGeneration).not.toHaveBeenCalled();
+});
+
+describe('AssetService admin view', () => {
+  const withFiles = () =>
+    assetRow({
+      categoryId: 'cat-ui',
+      files: [
+        { role: FileRole.original, deliveryUrl: 'https://cdn.test/slimshot/audio/a.mp3', byteSize: 1000, format: 'mp3', durationMs: 412, width: null, height: null, variant: null },
+        { role: FileRole.thumbnail, deliveryUrl: 'https://cdn.test/slimshot/covers/c.png', byteSize: 2000, format: 'png', durationMs: null, width: null, height: null, variant: null },
+      ],
+    });
+
+  it('shows the admin the status, category, dates, original and cover', async () => {
+    const { svc } = build([withFiles()]);
+    const view = await svc.getById('asset-1');
+    expect(view).toMatchObject({
+      status: 'ready',
+      visibility: 'public',
+      categoryId: 'cat-ui',
+      createdAt: '2026-10-01T10:00:00.000Z',
+      publishedAt: null,
+      files: {
+        original: { url: 'https://cdn.test/slimshot/audio/a.mp3', byteSize: 1000, format: 'mp3', durationMs: 412 },
+        thumbnail: { url: 'https://cdn.test/slimshot/covers/c.png', byteSize: 2000, format: 'png' },
+      },
+    });
+    expect(view.files.thumbnail).not.toHaveProperty('durationMs');
+  });
+
+  it('keeps the public fields the dashboard already reads', async () => {
+    const { svc } = build([withFiles()]);
+    const view = await svc.getById('asset-1');
+    expect(view).toMatchObject({ id: 'asset-1', slug: 'rise', kind: 'audio', title: 'Rise', author: 'SlimShot' });
+    expect(view).toHaveProperty('detail');
+    expect(view).toHaveProperty('stats');
+  });
+});
+
+describe('AssetService category assignment', () => {
+  it('assigns a category of the asset kind, and clears it with null', async () => {
+    const { svc, prisma } = build();
+    await svc.update('asset-1', { categoryId: 'cat-ui' }, 'admin-1');
+    expect(prisma.asset.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ categoryId: 'cat-ui' }) }),
+    );
+    await svc.update('asset-1', { categoryId: null }, 'admin-1');
+    expect(prisma.asset.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ categoryId: null }) }),
+    );
+  });
+
+  it('refuses a category of another kind', async () => {
+    const { svc, prisma } = build();
+    await expect(svc.update('asset-1', { categoryId: 'cat-font' }, 'admin-1')).rejects.toMatchObject({ status: 422 });
+    expect(prisma.asset.update).not.toHaveBeenCalled();
+  });
+
+  it('clears the app catalogue cache on every update, whatever the status', async () => {
+    const { svc, cache } = build(); // asset-1 is `ready`, not published
+    await svc.update('asset-1', { title: 'New' }, 'admin-1');
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:audio');
+  });
+});
+
+describe('AssetService category filter', () => {
+  it('filters the list by a category and everything under it, hidden or not', async () => {
+    const { svc, prisma } = build();
+    await svc.list({ categoryId: 'cat-ui', limit: 25 } as never);
+    const where = (prisma.asset.findMany.mock.calls[0] as unknown as [{ where: { categoryId: { in: string[] } } }])[0].where;
+    expect(where.categoryId.in.sort()).toEqual(['cat-ui', 'cat-ui-clicks']);
+  });
+
+  it('answers an empty page for an unknown category filter', async () => {
+    const { svc, prisma } = build();
+    const page = await svc.list({ categoryId: 'gone', limit: 25 } as never);
+    expect(page).toEqual({ data: [], meta: { nextCursor: null } });
+    expect(prisma.asset.findMany).not.toHaveBeenCalled();
   });
 });

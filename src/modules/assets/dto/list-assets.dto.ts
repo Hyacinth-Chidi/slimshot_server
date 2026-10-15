@@ -17,6 +17,11 @@ export class ListAssetsDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   q?: string;
 
+  /** That category and everything under it, hidden or not. */
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
   @IsOptional()
   @IsString()
   cursor?: string;
