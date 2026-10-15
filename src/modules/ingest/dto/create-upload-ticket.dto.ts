@@ -27,4 +27,9 @@ export class CreateUploadTicketDto {
   @IsString()
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   author?: string;
+
+  /** Files the new asset under this category (one of its kind). */
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
 }

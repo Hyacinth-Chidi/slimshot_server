@@ -39,6 +39,11 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
   const created: Record<string, unknown>[] = [];
 
   const prisma = {
+    category: {
+      findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
+        ({ 'cat-ui': { kind: 'audio' }, 'cat-font': { kind: 'font' } } as Record<string, { kind: string }>)[where.id] ?? null,
+      ),
+    },
     asset: {
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
         id: 'asset-1',
@@ -169,6 +174,21 @@ describe('IngestService.createTicket', () => {
       byteSize: 812_340,
       ttlSeconds: 900,
     });
+  });
+
+  it('files the new sound under the chosen category', async () => {
+    const { svc, prisma } = build();
+    await svc.createTicket({ ...DTO, categoryId: 'cat-ui' }, 'admin-1');
+    expect(prisma.asset.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ categoryId: 'cat-ui' }) }),
+    );
+  });
+
+  it('refuses a category of another kind before creating anything', async () => {
+    const { svc, prisma, adapter } = build();
+    await expect(svc.createTicket({ ...DTO, categoryId: 'cat-font' }, 'admin-1')).rejects.toMatchObject({ status: 422 });
+    expect(prisma.asset.create).not.toHaveBeenCalled();
+    expect(adapter.createUploadTicket).not.toHaveBeenCalled();
   });
 
   it('tells the client how to upload: method, URL and the headers to send', async () => {

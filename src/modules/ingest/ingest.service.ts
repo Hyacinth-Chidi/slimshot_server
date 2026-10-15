@@ -18,6 +18,7 @@ import {
 } from '../../core/storage/storage-adapter.interface';
 import { StorageRegistry } from '../../core/storage/storage.registry';
 import { KindRegistry } from '../assets/kind-registry';
+import { assertCategoryAssignable } from '../taxonomy/category-rules';
 import { CreateUploadTicketDto } from './dto/create-upload-ticket.dto';
 import { FinalizeUploadDto } from './dto/finalize-upload.dto';
 
@@ -70,6 +71,7 @@ export class IngestService {
       allowedMimeTypes,
       maxBytes,
     );
+    if (dto.categoryId) await assertCategoryAssignable(this.prisma, dto.categoryId, dto.kind);
 
     const title = dto.title?.trim() || titleFromFilename(dto.filename);
     const adapter = await this.storage.getDefault();
@@ -92,6 +94,7 @@ export class IngestService {
         title,
         authorName: dto.author?.trim() || 'SlimShot',
         status: AssetStatus.draft,
+        ...(dto.categoryId ? { categoryId: dto.categoryId } : {}),
         createdById: actorId,
         updatedById: actorId,
       },
