@@ -151,16 +151,13 @@ describe('CategoryService.remove', () => {
 });
 
 describe('CategoryService.update', () => {
-  it('recomputes the slug when the name changes', async () => {
+  it('renames without moving the slug (the app finds categories by slug)', async () => {
     const cat = { id: 'c1', kind: AssetKind.audio, slug: 'music', name: 'Music' };
     const { svc, rows } = build([cat]);
 
     await svc.update('c1', { name: 'Ambient Music' }, 'admin-1');
 
-    // Renaming silently changes the slug. That is the current contract; this
-    // test exists so the behaviour is deliberate rather than incidental, and so
-    // a future change to it is a visible test failure.
-    expect(rows[0].slug).toBe('ambient-music');
+    expect(rows[0].slug).toBe('music');
     expect(rows[0].name).toBe('Ambient Music');
   });
 
@@ -253,5 +250,18 @@ describe('CategoryService.tree', () => {
   it('returns an empty array when no categories exist', async () => {
     const { svc } = build([]);
     await expect(svc.tree(AssetKind.audio)).resolves.toEqual([]);
+  });
+});
+
+describe('CategoryService.update slugs', () => {
+  it('keeps the slug when a category is renamed, so the app never loses it', async () => {
+    // The app finds its root by slug (`sound-effects`) and lists pills by slug:
+    // renaming "Sound effects" to "SFX" must not move it.
+    const root = { id: 'c1', kind: AssetKind.audio, parentId: null, slug: 'sound-effects', name: 'Sound effects', sortOrder: 0 };
+    const { svc, prisma } = build([root]);
+    await svc.update('c1', { name: 'SFX' }, 'admin-1');
+    const data = prisma.category.update.mock.calls[0][0].data as Record<string, unknown>;
+    expect(data.name).toBe('SFX');
+    expect(data).not.toHaveProperty('slug');
   });
 });

@@ -3,6 +3,7 @@ import { Redis } from 'ioredis';
 
 import { redisConfig, type RedisConfig } from '../../config';
 import { CacheService, REDIS } from './cache.service';
+import { createRedisClient } from './redis-client';
 
 @Global()
 @Module({
@@ -10,8 +11,7 @@ import { CacheService, REDIS } from './cache.service';
     {
       provide: REDIS,
       inject: [redisConfig.KEY],
-      useFactory: (redis: RedisConfig): Redis =>
-        new Redis(redis.url, { maxRetriesPerRequest: null }),
+      useFactory: (redis: RedisConfig): Redis => createRedisClient(redis.url),
     },
     CacheService,
   ],

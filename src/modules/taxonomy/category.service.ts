@@ -93,7 +93,9 @@ export class CategoryService {
     const updated = (await this.prisma.category.update({
       where: { id },
       data: {
-        ...(dto.name !== undefined ? { name: dto.name, slug: slugify(dto.name) } : {}),
+        // The slug is fixed at creation: the app finds its root and pills by slug,
+        // so a rename must never move them.
+        ...(dto.name !== undefined ? { name: dto.name } : {}),
         ...(dto.description !== undefined ? { description: dto.description } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.sortOrder !== undefined ? { sortOrder: dto.sortOrder } : {}),
