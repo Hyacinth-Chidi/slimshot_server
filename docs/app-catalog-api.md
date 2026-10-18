@@ -135,10 +135,10 @@ Error (every endpoint):
 | `id` | string | Pass to download (§3.3) |
 | `slug` | string | Readable and unique, but not a display name |
 | `title` | string | Show this |
-| `author` | string | Credit line |
+| `author` | string | Optional metadata; may be an empty string. The app doesn't need to show it. |
 | `durationMs` | integer | Length in milliseconds. Format it yourself, e.g. `0:01`. |
 | `category` | object or null | The sound's own category (possibly a sub-category of the pill you asked for). `null` only when listing without `category`. |
-| `cover` | object or null | `null` when the sound has no cover. Show your fallback tile. Covers are JPEG, PNG or WebP, usually square. |
+| `cover` | object or null | Optional. `null` when the sound has no cover: show the default cover image bundled in the app. The server never sends a default. Covers are JPEG, PNG or WebP, usually square. |
 
 - Only published sounds are listed. Order is **newest first**.
 - The original file's address is never in a list; ask for it with §3.3.
