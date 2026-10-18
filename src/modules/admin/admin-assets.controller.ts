@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -87,6 +88,13 @@ export class AdminAssetsController {
   @RequirePermission('asset.publish')
   async unpublish(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     return { success: true as const, data: await this.assets.unpublish(id, user.sub) };
+  }
+
+  @Delete(':id/cover')
+  @HttpCode(204)
+  @RequirePermission('asset.update')
+  async removeCover(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims): Promise<void> {
+    await this.ingest.removeCover(id, user.sub);
   }
 
   @Delete(':id')

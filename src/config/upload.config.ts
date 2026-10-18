@@ -17,7 +17,12 @@ export const uploadConfig = registerAs('upload', () => {
       mimeTypes: env.UPLOAD_AUDIO_MIME_TYPES,
     },
   };
-  return { ticketTtlSeconds: env.UPLOAD_TICKET_TTL_SECONDS, limits };
+  // Covers belong to a sound of any kind, so they are not keyed by kind.
+  const cover: UploadLimits = {
+    maxBytes: env.UPLOAD_COVER_MAX_BYTES,
+    mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  };
+  return { ticketTtlSeconds: env.UPLOAD_TICKET_TTL_SECONDS, limits, cover };
 });
 
 export type UploadConfig = ConfigType<typeof uploadConfig>;

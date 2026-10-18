@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { probeAudio } from '../../core/storage/audio-probe';
+import { probeImage } from '../../core/storage/image-probe';
 import { UnreadableUploadError } from '../../core/storage/storage-adapter.interface';
 import { AssetKind, FileRole } from '../../generated/prisma/enums';
 import { AUDIO_DESCRIPTOR } from '../assets/kinds/audio/audio.descriptor';
@@ -46,6 +47,9 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
       ),
     },
     asset: {
+      findFirst: jest.fn(async ({ where }: { where: { id: string } }): Promise<Record<string, unknown> | null> =>
+        where.id === 'asset-1' ? { id: 'asset-1', kind: 'audio', status: 'published', deletedAt: null } : null,
+      ),
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
         id: 'asset-1',
         ...data,
@@ -75,6 +79,8 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
         created.push(data);
         return data;
       }),
+      findMany: jest.fn(async (): Promise<Array<{ id: string; storageId: string; storageKey: string }>> => []),
+      deleteMany: jest.fn(async () => ({ count: 0 })),
     },
     audioAsset: { upsert: jest.fn(async () => ({})) },
     $transaction: jest.fn(async (fn: unknown): Promise<unknown> =>
@@ -87,7 +93,9 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
   const upload = {
     ticketTtlSeconds: 900,
     limits: { audio: { maxBytes: 52_428_800, mimeTypes: ['audio/mpeg', 'audio/wav'] } },
+    cover: { maxBytes: 5_242_880, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] },
   };
+  const cache = { bumpGeneration: jest.fn(async () => true) };
 
   const queue = { enqueueAssetProcessing: jest.fn(async () => 'job-1') };
 
@@ -98,9 +106,10 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
     upload,
     queue as never,
     { record: jest.fn(async () => undefined) } as never,
+    cache as never,
   );
 
-  return { svc, prisma, adapter, created, sessions, queue };
+  return { svc, prisma, adapter, created, sessions, queue, cache };
 }
 
 describe('IngestService.createTicket', () => {
@@ -381,5 +390,139 @@ describe('IngestService.finalize', () => {
     );
     // Nothing is known to be there, or storage is unreachable: deleting is pointless.
     expect(adapter.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe('IngestService covers', () => {
+  const COVER = {
+    role: FileRole.thumbnail,
+    assetId: 'asset-1',
+    filename: 'cover.PNG',
+    mimeType: 'image/png',
+    byteSize: 20_000,
+  };
+  const OLD = [{ id: 'f-old', storageId: 'prov-1', storageKey: 'slimshot/covers/old.png' }];
+  const COVER_REMOTE = {
+    storageKey: 'slimshot/covers/new.png',
+    byteSize: 20_000,
+    format: 'png',
+    mimeType: 'image/png',
+    deliveryUrl: 'https://cdn.test/slimshot/covers/new.png',
+  };
+
+  function coverSession(overrides: Record<string, unknown> = {}) {
+    return {
+      id: 'sess-c',
+      assetId: 'asset-1',
+      role: FileRole.thumbnail,
+      storageId: 'prov-1',
+      storageKey: 'slimshot/covers/new.png',
+      state: 'pending',
+      expiresAt: new Date(Date.now() + 600_000),
+      declaredMime: 'image/png',
+      declaredSize: 20_000,
+      createdById: 'admin-1',
+      asset: { kind: AssetKind.audio, status: 'published' },
+      ...overrides,
+    };
+  }
+
+  it('tickets a cover for an existing sound without creating a new asset', async () => {
+    const { svc, prisma, adapter } = build();
+    const res = await svc.createTicket(COVER as never, 'admin-1');
+    expect(prisma.asset.create).not.toHaveBeenCalled();
+    expect(adapter.createUploadTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ folder: 'slimshot/covers', mimeType: 'image/png', byteSize: 20_000 }),
+    );
+    expect(prisma.uploadSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ assetId: 'asset-1', role: 'thumbnail' }) }),
+    );
+    expect(res.assetId).toBe('asset-1');
+  });
+
+  it.each([
+    ['a type that is not an image', { mimeType: 'image/gif' }, /not an accepted cover type/],
+    ['a cover over the cap', { byteSize: 5_242_881 }, /exceeds the cover maximum/],
+  ])('refuses %s at ticket time', async (_name, patch, message) => {
+    const { svc } = build();
+    await expect(svc.createTicket({ ...COVER, ...patch } as never, 'admin-1')).rejects.toThrow(message);
+  });
+
+  it('404s a cover ticket for an unknown or deleted sound', async () => {
+    const { svc } = build();
+    await expect(svc.createTicket({ ...COVER, assetId: 'gone' } as never, 'admin-1')).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it('replaces the old cover: new row in, old row and file out, cache cleared', async () => {
+    const { svc, prisma, adapter, cache } = build({ session: coverSession() });
+    adapter.verifyUpload.mockResolvedValue(COVER_REMOTE as never);
+    prisma.assetFile.findMany.mockResolvedValue(OLD);
+
+    await expect(svc.finalize({ sessionId: 'sess-c' }, 'admin-1')).resolves.toEqual({
+      assetId: 'asset-1',
+      status: 'published',
+    });
+
+    expect(adapter.verifyUpload).toHaveBeenCalledWith('slimshot/covers/new.png', probeImage);
+    expect(prisma.assetFile.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['f-old'] } } });
+    expect(prisma.assetFile.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ role: 'thumbnail', storageKey: 'slimshot/covers/new.png' }),
+      }),
+    );
+    expect(adapter.delete).toHaveBeenCalledWith('slimshot/covers/old.png');
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:audio');
+    // A cover never changes where the sound is in its lifecycle.
+    expect(prisma.asset.update).not.toHaveBeenCalled();
+  });
+
+  it('a refused cover leaves the asset status alone and removes only the new file', async () => {
+    const { svc, prisma, adapter } = build({ session: coverSession() });
+    adapter.verifyUpload.mockRejectedValue(
+      new UnreadableUploadError('The file is not a supported image (JPEG, PNG or WebP).'),
+    );
+    await expect(svc.finalize({ sessionId: 'sess-c' }, 'admin-1')).rejects.toThrow('not a supported image');
+    expect(prisma.asset.update).not.toHaveBeenCalled();
+    expect(adapter.delete).toHaveBeenCalledWith('slimshot/covers/new.png');
+    expect(adapter.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it('a cover that cannot be read from storage leaves the asset status alone', async () => {
+    const { svc, prisma, adapter } = build({ session: coverSession() });
+    adapter.verifyUpload.mockRejectedValue(new Error('Uploaded object not found in storage'));
+    await expect(svc.finalize({ sessionId: 'sess-c' }, 'admin-1')).rejects.toThrow(/could not be verified/);
+    expect(prisma.asset.update).not.toHaveBeenCalled();
+  });
+
+  it('refuses a PNG that was declared as JPEG', async () => {
+    const { svc, adapter } = build({ session: coverSession({ declaredMime: 'image/jpeg' }) });
+    adapter.verifyUpload.mockResolvedValue(COVER_REMOTE as never);
+    await expect(svc.finalize({ sessionId: 'sess-c' }, 'admin-1')).rejects.toThrow(
+      'The file is PNG (image/png), but it was uploaded as image/jpeg.',
+    );
+  });
+
+  it('keeps the new cover when deleting the old file fails', async () => {
+    const { svc, prisma, adapter } = build({ session: coverSession() });
+    adapter.verifyUpload.mockResolvedValue(COVER_REMOTE as never);
+    prisma.assetFile.findMany.mockResolvedValue(OLD);
+    adapter.delete.mockRejectedValue(new Error('R2 unreachable'));
+    await expect(svc.finalize({ sessionId: 'sess-c' }, 'admin-1')).resolves.toMatchObject({ assetId: 'asset-1' });
+  });
+
+  it('removes a cover: rows, files and cache', async () => {
+    const { svc, prisma, adapter, cache } = build();
+    prisma.assetFile.findMany.mockResolvedValue(OLD);
+    await svc.removeCover('asset-1', 'admin-1');
+    expect(prisma.assetFile.deleteMany).toHaveBeenCalledWith({ where: { id: { in: ['f-old'] } } });
+    expect(adapter.delete).toHaveBeenCalledWith('slimshot/covers/old.png');
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:audio');
+  });
+
+  it('removing a cover from an unknown sound is a 404', async () => {
+    const { svc } = build();
+    await expect(svc.removeCover('gone', 'admin-1')).rejects.toMatchObject({ status: 404 });
   });
 });

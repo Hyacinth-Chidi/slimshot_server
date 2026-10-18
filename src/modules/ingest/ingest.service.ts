@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
@@ -11,8 +12,10 @@ import { uploadConfig, type UploadConfig, type UploadLimits } from '../../config
 import { AssetKind, AssetStatus, FileRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
+import { CacheService } from '../../core/cache/cache.service';
 import { QueueService } from '../../core/queue/queue.service';
 import { probeAudio } from '../../core/storage/audio-probe';
+import { probeImage } from '../../core/storage/image-probe';
 import {
   StorageProviderAdapter,
   UnreadableUploadError,
@@ -34,8 +37,12 @@ export interface TicketResponse {
   expiresAt: Date;
 }
 
+type StoredFile = { id: string; storageId: string; storageKey: string };
+
 @Injectable()
 export class IngestService {
+  private readonly logger = new Logger(IngestService.name);
+
   /**
    * No worker consumes the asset-processing queue yet — the audio preview and
    * waveform processors are a later phase. Until one exists, enqueuing would
@@ -51,6 +58,7 @@ export class IngestService {
     @Inject(uploadConfig.KEY) private readonly upload: UploadConfig,
     private readonly queue: QueueService,
     private readonly audit: AuditService,
+    private readonly cache: CacheService,
   ) {}
 
   private limitsFor(kind: AssetKind): UploadLimits {
@@ -63,6 +71,8 @@ export class IngestService {
     dto: CreateUploadTicketDto,
     actorId: string,
   ): Promise<TicketResponse> {
+    if (dto.role === FileRole.thumbnail) return this.createCoverTicket(dto, actorId);
+
     const { mimeTypes: allowedMimeTypes, maxBytes } = this.limitsFor(dto.kind);
 
     this.kinds.assertAccepts(
@@ -163,6 +173,7 @@ export class IngestService {
     }
 
     const adapter = await this.storage.get(session.storageId);
+    if (session.role === FileRole.thumbnail) return this.finalizeCover(session, adapter, actorId);
 
     // The only source of truth for size, format and duration is the stored
     // file itself, read back from the provider.
@@ -284,6 +295,185 @@ export class IngestService {
     };
   }
 
+  private async createCoverTicket(dto: CreateUploadTicketDto, actorId: string): Promise<TicketResponse> {
+    const { maxBytes, mimeTypes } = this.upload.cover;
+    if (!mimeTypes.includes(dto.mimeType)) {
+      throw new BadRequestException(
+        `${dto.mimeType} is not an accepted cover type. Allowed: ${mimeTypes.join(', ')}`,
+      );
+    }
+    if (dto.byteSize > maxBytes) {
+      throw new BadRequestException(
+        `File size ${dto.byteSize} exceeds the cover maximum of ${maxBytes} bytes.`,
+      );
+    }
+    const asset = await this.prisma.asset.findFirst({ where: { id: dto.assetId!, deletedAt: null } });
+    if (!asset) throw new NotFoundException(`Asset not found: ${dto.assetId}`);
+
+    const adapter = await this.storage.getDefault();
+    const ticket = await adapter.createUploadTicket({
+      folder: 'slimshot/covers',
+      filename: dto.filename,
+      mimeType: dto.mimeType,
+      byteSize: dto.byteSize,
+      ttlSeconds: this.upload.ticketTtlSeconds,
+    });
+    const session = await this.prisma.uploadSession.create({
+      data: {
+        assetId: asset.id,
+        role: FileRole.thumbnail,
+        storageId: adapter.id,
+        storageKey: ticket.storageKey,
+        expiresAt: ticket.expiresAt,
+        declaredMime: dto.mimeType,
+        declaredSize: dto.byteSize,
+        createdById: actorId,
+      },
+    });
+    await this.audit.record({
+      actorId,
+      actorType: 'admin',
+      action: 'asset.cover.ticket',
+      entityType: 'Asset',
+      entityId: asset.id,
+    });
+
+    return {
+      assetId: asset.id,
+      sessionId: session.id,
+      uploadUrl: ticket.uploadUrl,
+      method: ticket.method,
+      headers: ticket.headers,
+      storageKey: ticket.storageKey,
+      expiresAt: ticket.expiresAt,
+    };
+  }
+
+  /**
+   * A cover never changes the sound's status: a refused cover is removed and
+   * reported, and the sound stays exactly as it was.
+   */
+  private async finalizeCover(
+    session: {
+      id: string;
+      assetId: string;
+      storageId: string;
+      storageKey: string;
+      declaredMime: string;
+      asset: { kind: AssetKind; status: AssetStatus };
+    },
+    adapter: StorageProviderAdapter,
+    actorId: string,
+  ): Promise<{ assetId: string; status: AssetStatus }> {
+    const keepStatus = { markFailed: false };
+    let remote;
+    try {
+      remote = await adapter.verifyUpload(session.storageKey, probeImage);
+    } catch (error) {
+      if (error instanceof UnreadableUploadError) {
+        await this.refuse(session, adapter, error.message, keepStatus);
+      }
+      throw new BadRequestException(
+        `Upload could not be verified in storage: ${(error as Error).message}`,
+      );
+    }
+
+    const { maxBytes, mimeTypes } = this.upload.cover;
+    if (!mimeTypes.includes(remote.mimeType)) {
+      await this.refuse(session, adapter, `${remote.mimeType} is not an accepted cover type.`, keepStatus);
+    }
+    if (remote.mimeType !== session.declaredMime) {
+      await this.refuse(
+        session,
+        adapter,
+        `The file is ${remote.format.toUpperCase()} (${remote.mimeType}), but it was uploaded as ${session.declaredMime}.`,
+        keepStatus,
+      );
+    }
+    if (remote.byteSize > maxBytes) {
+      await this.refuse(
+        session,
+        adapter,
+        `File size ${remote.byteSize} exceeds the cover maximum of ${maxBytes} bytes.`,
+        keepStatus,
+      );
+    }
+
+    // Swap the rows in one transaction, so the sound never has two covers or none mid-way.
+    const previous = await this.prisma.$transaction(async (tx) => {
+      const old = (await tx.assetFile.findMany({
+        where: { assetId: session.assetId, role: FileRole.thumbnail },
+        select: { id: true, storageId: true, storageKey: true },
+      })) as StoredFile[];
+      if (old.length > 0) {
+        await tx.assetFile.deleteMany({ where: { id: { in: old.map((f) => f.id) } } });
+      }
+      await tx.assetFile.create({
+        data: {
+          assetId: session.assetId,
+          role: FileRole.thumbnail,
+          storageId: session.storageId,
+          storageKey: remote.storageKey,
+          deliveryUrl: remote.deliveryUrl,
+          mimeType: remote.mimeType,
+          format: remote.format,
+          byteSize: remote.byteSize,
+          isPrimary: false,
+        },
+      });
+      await tx.uploadSession.update({
+        where: { id: session.id },
+        data: { state: 'finalized', finalizedAt: new Date() },
+      });
+      return old;
+    });
+
+    await this.deleteStored(previous);
+    await this.cache.bumpGeneration(`catalog:${session.asset.kind}`);
+    await this.audit.record({
+      actorId,
+      actorType: 'admin',
+      action: 'asset.cover.set',
+      entityType: 'Asset',
+      entityId: session.assetId,
+    });
+
+    return { assetId: session.assetId, status: session.asset.status };
+  }
+
+  async removeCover(assetId: string, actorId: string): Promise<void> {
+    const asset = await this.prisma.asset.findFirst({ where: { id: assetId, deletedAt: null } });
+    if (!asset) throw new NotFoundException(`Asset not found: ${assetId}`);
+
+    const old = (await this.prisma.assetFile.findMany({
+      where: { assetId, role: FileRole.thumbnail },
+      select: { id: true, storageId: true, storageKey: true },
+    })) as StoredFile[];
+    if (old.length > 0) {
+      await this.prisma.assetFile.deleteMany({ where: { id: { in: old.map((f) => f.id) } } });
+    }
+    await this.deleteStored(old);
+    await this.cache.bumpGeneration(`catalog:${asset.kind}`);
+    await this.audit.record({
+      actorId,
+      actorType: 'admin',
+      action: 'asset.cover.remove',
+      entityType: 'Asset',
+      entityId: assetId,
+    });
+  }
+
+  /** Best effort: the rows are already gone, so a leftover object is only wasted space. */
+  private async deleteStored(files: StoredFile[]): Promise<void> {
+    for (const f of files) {
+      try {
+        await (await this.storage.get(f.storageId)).delete(f.storageKey);
+      } catch (error) {
+        this.logger.warn(`Could not delete replaced cover ${f.storageKey}: ${(error as Error).message}`);
+      }
+    }
+  }
+
   private async markFailed(assetId: string): Promise<void> {
     await this.prisma.asset.update({
       where: { id: assetId },
@@ -292,16 +482,18 @@ export class IngestService {
   }
 
   /**
-   * The upload landed but cannot be catalogued: mark the asset failed, remove
-   * the file (R2 keeps whatever it is sent, and nothing will ever point at it),
-   * and answer with the reason. A failed removal must not hide that reason.
+   * The upload landed but cannot be catalogued: mark the asset failed (unless
+   * told not to, as for a cover), remove the file (R2 keeps whatever it is
+   * sent, and nothing will ever point at it), and answer with the reason. A
+   * failed removal must not hide that reason.
    */
   private async refuse(
     session: { assetId: string; storageKey: string },
     adapter: StorageProviderAdapter,
     reason: string,
+    opts: { markFailed: boolean } = { markFailed: true },
   ): Promise<never> {
-    await this.markFailed(session.assetId);
+    if (opts.markFailed) await this.markFailed(session.assetId);
     await adapter.delete(session.storageKey).catch(() => undefined);
     throw new BadRequestException(reason);
   }

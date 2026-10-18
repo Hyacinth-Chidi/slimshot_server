@@ -174,6 +174,13 @@ export class Env {
   @Max(86_400)
   UPLOAD_TICKET_TTL_SECONDS = 900;
 
+  // A sound's cover image (JPEG, PNG or WebP).
+  @Transform(int(5_242_880))
+  @IsInt()
+  @Min(1)
+  @Max(52_428_800)
+  UPLOAD_COVER_MAX_BYTES = 5_242_880;
+
   // Cloudflare R2 holds every uploaded file. The S3 endpoint is built from the
   // account ID, so a pasted endpoint URL is refused rather than signed against.
   @Transform(text)

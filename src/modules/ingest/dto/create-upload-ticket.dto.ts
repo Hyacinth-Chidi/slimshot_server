@@ -1,9 +1,19 @@
 import { Transform } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsOptional, IsString, Min, ValidateIf } from 'class-validator';
 
-import { AssetKind } from '../../../generated/prisma/enums';
+import { AssetKind, FileRole } from '../../../generated/prisma/enums';
 
 export class CreateUploadTicketDto {
+  /** `thumbnail` uploads a cover for an existing asset (`assetId`); default `original` creates a new asset. */
+  @IsOptional()
+  @IsIn([FileRole.original, FileRole.thumbnail])
+  role?: FileRole;
+
+  @ValidateIf((o: CreateUploadTicketDto) => o.role === FileRole.thumbnail)
+  @IsString()
+  assetId?: string;
+
+  @ValidateIf((o: CreateUploadTicketDto) => o.role !== FileRole.thumbnail)
   @IsEnum(AssetKind)
   kind!: AssetKind;
 

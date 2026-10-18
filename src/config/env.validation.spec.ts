@@ -39,6 +39,7 @@ describe('parseEnv', () => {
       UPLOAD_AUDIO_MAX_BYTES: 52_428_800,
       UPLOAD_AUDIO_MIME_TYPES: ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/ogg', 'audio/flac'],
       UPLOAD_TICKET_TTL_SECONDS: 900,
+      UPLOAD_COVER_MAX_BYTES: 5_242_880,
     });
     expect(env.ADMIN_BASE_URL).toBeUndefined();
     expect(env.ADMIN_BOOTSTRAP_EMAIL).toBeUndefined();
@@ -304,6 +305,18 @@ describe('config namespaces', () => {
   it('exposes the master encryption key', () => {
     process.env = { ...BASE };
     expect(cryptoConfig().masterKey).toBe('ab'.repeat(32));
+  });
+
+  it('gives covers their own size cap and image types', () => {
+    process.env.UPLOAD_COVER_MAX_BYTES = '1048576';
+    try {
+      expect(uploadConfig().cover).toEqual({
+        maxBytes: 1_048_576,
+        mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+      });
+    } finally {
+      delete process.env.UPLOAD_COVER_MAX_BYTES;
+    }
   });
 
   it('keys upload limits by asset kind', () => {
