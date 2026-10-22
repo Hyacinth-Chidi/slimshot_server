@@ -284,7 +284,7 @@ never come from the server.
 | `preview` | The font's name drawn in the font itself: white on transparent, 480 × 160 PNG. Show it on a dark tile. Listed fonts always have one; it is `null` only if the server could not draw it, which listed fonts never are. |
 
 Only published fonts filed in that category are listed. A font the owner takes out of Trending
-leaves the list but stays downloadable (§8.2–8.4).
+leaves the list but stays downloadable while it is published (§8.2–8.4).
 
 | Status | `code` | When |
 |---|---|---|
@@ -297,7 +297,7 @@ leaves the list but stays downloadable (§8.2–8.4).
 `GET /fonts/:id` → `{ "success": true, "data": <font item> }`
 
 For a project that uses a font the phone doesn't have: works for any published font, in Trending
-or not. 404 `NOT_FOUND` if the font is unknown or was never published.
+or not. 404 `NOT_FOUND` if the font is unknown, not published (never, or no longer), or deleted.
 
 ### 8.3 One font by family name (projects made before font ids)
 
@@ -334,8 +334,10 @@ a download, including automatic re-downloads.
 - Save the file with `version`, and register it with the text engine under the font's `id`.
 - A font's file never changes under the same `version`. A fixed file arrives as a higher
   `version` of the same `id`; earlier files stay valid for anything already made with them.
-- Fonts are never deleted once published. A font out of Trending, or an old project's font, can
-  always be downloaded by id.
+- The owner can unpublish or delete a font, like a sound. From then on its id answers 404 here
+  and in §8.2–8.3, and it leaves the list. A copy already on the phone is the app's own: keep
+  using it. A project whose font is gone and not on the phone falls back to a font the app
+  bundles.
 
 ### 8.5 Caching
 
@@ -345,6 +347,8 @@ once.
 
 ## 9. Changelog
 
+- 2026-10-22: a published font can now be unpublished or deleted, like a sound (§8.4). Its id
+  then answers 404; keep any copy already downloaded.
 - 2026-10-22: fonts (§8): the Trending list, lookups by id and by family name, downloads with
   `version`.
 - 2026-10-18: first version (categories, sounds with covers, downloads; no previews).

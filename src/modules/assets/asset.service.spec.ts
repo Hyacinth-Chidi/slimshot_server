@@ -341,10 +341,19 @@ describe('AssetService font lifecycle', () => {
     expect(again.prisma.fontAsset.update).not.toHaveBeenCalled();
   });
 
-  it.each(['unpublish', 'softDelete'] as const)('refuses to %s a font that was ever published', async (action) => {
-    const { svc, prisma } = build([fontRow({ status: AssetStatus.published }, { firstPublishedAt: new Date('2026-10-01') })]);
-    await expect(svc[action]('font-1', 'admin-1')).rejects.toMatchObject({ status: 409 });
-    expect(prisma.asset.update).not.toHaveBeenCalled();
+  it('unpublishes a font that was published, like a sound', async () => {
+    const { svc, rows, cache } = build([fontRow({ status: AssetStatus.published }, { firstPublishedAt: new Date('2026-10-01') })]);
+    await svc.unpublish('font-1', 'admin-1');
+    expect(rows[0]).toMatchObject({ status: AssetStatus.ready, publishedAt: null });
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:font');
+  });
+
+  it('deletes a font that was published, and frees its face for a new upload', async () => {
+    const { svc, prisma, cache } = build([fontRow({ status: AssetStatus.published }, { firstPublishedAt: new Date('2026-10-01') })]);
+    await svc.softDelete('font-1', 'admin-1');
+    expect(prisma.asset.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ deletedAt: expect.any(Date) }) }));
+    expect(prisma.fontAsset.delete).toHaveBeenCalledWith({ where: { assetId: 'font-1' } });
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:font');
   });
 
   it('puts a font filed into a category at the end of its order', async () => {

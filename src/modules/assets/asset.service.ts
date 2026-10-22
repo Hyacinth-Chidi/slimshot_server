@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -29,9 +28,6 @@ export interface FontView {
   firstPublishedAt: string | null;
   license: string | null;
 }
-
-const KEPT_FOR_GOOD =
-  'Published fonts stay available for the projects that use them. Take it out of Trending instead.';
 
 /** Only a fully processed asset may go live. */
 const PUBLISHABLE_FROM: readonly AssetStatus[] = [
@@ -199,7 +195,6 @@ export class AssetService {
 
   async unpublish(id: string, actorId: string): Promise<AdminAsset> {
     const asset = await this.load(id);
-    this.assertNotKeptForGood(asset);
 
     const updated = await this.prisma.asset.update({
       where: { id },
@@ -225,13 +220,12 @@ export class AssetService {
 
   async softDelete(id: string, actorId: string): Promise<void> {
     const asset = await this.load(id);
-    this.assertNotKeptForGood(asset);
 
     await this.prisma.asset.update({
       where: { id },
       data: { deletedAt: new Date(), updatedById: actorId },
     });
-    // A never-published font that is deleted frees its face for a fresh upload.
+    // A deleted font frees its family and style for a fresh upload.
     if (asset.kind === AssetKind.font && asset.font) {
       await this.prisma.fontAsset.delete({ where: { assetId: id } });
     }
@@ -271,13 +265,6 @@ export class AssetService {
       _max: { sortOrder: true },
     });
     return { font: { update: { sortOrder: _max.sortOrder === null ? 0 : _max.sortOrder + 1 } } };
-  }
-
-  /** Fonts that were ever published are never unpublished or deleted: projects depend on them. */
-  private assertNotKeptForGood(asset: AdminRow): void {
-    if (asset.kind === AssetKind.font && asset.font?.firstPublishedAt) {
-      throw new ConflictException(KEPT_FOR_GOOD);
-    }
   }
 
   private toAdmin(row: AdminRow): AdminAsset {
