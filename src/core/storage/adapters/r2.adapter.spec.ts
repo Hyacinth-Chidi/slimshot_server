@@ -182,3 +182,14 @@ describe('R2Adapter delivery and deletion', () => {
     expect(command.input).toEqual({ Bucket: 'slimshot-audio', Key: 'slimshot/audio/abc.mp3' });
   });
 });
+
+describe('R2Adapter.verifyUpload details', () => {
+  it('passes on what the inspector read from the file', async () => {
+    const client = clientReturning(() => ({ Body: Readable.from([Buffer.from('x')], { objectMode: false }), ContentLength: 1 }));
+    const details = { familyName: 'Lato', styleName: 'Regular' };
+    const inspect = jest.fn(async () => ({ format: 'ttf', mimeType: 'font/ttf', details }));
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
+    const remote = await adapter.verifyUpload('slimshot/fonts/f.ttf', inspect);
+    expect(remote.details).toEqual(details);
+  });
+});

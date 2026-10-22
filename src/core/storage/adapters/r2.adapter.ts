@@ -112,7 +112,7 @@ export class R2Adapter implements StorageProviderAdapter {
     }
 
     const byteSize = object.ContentLength ?? 0;
-    const { format, mimeType, durationMs } = await inspect(object.Body as Readable, byteSize);
+    const { format, mimeType, durationMs, details } = await inspect(object.Body as Readable, byteSize);
 
     return {
       storageKey,
@@ -120,6 +120,7 @@ export class R2Adapter implements StorageProviderAdapter {
       format,
       mimeType,
       ...(durationMs !== undefined ? { durationMs } : {}),
+      ...(details !== undefined ? { details } : {}),
       deliveryUrl: this.getDeliveryUrl(storageKey),
     };
   }

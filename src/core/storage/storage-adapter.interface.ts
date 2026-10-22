@@ -9,7 +9,7 @@ import { StorageKind } from '../../generated/prisma/enums';
 export type ContentInspector = (
   stream: Readable,
   size: number,
-) => Promise<{ format: string; mimeType: string; durationMs?: number }>;
+) => Promise<{ format: string; mimeType: string; durationMs?: number; details?: object }>;
 
 export interface UploadTicketInput {
   folder: string;
@@ -46,6 +46,8 @@ export interface RemoteObject {
   height?: number;
   checksumSha256?: string;
   deliveryUrl: string;
+  /** Kind-specific facts the inspector read from the file (a font's names, say). */
+  details?: object;
 }
 
 export interface StorageProviderAdapter {
