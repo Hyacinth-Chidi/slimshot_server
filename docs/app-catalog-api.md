@@ -1,8 +1,8 @@
-# Sound catalogue API (for the app)
+# Catalogue API (for the app): sounds and fonts
 
-The contract for the editor's **Sound effects** sheet: category pills, then rows of
-**cover · title · duration · download**. Build against this document alone. Anything it does
-not promise, don't rely on.
+The contract for the editor's **Sound effects** sheet (category pills, then rows of
+**cover · title · duration · download**) and its **Font** tab (§8). Build against this document
+alone. Anything it does not promise, don't rely on.
 
 - **Base URL:** `https://slimshot-server.techfamz.com/api/app/v1/catalog`
 - **Auth:** none. Everyone can browse and download. Send no `Authorization` header.
@@ -244,6 +244,107 @@ Wait `details.retryAfterSeconds` before retrying. Don't retry in a loop.
 - **Fields not documented here**, and **field order** in JSON.
 - **`slug` as a title**, or the exact text of any `message`.
 
-## 8. Changelog
+## 8. Fonts
 
+The Font tab shows one grid: **the fonts in the font category with slug `trending`, in the order
+the owner sets in the dashboard**. The app reads the whole list once, caches it, and searches it
+on the phone. "Downloaded", the System font and the fonts bundled in the app are the app's own and
+never come from the server.
+
+### 8.1 List the fonts
+
+`GET /fonts?category=trending`
+
+`200` (one list, no paging):
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "cm9f1",
+      "displayName": "Playfair Display",
+      "familyName": "Playfair Display",
+      "styleName": "Regular",
+      "version": 2,
+      "format": "ttf",
+      "preview": { "url": "https://cdn.techfamz.com/slimshot/fonts/previews/7c1e….png", "width": 480, "height": 160 }
+    }
+  ]
+}
+```
+
+| Field | Notes |
+|---|---|
+| `id` | Store this in projects: it never changes for this font. |
+| `displayName` | The tile's label, and what search matches. The owner can rename it. |
+| `familyName`, `styleName` | Read from the font file, never edited. One file is one face: Lato Regular and Lato Bold are two fonts. |
+| `version` | Starts at 1 and goes up each time the owner uploads a fixed file for this font. Keep it with the downloaded file and download again when the server's is higher. |
+| `format` | `ttf` or `otf`. Never WOFF, never variable or colour fonts; all are Latin-script, drawn left to right. |
+| `preview` | The font's name drawn in the font itself: white on transparent, 480 × 160 PNG. Show it on a dark tile. Listed fonts always have one; it is `null` only if the server could not draw it, which listed fonts never are. |
+
+Only published fonts filed in that category are listed. A font the owner takes out of Trending
+leaves the list but stays downloadable (§8.2–8.4).
+
+| Status | `code` | When |
+|---|---|---|
+| 404 | `NOT_FOUND` | No visible font category with that slug (not created yet, or hidden). Show the Downloaded fonts only. |
+| 422 | `VALIDATION_FAILED` | `category` missing |
+| 429 | `RATE_LIMITED` | Counts with the other reads (§5) |
+
+### 8.2 One font by id
+
+`GET /fonts/:id` → `{ "success": true, "data": <font item> }`
+
+For a project that uses a font the phone doesn't have: works for any published font, in Trending
+or not. 404 `NOT_FOUND` if the font is unknown or was never published.
+
+### 8.3 One font by family name (projects made before font ids)
+
+`GET /fonts/by-family/:familyName` (URL-encode the name: `/fonts/by-family/Playfair%20Display`)
+
+Old projects store one string, the family name, and always drew its Regular style. This returns
+the published **Regular** font of that family: exact spelling, case included. 404 `NOT_FOUND` if
+there is none. The names that can arrive here are exactly these 19 Google families: Montserrat,
+Lato, Oswald, Bebas Neue, Playfair Display, Pacifico, Dancing Script, Poppins, Raleway, Inter,
+Nunito, Lobster, Caveat, Abril Fatface, Righteous, Permanent Marker, Press Start 2P, Cinzel,
+Sacramento. Resolve the app's bundled fonts and "Roboto" yourself. Once found, store the font's
+`id` in the project and use §8.2 from then on.
+
+### 8.4 Download a font
+
+The same `POST /assets/:id/download` as sounds (§3.3), with the font's `id`. Every call counts as
+a download, including automatic re-downloads.
+
+```json
+{
+  "success": true,
+  "data": {
+    "url": "https://cdn.techfamz.com/slimshot/fonts/3b0e….ttf",
+    "expiresAt": "2026-10-22T12:10:00.000Z",
+    "filename": "PlayfairDisplay-Regular.ttf",
+    "format": "ttf",
+    "byteSize": 301268,
+    "version": 2
+  }
+}
+```
+
+- `url` is always the **current version's** file. Fetch it straight away; don't store it (§3.3).
+- Save the file with `version`, and register it with the text engine under the font's `id`.
+- A font's file never changes under the same `version`. A fixed file arrives as a higher
+  `version` of the same `id`; earlier files stay valid for anything already made with them.
+- Fonts are never deleted once published. A font out of Trending, or an old project's font, can
+  always be downloaded by id.
+
+### 8.5 Caching
+
+As for sounds (§6): the list and lookups are cached on the server for up to 5 minutes, and any
+change in the dashboard (publishing, reordering Trending, renaming, a new version) clears it at
+once.
+
+## 9. Changelog
+
+- 2026-10-22: fonts (§8): the Trending list, lookups by id and by family name, downloads with
+  `version`.
 - 2026-10-18: first version (categories, sounds with covers, downloads; no previews).
