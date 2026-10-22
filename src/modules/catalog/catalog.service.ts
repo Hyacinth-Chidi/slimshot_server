@@ -31,13 +31,15 @@ export interface CatalogPage {
   nextCursor: string | null;
 }
 
+/** A sound's download; a font's has `version` instead of `durationMs`. */
 export interface DownloadTicket {
   url: string;
   expiresAt: string;
   filename: string;
   format: string;
   byteSize: number;
-  durationMs: number;
+  durationMs?: number;
+  version?: number;
 }
 
 export interface CatalogAssetsQuery {
@@ -97,6 +99,7 @@ export class CatalogService {
   }
 
   assets(q: CatalogAssetsQuery): Promise<CatalogPage> {
+    if (q.kind === AssetKind.font) return Promise.reject(invalid('Fonts are listed at /catalog/fonts.'));
     return this.cache.wrap(
       `catalog:${q.kind}`,
       ['assets', q.category ?? null, q.cursor ?? null, q.limit],
@@ -174,19 +177,36 @@ export class CatalogService {
         deletedAt: null,
         visibility: { not: Visibility.private },
       },
-      include: { audio: true, files: { where: { role: FileRole.original }, take: 1 } },
+      // The primary original is the current file: a font keeps every earlier version.
+      include: {
+        audio: true,
+        font: true,
+        files: { where: { role: FileRole.original }, orderBy: [{ isPrimary: 'desc' }, { createdAt: 'desc' }], take: 1 },
+      },
     });
     const original = asset?.files[0];
     if (!asset || !original?.deliveryUrl) throw notFound(`Asset not found: ${id}`);
     if (!entitlement.canDownload(asset)) {
-      throw appError(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, 'This sound cannot be downloaded.');
+      throw appError(HttpStatus.FORBIDDEN, ErrorCode.FORBIDDEN, 'This file cannot be downloaded.');
     }
 
     await this.prisma.asset.update({ where: { id }, data: { downloadCount: { increment: 1 } } });
 
+    const expiresAt = new Date(Date.now() + DOWNLOAD_URL_LIFETIME_MS).toISOString();
+    if (asset.font) {
+      // The app compares `version` with what it has, and re-downloads when it is higher.
+      return {
+        url: original.deliveryUrl,
+        expiresAt,
+        filename: `${asset.font.postscriptName ?? asset.slug}.${original.format}`,
+        format: original.format,
+        byteSize: original.byteSize,
+        version: asset.font.version,
+      };
+    }
     return {
       url: original.deliveryUrl,
-      expiresAt: new Date(Date.now() + DOWNLOAD_URL_LIFETIME_MS).toISOString(),
+      expiresAt,
       filename: `${asset.slug}.${original.format}`,
       format: original.format,
       byteSize: original.byteSize,

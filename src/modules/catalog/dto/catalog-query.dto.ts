@@ -14,6 +14,14 @@ export class CatalogCategoriesQueryDto {
   root!: string;
 }
 
+export class CatalogFontsQueryDto {
+  /** The slug of the font category the app shows, e.g. `trending`. */
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  category!: string;
+}
+
 export class CatalogAssetsQueryDto {
   @IsEnum(AssetKind)
   kind!: AssetKind;

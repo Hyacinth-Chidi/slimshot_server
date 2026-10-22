@@ -15,13 +15,15 @@ import { IdentityHashService } from '../../core/identity/identity-hash.service';
 import { RateLimiter } from '../../core/rate-limit/rate-limiter';
 import { CATALOG_LIMITS, type CatalogLimits } from './catalog-limits';
 import { CatalogService } from './catalog.service';
-import { CatalogAssetsQueryDto, CatalogCategoriesQueryDto } from './dto/catalog-query.dto';
+import { FontCatalogService } from './font-catalog.service';
+import { CatalogAssetsQueryDto, CatalogCategoriesQueryDto, CatalogFontsQueryDto } from './dto/catalog-query.dto';
 
 /** The app's sound library. Public: no sign-in, limited per IP. Contract: docs/app-catalog-api.md. */
 @Controller('api/app/v1/catalog')
 export class CatalogController {
   constructor(
     private readonly catalog: CatalogService,
+    private readonly fonts: FontCatalogService,
     private readonly limiter: RateLimiter,
     private readonly hashes: IdentityHashService,
     @Inject(CATALOG_LIMITS) private readonly limits: CatalogLimits,
@@ -38,6 +40,25 @@ export class CatalogController {
     await this.limit('read', ip, this.limits.readPerMinute);
     const { items, nextCursor } = await this.catalog.assets(q);
     return { success: true as const, data: items, meta: { nextCursor } };
+  }
+
+  @Get('fonts')
+  async fontList(@Query() q: CatalogFontsQueryDto, @Ip() ip: string) {
+    await this.limit('read', ip, this.limits.readPerMinute);
+    return { success: true as const, data: await this.fonts.list(q.category) };
+  }
+
+  /** For projects made before font ids. Declared before `fonts/:id` so it is never read as an id. */
+  @Get('fonts/by-family/:familyName')
+  async fontByFamily(@Param('familyName') familyName: string, @Ip() ip: string) {
+    await this.limit('read', ip, this.limits.readPerMinute);
+    return { success: true as const, data: await this.fonts.byFamily(familyName) };
+  }
+
+  @Get('fonts/:id')
+  async fontById(@Param('id') id: string, @Ip() ip: string) {
+    await this.limit('read', ip, this.limits.readPerMinute);
+    return { success: true as const, data: await this.fonts.byId(id) };
   }
 
   @Post('assets/:id/download')

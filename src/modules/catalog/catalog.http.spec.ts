@@ -11,6 +11,7 @@ import { RateLimiter } from '../../core/rate-limit/rate-limiter';
 import { CATALOG_LIMITS } from './catalog-limits';
 import { CatalogController } from './catalog.controller';
 import { CatalogService } from './catalog.service';
+import { FontCatalogService } from './font-catalog.service';
 
 const ITEM = {
   id: 'a1',
@@ -21,6 +22,16 @@ const ITEM = {
   category: { slug: 'ui', name: 'UI' },
   cover: null,
 };
+const FONT = {
+  id: 'f1',
+  displayName: 'Playfair',
+  familyName: 'Playfair Display',
+  styleName: 'Regular',
+  version: 2,
+  format: 'ttf',
+  preview: { url: 'https://cdn.test/p.png', width: 480, height: 160 },
+};
+
 const TICKET = {
   url: 'https://cdn.test/slimshot/audio/a1.mp3',
   expiresAt: '2026-10-18T12:10:00.000Z',
@@ -36,12 +47,18 @@ async function start(redis: unknown) {
     assets: jest.fn(async () => ({ items: [ITEM], nextCursor: 'a1' })),
     download: jest.fn(async () => TICKET),
   };
+  const fonts = {
+    list: jest.fn(async () => [FONT]),
+    byId: jest.fn(async () => FONT),
+    byFamily: jest.fn(async () => FONT),
+  };
   const moduleRef = await Test.createTestingModule({
     controllers: [CatalogController],
     providers: [
       RateLimiter,
       { provide: REDIS, useValue: redis },
       { provide: CatalogService, useValue: catalog },
+      { provide: FontCatalogService, useValue: fonts },
       { provide: IdentityHashService, useValue: { hash: (_kind: string, value: string) => value } },
       { provide: CATALOG_LIMITS, useValue: { readPerMinute: 3, downloadPerMinute: 2 } },
     ],
@@ -49,7 +66,7 @@ async function start(redis: unknown) {
   const app = moduleRef.createNestApplication();
   configureHttp(app);
   await app.listen(0, '127.0.0.1');
-  return { app, catalog, base: `${await app.getUrl()}/api/app/v1/catalog` };
+  return { app, catalog, fonts, base: `${await app.getUrl()}/api/app/v1/catalog` };
 }
 
 describe('public catalogue API over HTTP', () => {
@@ -140,5 +157,49 @@ describe('public catalogue API with Redis down', () => {
     } finally {
       await app.close();
     }
+  });
+});
+
+describe('public font catalogue over HTTP', () => {
+  let app: INestApplication;
+  let base: string;
+  let fonts: Awaited<ReturnType<typeof start>>['fonts'];
+
+  beforeEach(async () => {
+    ({ app, base, fonts } = await start(new FakeRedis()));
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('lists the fonts of a category', async () => {
+    const res = await fetch(`${base}/fonts?category=trending`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, data: [FONT] });
+    expect(fonts.list).toHaveBeenCalledWith('trending');
+  });
+
+  it('needs the category', async () => {
+    const res = await fetch(`${base}/fonts`);
+    expect(res.status).toBe(422);
+  });
+
+  it('finds a font by id', async () => {
+    const res = await fetch(`${base}/fonts/f1`);
+    expect(res.status).toBe(200);
+    expect(fonts.byId).toHaveBeenCalledWith('f1');
+  });
+
+  it("finds an old project's font by its family name, spaces and all", async () => {
+    const res = await fetch(`${base}/fonts/by-family/${encodeURIComponent('Playfair Display')}`);
+    expect(res.status).toBe(200);
+    expect(fonts.byFamily).toHaveBeenCalledWith('Playfair Display');
+    expect(fonts.byId).not.toHaveBeenCalled();
+  });
+
+  it('counts font reads with the other catalogue reads', async () => {
+    for (let i = 0; i < 3; i += 1) expect((await fetch(`${base}/fonts?category=trending`)).status).toBe(200);
+    expect((await fetch(`${base}/fonts/f1`)).status).toBe(429);
   });
 });
