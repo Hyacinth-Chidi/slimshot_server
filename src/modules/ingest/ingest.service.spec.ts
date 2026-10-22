@@ -5,6 +5,7 @@ import { probeImage } from '../../core/storage/image-probe';
 import { UnreadableUploadError } from '../../core/storage/storage-adapter.interface';
 import { AssetKind, FileRole } from '../../generated/prisma/enums';
 import { AUDIO_DESCRIPTOR } from '../assets/kinds/audio/audio.descriptor';
+import { FONT_DESCRIPTOR } from '../assets/kinds/font/font.descriptor';
 import { KindRegistry } from '../assets/kind-registry';
 import { IngestService } from './ingest.service';
 
@@ -92,7 +93,10 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
 
   const upload = {
     ticketTtlSeconds: 900,
-    limits: { audio: { maxBytes: 52_428_800, mimeTypes: ['audio/mpeg', 'audio/wav'] } },
+    limits: {
+      audio: { maxBytes: 52_428_800, mimeTypes: ['audio/mpeg', 'audio/wav'] },
+      font: { maxBytes: 10_485_760, mimeTypes: ['font/ttf', 'font/otf'] },
+    },
     cover: { maxBytes: 5_242_880, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] },
   };
   const cache = { bumpGeneration: jest.fn(async () => true) };
@@ -101,7 +105,7 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
 
   const svc = new IngestService(
     prisma as never,
-    new KindRegistry([AUDIO_DESCRIPTOR]),
+    new KindRegistry([AUDIO_DESCRIPTOR, FONT_DESCRIPTOR]),
     { getDefault: jest.fn(async () => adapter), get: jest.fn(async () => adapter) } as never,
     upload,
     queue as never,
@@ -524,5 +528,29 @@ describe('IngestService covers', () => {
   it('removing a cover from an unknown sound is a 404', async () => {
     const { svc } = build();
     await expect(svc.removeCover('gone', 'admin-1')).rejects.toMatchObject({ status: 404 });
+  });
+});
+
+describe('IngestService font tickets', () => {
+  const FONT = { kind: AssetKind.font, filename: 'Lato-Regular.ttf', mimeType: 'font/ttf', byteSize: 656_568 };
+
+  it('tickets a font upload into the fonts folder', async () => {
+    const { svc, adapter } = build();
+    await svc.createTicket(FONT, 'admin-1');
+    expect(adapter.createUploadTicket).toHaveBeenCalledWith(
+      expect.objectContaining({ folder: 'slimshot/fonts', mimeType: 'font/ttf', byteSize: 656_568 }),
+    );
+  });
+
+  it('refuses a web font type', async () => {
+    const { svc } = build();
+    await expect(svc.createTicket({ ...FONT, filename: 'Lato.woff2', mimeType: 'font/woff2' }, 'admin-1')).rejects.toThrow(
+      /not an accepted type for font/,
+    );
+  });
+
+  it('refuses a font over 10 MB', async () => {
+    const { svc } = build();
+    await expect(svc.createTicket({ ...FONT, byteSize: 10_485_761 }, 'admin-1')).rejects.toThrow(/exceeds/);
   });
 });

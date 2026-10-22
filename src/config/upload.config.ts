@@ -10,11 +10,15 @@ export interface UploadLimits {
 
 export const uploadConfig = registerAs('upload', () => {
   const env = parseEnv(process.env);
-  // Only kinds with limits here can be uploaded; audio is the only kind today.
+  // Only kinds with limits here can be uploaded.
   const limits: Partial<Record<AssetKind, UploadLimits>> = {
     [AssetKind.audio]: {
       maxBytes: env.UPLOAD_AUDIO_MAX_BYTES,
       mimeTypes: env.UPLOAD_AUDIO_MIME_TYPES,
+    },
+    [AssetKind.font]: {
+      maxBytes: env.UPLOAD_FONT_MAX_BYTES,
+      mimeTypes: ['font/ttf', 'font/otf'],
     },
   };
   // Covers belong to a sound of any kind, so they are not keyed by kind.

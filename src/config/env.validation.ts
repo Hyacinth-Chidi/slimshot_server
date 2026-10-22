@@ -181,6 +181,13 @@ export class Env {
   @Max(52_428_800)
   UPLOAD_COVER_MAX_BYTES = 5_242_880;
 
+  // One font face (TTF or OTF).
+  @Transform(int(10_485_760))
+  @IsInt()
+  @Min(1)
+  @Max(52_428_800)
+  UPLOAD_FONT_MAX_BYTES = 10_485_760;
+
   // Cloudflare R2 holds every uploaded file. The S3 endpoint is built from the
   // account ID, so a pasted endpoint URL is refused rather than signed against.
   @Transform(text)

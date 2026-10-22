@@ -91,7 +91,7 @@ export class IngestService {
     // The ticket is signed for this exact size and type, so a leaked one can
     // store nothing else; finalize then checks what actually landed.
     const ticket = await adapter.createUploadTicket({
-      folder: `slimshot/${dto.kind}`,
+      folder: dto.kind === AssetKind.font ? 'slimshot/fonts' : `slimshot/${dto.kind}`,
       filename: dto.filename,
       mimeType: dto.mimeType,
       byteSize: dto.byteSize,

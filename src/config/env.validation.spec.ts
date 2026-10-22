@@ -40,6 +40,7 @@ describe('parseEnv', () => {
       UPLOAD_AUDIO_MIME_TYPES: ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/ogg', 'audio/flac'],
       UPLOAD_TICKET_TTL_SECONDS: 900,
       UPLOAD_COVER_MAX_BYTES: 5_242_880,
+      UPLOAD_FONT_MAX_BYTES: 10_485_760,
     });
     expect(env.ADMIN_BASE_URL).toBeUndefined();
     expect(env.ADMIN_BOOTSTRAP_EMAIL).toBeUndefined();
@@ -305,6 +306,10 @@ describe('config namespaces', () => {
   it('exposes the master encryption key', () => {
     process.env = { ...BASE };
     expect(cryptoConfig().masterKey).toBe('ab'.repeat(32));
+  });
+
+  it('sets the font limits: TTF and OTF, 10 MB by default', () => {
+    expect(uploadConfig().limits.font).toEqual({ maxBytes: 10_485_760, mimeTypes: ['font/ttf', 'font/otf'] });
   });
 
   it('gives covers their own size cap and image types', () => {
