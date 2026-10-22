@@ -135,7 +135,7 @@ export class AssetService {
 
     const updated = await this.prisma.asset.update({
       where: { id },
-      data: { ...dto, updatedById: actorId },
+      data: { ...dto, updatedById: actorId, ...(await this.fontMove(before, dto.categoryId)) },
       include: DETAIL_INCLUDE,
     });
 
@@ -254,6 +254,23 @@ export class AssetService {
 
     if (!row) throw new NotFoundException(`Asset not found: ${id}`);
     return row as unknown as AdminRow;
+  }
+
+  /**
+   * A font filed into a category goes to the end of that category's order,
+   * like a font uploaded straight into it; otherwise it would keep whatever
+   * position it had elsewhere and could land at the top of the app's list.
+   */
+  private async fontMove(
+    before: AdminRow,
+    categoryId: string | null | undefined,
+  ): Promise<{ font?: { update: { sortOrder: number } } }> {
+    if (before.kind !== AssetKind.font || !before.font || !categoryId || categoryId === before.categoryId) return {};
+    const { _max } = await this.prisma.fontAsset.aggregate({
+      where: { asset: { categoryId, deletedAt: null } },
+      _max: { sortOrder: true },
+    });
+    return { font: { update: { sortOrder: _max.sortOrder === null ? 0 : _max.sortOrder + 1 } } };
   }
 
   /** Fonts that were ever published are never unpublished or deleted: projects depend on them. */

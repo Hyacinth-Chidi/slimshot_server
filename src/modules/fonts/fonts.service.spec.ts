@@ -181,6 +181,22 @@ describe('FontsService.finalizeUpload: a new font', () => {
     expect(prisma.fontAsset.create).toHaveBeenCalled();
     expect(adapter.putObject).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ['reading the file back', 'getObject'],
+    ['storing the preview', 'putObject'],
+  ] as const)('still records the font when storage fails while %s', async (_step, method) => {
+    const { svc, prisma, adapter, cache } = build();
+    adapter[method].mockRejectedValueOnce(new Error('R2 is having a moment'));
+    await expect(svc.finalizeUpload(session() as never, adapter as never, 'admin-1')).resolves.toMatchObject({
+      status: AssetStatus.ready,
+    });
+    expect(prisma.fontAsset.create).toHaveBeenCalled();
+    expect(prisma.assetFile.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ role: FileRole.specimen }) }),
+    );
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:font');
+  });
 });
 
 describe('FontsService.finalizeUpload: a new version', () => {
@@ -229,6 +245,17 @@ describe('FontsService.finalizeUpload: a new version', () => {
     expect(prisma.assetFile.deleteMany).not.toHaveBeenCalled();
     expect(adapter.delete).not.toHaveBeenCalledWith('slimshot/fonts/previews/old.png');
   });
+
+  it('a new version still lands, keeping the old preview, when storing the new one fails', async () => {
+    const { svc, prisma, adapter, cache } = build({ font: EXISTING, specimen: [OLD_PREVIEW] });
+    adapter.putObject.mockRejectedValueOnce(new Error('R2 is having a moment'));
+    await expect(svc.finalizeUpload(published as never, adapter as never, 'admin-1')).resolves.toMatchObject({
+      status: AssetStatus.published,
+    });
+    expect(prisma.fontAsset.update).toHaveBeenCalledWith({ where: { assetId: 'font-1' }, data: { version: 2 } });
+    expect(prisma.assetFile.deleteMany).not.toHaveBeenCalled();
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:font');
+  });
 });
 
 describe('FontsService.refreshPreview', () => {
@@ -248,6 +275,13 @@ describe('FontsService.refreshPreview', () => {
     const { svc, prisma, adapter } = build();
     await expect(svc.refreshPreview('font-1')).resolves.toBe(false);
     expect(adapter.putObject).not.toHaveBeenCalled();
+    expect(prisma.assetFile.create).not.toHaveBeenCalled();
+  });
+
+  it('answers false and changes nothing when the file cannot be read back', async () => {
+    const { svc, prisma, adapter } = build();
+    adapter.getObject.mockRejectedValueOnce(new Error('R2 is having a moment'));
+    await expect(svc.refreshPreview('font-1')).resolves.toBe(false);
     expect(prisma.assetFile.create).not.toHaveBeenCalled();
   });
 });

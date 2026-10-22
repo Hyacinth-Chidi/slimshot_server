@@ -49,6 +49,13 @@ function build(rows: Array<Record<string, unknown>> = [assetRow()]) {
     fontAsset: {
       update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => data),
       delete: jest.fn(async () => ({})),
+      // The highest position among the fonts filed in a category.
+      aggregate: jest.fn(async ({ where }: { where: { asset: { categoryId: string } } }) => {
+        const orders = rows
+          .filter((r) => r.categoryId === where.asset.categoryId && !r.deletedAt && r.font)
+          .map((r) => (r.font as { sortOrder: number }).sortOrder);
+        return { _max: { sortOrder: orders.length ? Math.max(...orders) : null } };
+      }),
     },
     category: {
       findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
@@ -65,7 +72,11 @@ function build(rows: Array<Record<string, unknown>> = [assetRow()]) {
       ),
       update: jest.fn(async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) => {
         const row = rows.find((r) => r.id === where.id);
-        if (row) Object.assign(row, data);
+        if (row) {
+          const { font, ...rest } = data as { font?: { update: Record<string, unknown> } };
+          Object.assign(row, rest);
+          if (font) row.font = { ...(row.font as object), ...font.update };
+        }
         return row;
       }),
     },
@@ -334,6 +345,32 @@ describe('AssetService font lifecycle', () => {
     const { svc, prisma } = build([fontRow({ status: AssetStatus.published }, { firstPublishedAt: new Date('2026-10-01') })]);
     await expect(svc[action]('font-1', 'admin-1')).rejects.toMatchObject({ status: 409 });
     expect(prisma.asset.update).not.toHaveBeenCalled();
+  });
+
+  it('puts a font filed into a category at the end of its order', async () => {
+    const filed = (id: string, sortOrder: number) =>
+      fontRow({ id, categoryId: 'cat-font' }, { sortOrder });
+    const loose = fontRow({ id: 'font-new', categoryId: null }, { sortOrder: 0 });
+    const { svc, rows } = build([filed('font-a', 0), filed('font-b', 7), loose]);
+
+    await svc.update('font-new', { categoryId: 'cat-font' }, 'admin-1');
+    expect((rows[2].font as { sortOrder: number }).sortOrder).toBe(8);
+  });
+
+  it('puts a font first when its category has no fonts yet', async () => {
+    const { svc, rows } = build([fontRow({ categoryId: null }, { sortOrder: 5 })]);
+    await svc.update('font-1', { categoryId: 'cat-font' }, 'admin-1');
+    expect((rows[0].font as { sortOrder: number }).sortOrder).toBe(0);
+  });
+
+  it("keeps a font's position when its category stays the same, is cleared, or only the name changes", async () => {
+    const { svc, prisma } = build([fontRow({ categoryId: 'cat-font' }, { sortOrder: 3 })]);
+    await svc.update('font-1', { categoryId: 'cat-font' }, 'admin-1');
+    await svc.update('font-1', { title: 'Lato Text' }, 'admin-1');
+    await svc.update('font-1', { categoryId: null }, 'admin-1');
+    for (const [arg] of prisma.asset.update.mock.calls as unknown as [{ data: Record<string, unknown> }][]) {
+      expect(arg.data).not.toHaveProperty('font');
+    }
   });
 
   it('deletes a never-published font and frees its face for a new upload', async () => {

@@ -166,8 +166,7 @@ export class FontsService {
       throw error;
     }
 
-    const bytes = await adapter.getObject(session.storageKey);
-    await this.storePreview(session.assetId, adapter, bytes, names.fullName);
+    await this.storePreview(session.assetId, adapter, session.storageKey, names.fullName);
     await this.cache.bumpGeneration(`catalog:${AssetKind.font}`);
     await this.audit.record({
       actorId,
@@ -207,8 +206,7 @@ export class FontsService {
       });
     });
 
-    const bytes = await adapter.getObject(session.storageKey);
-    await this.storePreview(session.assetId, adapter, bytes, session.asset.title);
+    await this.storePreview(session.assetId, adapter, session.storageKey, session.asset.title);
     await this.cache.bumpGeneration(`catalog:${AssetKind.font}`);
     await this.audit.record({
       actorId,
@@ -224,7 +222,9 @@ export class FontsService {
   /** The fonts of a category in the app's order, for the dashboard's Trending order page. */
   async order(categoryId: string): Promise<FontOrderRow[]> {
     const rows = await this.prisma.asset.findMany({
-      where: { kind: AssetKind.font, deletedAt: null, categoryId },
+      // Only finished fonts: a refused or abandoned upload filed here has an
+      // asset but no font details, so it has no position to save.
+      where: { kind: AssetKind.font, deletedAt: null, categoryId, font: { isNot: null } },
       orderBy: [{ font: { sortOrder: 'asc' } }, { id: 'asc' }],
       include: { font: true, files: { where: { role: FileRole.specimen }, take: 1 } },
     });
@@ -302,28 +302,32 @@ export class FontsService {
     });
     if (!original) return false;
     const adapter = await this.storage.get(original.storageId);
-    const drawn = await this.storePreview(assetId, adapter, await adapter.getObject(original.storageKey), asset.title);
+    const drawn = await this.storePreview(assetId, adapter, original.storageKey, asset.title);
     if (drawn) await this.cache.bumpGeneration(`catalog:${AssetKind.font}`);
     return drawn;
   }
 
-  /** Draws and stores the preview, replacing the previous one. On failure nothing changes. */
+  /**
+   * Reads the font file back, draws the preview and stores it, replacing the
+   * previous one. The font itself is already saved by then, so a failure at
+   * any of these steps (a bad drawing or a storage hiccup) only means "no new
+   * preview": nothing changes and the caller carries on (spec §7).
+   */
   private async storePreview(
     assetId: string,
     adapter: StorageProviderAdapter,
-    fontBytes: Buffer,
+    fontKey: string,
     text: string,
   ): Promise<boolean> {
+    const storageKey = `slimshot/fonts/previews/${randomUUID()}.png`;
     let png: Buffer;
     try {
-      png = preview.renderFontPreview(fontBytes, text);
+      png = preview.renderFontPreview(await adapter.getObject(fontKey), text);
+      await adapter.putObject(storageKey, png, 'image/png');
     } catch (error) {
-      this.logger.warn(`Could not draw the preview of font ${assetId}: ${(error as Error).message}`);
+      this.logger.warn(`Could not make the preview of font ${assetId}: ${(error as Error).message}`);
       return false;
     }
-
-    const storageKey = `slimshot/fonts/previews/${randomUUID()}.png`;
-    await adapter.putObject(storageKey, png, 'image/png');
 
     const previous = await this.prisma.$transaction(async (tx) => {
       const old = (await tx.assetFile.findMany({

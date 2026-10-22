@@ -11,11 +11,20 @@ const TRENDING = [
 function build(opts: { fonts?: Row[]; legacy?: Row[]; asset?: Row | null } = {}) {
   const prisma = {
     asset: {
-      findMany: jest.fn(async () => opts.fonts ?? TRENDING),
+      // Honours the one filter that matters here: `font: { isNot: null }`.
+      findMany: jest.fn(async ({ where }: { where?: { font?: object } } = {}) =>
+        (opts.fonts ?? TRENDING).filter((r) => !where?.font || r.font !== null),
+      ),
       findFirst: jest.fn(async () => (opts.asset === undefined ? { id: 'f-a', kind: AssetKind.font } : opts.asset)),
     },
     fontAsset: {
-      update: jest.fn(async ({ data }: { data: Row }) => data),
+      // Like the database: a row that does not exist cannot be updated (P2025).
+      update: jest.fn(async ({ where, data }: { where: { assetId: string }; data: Row }) => {
+        const rows = opts.fonts ?? TRENDING;
+        const row = rows.find((r) => r.id === where.assetId);
+        if (row && row.font === null) throw Object.assign(new Error('Record to update not found.'), { code: 'P2025' });
+        return data;
+      }),
       findMany: jest.fn(async () => opts.legacy ?? []),
     },
     $transaction: jest.fn(async (ops: unknown[]) => ops),
@@ -35,7 +44,7 @@ describe('FontsService admin: Trending order', () => {
     ]);
     expect(prisma.asset.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { kind: AssetKind.font, deletedAt: null, categoryId: 'trending' },
+        where: { kind: AssetKind.font, deletedAt: null, categoryId: 'trending', font: { isNot: null } },
         orderBy: [{ font: { sortOrder: 'asc' } }, { id: 'asc' }],
       }),
     );
@@ -48,6 +57,17 @@ describe('FontsService admin: Trending order', () => {
     expect(prisma.fontAsset.update).toHaveBeenNthCalledWith(2, { where: { assetId: 'f-a' }, data: { sortOrder: 1 } });
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:font');
+  });
+
+  it('leaves out an upload that was refused or never finished, so the order still saves', async () => {
+    // A font upload filed in Trending creates its asset at ticket time; a
+    // refused or abandoned one never gets font details.
+    const leftover = { id: 'f-failed', title: 'broken.ttf', status: AssetStatus.failed, font: null, files: [] };
+    const { svc, prisma } = build({ fonts: [...TRENDING, leftover] });
+
+    expect((await svc.order('trending')).map((f) => f.id)).toEqual(['f-a', 'f-b']);
+    await expect(svc.reorder('trending', ['f-b', 'f-a'], 'admin-1')).resolves.toBeUndefined();
+    expect(prisma.fontAsset.update).toHaveBeenCalledTimes(2);
   });
 
   it.each([
