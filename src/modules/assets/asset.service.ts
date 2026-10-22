@@ -265,7 +265,9 @@ export class AssetService {
 
   private toAdmin(row: AdminRow): AdminAsset {
     const base = this.kinds.get(row.kind).toPublicDto(row);
-    const original = row.files.find((f) => f.role === FileRole.original);
+    // A font keeps every version's file; the current one is the primary.
+    const originals = row.files.filter((f) => f.role === FileRole.original);
+    const original = originals.find((f) => f.isPrimary) ?? originals[0];
     const thumbnail = row.files.find((f) => f.role === FileRole.thumbnail);
     return {
       ...base,

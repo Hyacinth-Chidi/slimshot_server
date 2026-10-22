@@ -53,6 +53,8 @@ export interface AssetWithRelations {
     width: number | null;
     height: number | null;
     variant: unknown;
+    /** The current file of its role; a font keeps older versions beside it. */
+    isPrimary?: boolean;
   }>;
   audio?: { durationMs: number; bpm: number | null; isLoopable: boolean } | null;
 }

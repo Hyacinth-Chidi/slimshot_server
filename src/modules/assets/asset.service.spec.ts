@@ -299,6 +299,14 @@ describe('AssetService font lifecycle', () => {
     expect(view.files.specimen).toMatchObject({ url: 'https://cdn.test/p.png' });
   });
 
+  it("shows the current version's file, never an older one", async () => {
+    const v1 = { ...fontFile, deliveryUrl: 'https://cdn.test/v1.ttf', byteSize: 9, isPrimary: false };
+    const v2 = { ...fontFile, deliveryUrl: 'https://cdn.test/v2.ttf', byteSize: 12, isPrimary: true, variant: { version: 2 } };
+    const { svc } = build([fontRow({ files: [v1, preview, v2] }, { version: 2 })]);
+    const view = await svc.getById('font-1');
+    expect(view.files.original).toMatchObject({ url: 'https://cdn.test/v2.ttf', byteSize: 12 });
+  });
+
   it('gives sounds no font block', async () => {
     const { svc } = build();
     expect((await svc.getById('asset-1')).font).toBeNull();
