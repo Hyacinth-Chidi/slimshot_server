@@ -28,6 +28,7 @@ function font(id: string, overrides: Row = {}, detail: Row = {}): Row {
     deletedAt: null,
     categoryId: 'cat-trending',
     downloadCount: 0,
+    createdAt: new Date(Date.UTC(2026, 9, 1, 0, n)),
     files: [
       file('original', `https://cdn.test/slimshot/fonts/${id}.ttf`, { isPrimary: true }),
       file('specimen', `https://cdn.test/slimshot/fonts/previews/${id}.png`),
@@ -108,10 +109,22 @@ function build(rows = library()) {
       findFirst: jest.fn(async ({ where }: { where: Row }) => CATEGORIES.find((c) => matches(c, where)) ?? null),
     },
     asset: {
-      findMany: jest.fn(async ({ where, include }: { where: Row; include?: Row }) =>
+      findMany: jest.fn(async ({ where, include, orderBy }: { where: Row; include?: Row; orderBy?: Row[] }) =>
         rows
           .filter((r) => matches(r, where))
-          .sort((a, b) => ((a.font as Row).sortOrder as number) - ((b.font as Row).sortOrder as number) || String(a.id).localeCompare(String(b.id)))
+          .sort((a, b) => {
+            // Applies the orderBy it is given: font.sortOrder, then createdAt or id.
+            for (const o of orderBy ?? []) {
+              const [field, dir] = Object.entries(o)[0] as [string, unknown];
+              const sign = (field === 'font' ? (dir as Row).sortOrder : dir) === 'desc' ? -1 : 1;
+              const av = field === 'font' ? ((a.font as Row).sortOrder as number) : a[field];
+              const bv = field === 'font' ? ((b.font as Row).sortOrder as number) : b[field];
+              const cmp = av instanceof Date ? av.getTime() - (bv as Date).getTime() : av === bv ? 0 : String(av) < String(bv) ? -1 : 1;
+              if (typeof av === 'number' && typeof bv === 'number' && av !== bv) return sign * (av - bv);
+              if (cmp !== 0) return sign * cmp;
+            }
+            return 0;
+          })
           .map((r) => shapeFiles(r, include)),
       ),
       findFirst: jest.fn(async ({ where, include }: { where: Row; include?: Row }) => {
@@ -170,6 +183,46 @@ describe('FontCatalogService.list', () => {
     await fonts.list('trending');
     expect(prisma.asset.findMany).toHaveBeenCalledTimes(1);
     await cache.bumpGeneration('catalog:font');
+    await fonts.list('trending');
+    expect(prisma.asset.findMany).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('FontCatalogService.list with no category', () => {
+  it('lists every published, public font with a preview, whatever its category', async () => {
+    const { fonts } = build();
+    const ids = (await fonts.list()).map((i) => i.id);
+    expect(ids.sort()).toEqual(['boldonly', 'first', 'loose', 'playfair', 'playfair-bold', 'second', 'versioned'].sort());
+  });
+
+  it("follows the owner's order, newest first among equal positions", async () => {
+    const rows = library().filter((r) => ['first', 'second', 'versioned', 'loose'].includes(r.id as string));
+    // loose and second share position 2; loose was created later, so it comes first.
+    const loose = rows.find((r) => r.id === 'loose')!;
+    (loose.font as Row).sortOrder = 2;
+    loose.createdAt = new Date('2026-10-05');
+    const { fonts } = build(rows);
+    expect((await fonts.list()).map((i) => i.id)).toEqual(['first', 'loose', 'second', 'versioned']);
+  });
+
+  it('returns exactly the documented fields', async () => {
+    const { fonts } = build();
+    const first = (await fonts.list()).find((i) => i.id === 'first');
+    expect(first).toEqual({
+      id: 'first',
+      displayName: 'Display first',
+      familyName: 'Family first',
+      styleName: 'Regular',
+      version: 1,
+      format: 'ttf',
+      preview: { url: 'https://cdn.test/slimshot/fonts/previews/first.png', width: 480, height: 160 },
+    });
+  });
+
+  it('caches the full list apart from a category list', async () => {
+    const { fonts, prisma } = build();
+    await fonts.list();
+    await fonts.list();
     await fonts.list('trending');
     expect(prisma.asset.findMany).toHaveBeenCalledTimes(2);
   });

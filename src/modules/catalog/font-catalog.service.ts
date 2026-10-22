@@ -57,9 +57,10 @@ function toItem(row: FontRow): CatalogFont {
 }
 
 /**
- * The app's font catalogue: the fonts in one category (Trending) in the
- * owner's order, plus lookups by id and, for projects made before font ids,
- * by family name. Downloads go through the shared download endpoint.
+ * The app's font catalogue: every published font in the owner's order (or,
+ * still supported, the fonts of one category), plus lookups by id and, for
+ * projects made before font ids, by family name. Downloads go through the
+ * shared download endpoint.
  */
 @Injectable()
 export class FontCatalogService {
@@ -68,24 +69,35 @@ export class FontCatalogService {
     private readonly cache: CacheService,
   ) {}
 
-  list(categorySlug: string): Promise<CatalogFont[]> {
+  /**
+   * With no category: every published, public font with a preview, in the
+   * owner's order, newest first among equal positions. With one (kept for
+   * older callers): the fonts filed in that category.
+   */
+  list(categorySlug?: string): Promise<CatalogFont[]> {
     return this.cache.wrap(
       NAMESPACE,
-      ['fonts', categorySlug],
+      categorySlug ? ['fonts', categorySlug] : ['fonts:all'],
       async () => {
-        const category = await this.prisma.category.findFirst({
-          where: { kind: AssetKind.font, slug: categorySlug, isActive: true },
-        });
-        if (!category) throw notFound(`No font category "${categorySlug}".`);
+        let categoryId: string | undefined;
+        if (categorySlug) {
+          const category = await this.prisma.category.findFirst({
+            where: { kind: AssetKind.font, slug: categorySlug, isActive: true },
+          });
+          if (!category) throw notFound(`No font category "${categorySlug}".`);
+          categoryId = category.id;
+        }
         const rows = await this.prisma.asset.findMany({
           where: {
             ...FETCHABLE,
             visibility: Visibility.public,
-            categoryId: category.id,
+            ...(categoryId ? { categoryId } : {}),
             // The app shows fonts by their preview: a font without one is left out.
             files: { some: { role: FileRole.specimen } },
           },
-          orderBy: [{ font: { sortOrder: 'asc' } }, { id: 'asc' }],
+          orderBy: categoryId
+            ? [{ font: { sortOrder: 'asc' } }, { id: 'asc' }]
+            : [{ font: { sortOrder: 'asc' } }, { createdAt: 'desc' }],
           include: FONT_INCLUDE,
         });
         return rows.map(toItem);

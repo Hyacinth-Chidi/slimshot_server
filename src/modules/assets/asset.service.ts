@@ -165,7 +165,7 @@ export class AssetService {
       if (!asset.files.some((f) => f.role === FileRole.specimen)) {
         throw new BadRequestException('This font needs a preview before it can be published.');
       }
-      // Recorded once and never cleared: from now on the font stays available for good.
+      // Recorded once, on the first publish.
       if (asset.font && !asset.font.firstPublishedAt) {
         await this.prisma.fontAsset.update({ where: { assetId: id }, data: { firstPublishedAt: new Date() } });
       }
@@ -177,6 +177,7 @@ export class AssetService {
         status: AssetStatus.published,
         publishedAt: new Date(),
         updatedById: actorId,
+        ...(await this.fontToTop(asset)),
       },
       include: DETAIL_INCLUDE,
     });
@@ -248,6 +249,23 @@ export class AssetService {
 
     if (!row) throw new NotFoundException(`Asset not found: ${id}`);
     return row as unknown as AdminRow;
+  }
+
+  /**
+   * A font that becomes published goes to the top of the app's order (one
+   * above the current first), so new fonts show first until the owner moves
+   * them on the Order page.
+   */
+  private async fontToTop(asset: AdminRow): Promise<{ font?: { update: { sortOrder: number } } }> {
+    if (asset.kind !== AssetKind.font || !asset.font) return {};
+    const { _min } = await this.prisma.fontAsset.aggregate({
+      where: {
+        assetId: { not: asset.id },
+        asset: { kind: AssetKind.font, status: AssetStatus.published, deletedAt: null },
+      },
+      _min: { sortOrder: true },
+    });
+    return { font: { update: { sortOrder: _min.sortOrder === null ? 0 : _min.sortOrder - 1 } } };
   }
 
   /**

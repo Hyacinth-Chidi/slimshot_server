@@ -219,13 +219,15 @@ export class FontsService {
     return { assetId: session.assetId, status: session.asset.status };
   }
 
-  /** The fonts of a category in the app's order, for the dashboard's Trending order page. */
-  async order(categoryId: string): Promise<FontOrderRow[]> {
+  /**
+   * Every published font in the order the app shows them (newest first among
+   * equal positions), for the dashboard's Order page.
+   */
+  async order(): Promise<FontOrderRow[]> {
     const rows = await this.prisma.asset.findMany({
-      // Only finished fonts: a refused or abandoned upload filed here has an
-      // asset but no font details, so it has no position to save.
-      where: { kind: AssetKind.font, deletedAt: null, categoryId, font: { isNot: null } },
-      orderBy: [{ font: { sortOrder: 'asc' } }, { id: 'asc' }],
+      // Only fonts with font details: an asset without them has no position to save.
+      where: { kind: AssetKind.font, deletedAt: null, status: AssetStatus.published, font: { isNot: null } },
+      orderBy: [{ font: { sortOrder: 'asc' } }, { createdAt: 'desc' }],
       include: { font: true, files: { where: { role: FileRole.specimen }, take: 1 } },
     });
     return rows.map((a) => ({
@@ -238,15 +240,15 @@ export class FontsService {
   }
 
   /**
-   * Saves the order of a category's fonts. The list must hold every font in the
-   * category exactly once, so positions never collide; anything else changes nothing.
+   * Saves the app's order. The list must hold every published font exactly
+   * once, so positions never collide; anything else changes nothing.
    */
-  async reorder(categoryId: string, ids: string[], actorId: string): Promise<void> {
+  async reorder(ids: string[], actorId: string): Promise<void> {
     if (new Set(ids).size !== ids.length) throw invalid('Each font can appear only once in the order.');
-    const current = await this.order(categoryId);
+    const current = await this.order();
     const known = new Set(current.map((f) => f.id));
     if (ids.length !== known.size || !ids.every((id) => known.has(id))) {
-      throw invalid('Send every font in this category, once each, in the new order.');
+      throw invalid('The published fonts changed. Reload the order and try again.');
     }
     await this.prisma.$transaction(
       ids.map((assetId, index) => this.prisma.fontAsset.update({ where: { assetId }, data: { sortOrder: index } })),
@@ -256,8 +258,7 @@ export class FontsService {
       actorId,
       actorType: 'admin',
       action: 'font.reorder',
-      entityType: 'Category',
-      entityId: categoryId,
+      entityType: 'FontOrder',
       after: { count: ids.length },
     });
   }

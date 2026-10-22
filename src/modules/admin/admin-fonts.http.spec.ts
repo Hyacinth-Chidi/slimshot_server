@@ -63,27 +63,22 @@ describe('admin fonts API over HTTP', () => {
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
 
-  it('lists a category in the app order', async () => {
-    const res = await send('GET', '/fonts/order?categoryId=trending');
+  it('lists every published font in the app order', async () => {
+    const res = await send('GET', '/fonts/order');
     expect(res.status).toBe(200);
     expect(await res.json()).toMatchObject({ success: true, data: [{ id: 'f-a' }] });
-    expect(fonts.order).toHaveBeenCalledWith('trending');
-  });
-
-  it('needs a category for the order', async () => {
-    expect((await send('GET', '/fonts/order')).status).toBe(422);
+    expect(fonts.order).toHaveBeenCalledWith();
   });
 
   it('saves a new order', async () => {
-    const res = await send('POST', '/fonts/reorder', { categoryId: 'trending', ids: ['f-b', 'f-a'] });
+    const res = await send('POST', '/fonts/reorder', { ids: ['f-b', 'f-a'] });
     expect(res.status).toBe(204);
-    expect(fonts.reorder).toHaveBeenCalledWith('trending', ['f-b', 'f-a'], 'admin-1');
+    expect(fonts.reorder).toHaveBeenCalledWith(['f-b', 'f-a'], 'admin-1');
   });
 
   it.each([
-    ['no ids', { categoryId: 'trending' }],
-    ['ids that are not strings', { categoryId: 'trending', ids: [1, 2] }],
-    ['no category', { ids: ['f-a'] }],
+    ['no ids', {}],
+    ['ids that are not strings', { ids: [1, 2] }],
   ])('422s a reorder with %s', async (_name, body) => {
     expect((await send('POST', '/fonts/reorder', body)).status).toBe(422);
   });

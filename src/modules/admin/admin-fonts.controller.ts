@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { CurrentUser } from '../../core/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../core/auth/jwt-auth.guard';
@@ -7,7 +7,7 @@ import { RequirePermission } from '../../core/auth/permissions';
 import { AssetService } from '../assets/asset.service';
 import { AccessTokenClaims } from '../auth/token.service';
 import { FontsService } from '../fonts/fonts.service';
-import { FontOrderQueryDto, ReorderFontsDto, UpdateFontDto } from './dto/font-admin.dto';
+import { ReorderFontsDto, UpdateFontDto } from './dto/font-admin.dto';
 
 /** What fonts need beyond the generic asset routes: order, licence, and the legacy checklist. */
 @Controller('api/admin/v1/fonts')
@@ -20,15 +20,15 @@ export class AdminFontsController {
 
   @Get('order')
   @RequirePermission('asset.read')
-  async order(@Query() q: FontOrderQueryDto) {
-    return { success: true as const, data: await this.fonts.order(q.categoryId) };
+  async order() {
+    return { success: true as const, data: await this.fonts.order() };
   }
 
   @Post('reorder')
   @HttpCode(204)
   @RequirePermission('asset.update')
   async reorder(@Body() dto: ReorderFontsDto, @CurrentUser() user: AccessTokenClaims): Promise<void> {
-    await this.fonts.reorder(dto.categoryId, dto.ids, user.sub);
+    await this.fonts.reorder(dto.ids, user.sub);
   }
 
   @Get('legacy-families')

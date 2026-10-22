@@ -180,9 +180,11 @@ describe('public font catalogue over HTTP', () => {
     expect(fonts.list).toHaveBeenCalledWith('trending');
   });
 
-  it('needs the category', async () => {
+  it('lists every published font when no category is given', async () => {
     const res = await fetch(`${base}/fonts`);
-    expect(res.status).toBe(422);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, data: [FONT] });
+    expect(fonts.list).toHaveBeenCalledWith(undefined);
   });
 
   it('finds a font by id', async () => {

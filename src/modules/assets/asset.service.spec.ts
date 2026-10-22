@@ -49,13 +49,23 @@ function build(rows: Array<Record<string, unknown>> = [assetRow()]) {
     fontAsset: {
       update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => data),
       delete: jest.fn(async () => ({})),
-      // The highest position among the fonts filed in a category.
-      aggregate: jest.fn(async ({ where }: { where: { asset: { categoryId: string } } }) => {
-        const orders = rows
-          .filter((r) => r.categoryId === where.asset.categoryId && !r.deletedAt && r.font)
-          .map((r) => (r.font as { sortOrder: number }).sortOrder);
-        return { _max: { sortOrder: orders.length ? Math.max(...orders) : null } };
-      }),
+      // The highest and lowest positions among the fonts the filter matches.
+      aggregate: jest.fn(
+        async ({ where }: { where: { asset: Record<string, unknown>; assetId?: { not: string } } }) => {
+          const orders = rows
+            .filter(
+              (r) =>
+                r.font &&
+                r.id !== where.assetId?.not &&
+                Object.entries(where.asset).every(([k, v]) => (v === null ? !r[k] : r[k] === v)),
+            )
+            .map((r) => (r.font as { sortOrder: number }).sortOrder);
+          return {
+            _max: { sortOrder: orders.length ? Math.max(...orders) : null },
+            _min: { sortOrder: orders.length ? Math.min(...orders) : null },
+          };
+        },
+      ),
     },
     category: {
       findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
@@ -354,6 +364,22 @@ describe('AssetService font lifecycle', () => {
     expect(prisma.asset.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ deletedAt: expect.any(Date) }) }));
     expect(prisma.fontAsset.delete).toHaveBeenCalledWith({ where: { assetId: 'font-1' } });
     expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:font');
+  });
+
+  it('puts a font that becomes published at the top of the order', async () => {
+    const live = (id: string, sortOrder: number) =>
+      fontRow({ id, status: AssetStatus.published }, { sortOrder, firstPublishedAt: new Date('2026-10-01') });
+    const { svc, rows, cache } = build([live('font-a', 0), live('font-b', 3), fontRow({}, { sortOrder: 9 })]);
+
+    await svc.publish('font-1', 'admin-1');
+    expect((rows[2].font as { sortOrder: number }).sortOrder).toBe(-1);
+    expect(cache.bumpGeneration).toHaveBeenCalledWith('catalog:font');
+  });
+
+  it('starts the order at 0 with the first published font', async () => {
+    const { svc, rows } = build([fontRow({}, { sortOrder: 5 })]);
+    await svc.publish('font-1', 'admin-1');
+    expect((rows[0].font as { sortOrder: number }).sortOrder).toBe(0);
   });
 
   it('puts a font filed into a category at the end of its order', async () => {

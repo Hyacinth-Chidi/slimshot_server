@@ -15,11 +15,12 @@ export class CatalogCategoriesQueryDto {
 }
 
 export class CatalogFontsQueryDto {
-  /** The slug of the font category the app shows, e.g. `trending`. */
+  /** Optional: only the fonts of this font category. Without it, every published font. */
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  category!: string;
+  category?: string;
 }
 
 export class CatalogAssetsQueryDto {

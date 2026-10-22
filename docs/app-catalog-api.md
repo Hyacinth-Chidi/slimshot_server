@@ -246,14 +246,14 @@ Wait `details.retryAfterSeconds` before retrying. Don't retry in a loop.
 
 ## 8. Fonts
 
-The Font tab shows one grid: **the fonts in the font category with slug `trending`, in the order
-the owner sets in the dashboard**. The app reads the whole list once, caches it, and searches it
-on the phone. "Downloaded", the System font and the fonts bundled in the app are the app's own and
+The Font tab shows one grid: **every published font, in the order the owner sets in the
+dashboard**. There are no font categories. The app reads the whole list once, caches it, and
+searches it on the phone. "Downloaded", the System font and the fonts bundled in the app are the app's own and
 never come from the server.
 
 ### 8.1 List the fonts
 
-`GET /fonts?category=trending`
+`GET /fonts`
 
 `200` (one list, no paging):
 
@@ -283,21 +283,22 @@ never come from the server.
 | `format` | `ttf` or `otf`. Never WOFF, never variable or colour fonts; all are Latin-script, drawn left to right. |
 | `preview` | The font's name drawn in the font itself: white on transparent, 480 × 160 PNG. Show it on a dark tile. Listed fonts always have one; it is `null` only if the server could not draw it, which listed fonts never are. |
 
-Only published fonts filed in that category are listed. A font the owner takes out of Trending
-leaves the list but stays downloadable while it is published (§8.2–8.4).
+Every published font is listed, in the owner's order (fonts at the same position: newest
+first). A font that becomes published goes to the **top** of that order, so new fonts show first
+until the owner moves them. An empty list is `200` with `data: []`.
+
+`?category=<slug>` still works (only the fonts filed in that font category, 404 `NOT_FOUND` if
+there is none), but nothing needs it: fonts no longer use categories.
 
 | Status | `code` | When |
 |---|---|---|
-| 404 | `NOT_FOUND` | No visible font category with that slug (not created yet, or hidden). Show the Downloaded fonts only. |
-| 422 | `VALIDATION_FAILED` | `category` missing |
 | 429 | `RATE_LIMITED` | Counts with the other reads (§5) |
 
 ### 8.2 One font by id
 
 `GET /fonts/:id` → `{ "success": true, "data": <font item> }`
 
-For a project that uses a font the phone doesn't have: works for any published font, in Trending
-or not. 404 `NOT_FOUND` if the font is unknown, not published (never, or no longer), or deleted.
+For a project that uses a font the phone doesn't have: works for any published font. 404 `NOT_FOUND` if the font is unknown, not published (never, or no longer), or deleted.
 
 ### 8.3 One font by family name (projects made before font ids)
 
@@ -342,11 +343,14 @@ a download, including automatic re-downloads.
 ### 8.5 Caching
 
 As for sounds (§6): the list and lookups are cached on the server for up to 5 minutes, and any
-change in the dashboard (publishing, reordering Trending, renaming, a new version) clears it at
-once.
+change in the dashboard (publishing, unpublishing, deleting, reordering, renaming, a new version)
+clears it at once.
 
 ## 9. Changelog
 
+- 2026-10-22: fonts have no categories. `GET /fonts` lists every published font in the owner's
+  order; a newly published font goes to the top (§8.1). `?category=` still works but is not
+  needed.
 - 2026-10-22: a published font can now be unpublished or deleted, like a sound (§8.4). Its id
   then answers 404; keep any copy already downloaded.
 - 2026-10-22: fonts (§8): the Trending list, lookups by id and by family name, downloads with
