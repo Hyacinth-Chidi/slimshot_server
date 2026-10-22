@@ -388,6 +388,7 @@ export const ModelName = {
   Category: 'Category',
   AssetFile: 'AssetFile',
   AudioAsset: 'AudioAsset',
+  FontAsset: 'FontAsset',
   UploadSession: 'UploadSession',
   User: 'User',
   UserEntitlement: 'UserEntitlement',
@@ -419,7 +420,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "asset" | "category" | "assetFile" | "audioAsset" | "uploadSession" | "user" | "userEntitlement" | "storageProvider" | "auditLog" | "adminUser" | "refreshToken" | "providerCredential" | "device" | "userSession" | "userRefreshToken" | "creditTransaction" | "bonusClaim" | "referral" | "creditSettings" | "pricingRule"
+    modelProps: "asset" | "category" | "assetFile" | "audioAsset" | "fontAsset" | "uploadSession" | "user" | "userEntitlement" | "storageProvider" | "auditLog" | "adminUser" | "refreshToken" | "providerCredential" | "device" | "userSession" | "userRefreshToken" | "creditTransaction" | "bonusClaim" | "referral" | "creditSettings" | "pricingRule"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -716,6 +717,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.AudioAssetCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.AudioAssetCountAggregateOutputType> | number
+        }
+      }
+    }
+    FontAsset: {
+      payload: Prisma.$FontAssetPayload<ExtArgs>
+      fields: Prisma.FontAssetFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.FontAssetFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.FontAssetFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>
+        }
+        findFirst: {
+          args: Prisma.FontAssetFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.FontAssetFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>
+        }
+        findMany: {
+          args: Prisma.FontAssetFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>[]
+        }
+        create: {
+          args: Prisma.FontAssetCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>
+        }
+        createMany: {
+          args: Prisma.FontAssetCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.FontAssetCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>[]
+        }
+        delete: {
+          args: Prisma.FontAssetDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>
+        }
+        update: {
+          args: Prisma.FontAssetUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>
+        }
+        deleteMany: {
+          args: Prisma.FontAssetDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.FontAssetUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.FontAssetUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>[]
+        }
+        upsert: {
+          args: Prisma.FontAssetUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$FontAssetPayload>
+        }
+        aggregate: {
+          args: Prisma.FontAssetAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateFontAsset>
+        }
+        groupBy: {
+          args: Prisma.FontAssetGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FontAssetGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.FontAssetCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.FontAssetCountAggregateOutputType> | number
         }
       }
     }
@@ -2020,6 +2095,25 @@ export const AudioAssetScalarFieldEnum = {
 export type AudioAssetScalarFieldEnum = (typeof AudioAssetScalarFieldEnum)[keyof typeof AudioAssetScalarFieldEnum]
 
 
+export const FontAssetScalarFieldEnum = {
+  assetId: 'assetId',
+  familyName: 'familyName',
+  styleName: 'styleName',
+  fullName: 'fullName',
+  postscriptName: 'postscriptName',
+  familyKey: 'familyKey',
+  styleKey: 'styleKey',
+  version: 'version',
+  sortOrder: 'sortOrder',
+  firstPublishedAt: 'firstPublishedAt',
+  license: 'license',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type FontAssetScalarFieldEnum = (typeof FontAssetScalarFieldEnum)[keyof typeof FontAssetScalarFieldEnum]
+
+
 export const UploadSessionScalarFieldEnum = {
   id: 'id',
   assetId: 'assetId',
@@ -2741,6 +2835,7 @@ export type GlobalOmitConfig = {
   category?: Prisma.CategoryOmit
   assetFile?: Prisma.AssetFileOmit
   audioAsset?: Prisma.AudioAssetOmit
+  fontAsset?: Prisma.FontAssetOmit
   uploadSession?: Prisma.UploadSessionOmit
   user?: Prisma.UserOmit
   userEntitlement?: Prisma.UserEntitlementOmit

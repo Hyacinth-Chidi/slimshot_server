@@ -55,6 +55,7 @@ export const ModelName = {
   Category: 'Category',
   AssetFile: 'AssetFile',
   AudioAsset: 'AudioAsset',
+  FontAsset: 'FontAsset',
   UploadSession: 'UploadSession',
   User: 'User',
   UserEntitlement: 'UserEntitlement',
@@ -165,6 +166,25 @@ export const AudioAssetScalarFieldEnum = {
 } as const
 
 export type AudioAssetScalarFieldEnum = (typeof AudioAssetScalarFieldEnum)[keyof typeof AudioAssetScalarFieldEnum]
+
+
+export const FontAssetScalarFieldEnum = {
+  assetId: 'assetId',
+  familyName: 'familyName',
+  styleName: 'styleName',
+  fullName: 'fullName',
+  postscriptName: 'postscriptName',
+  familyKey: 'familyKey',
+  styleKey: 'styleKey',
+  version: 'version',
+  sortOrder: 'sortOrder',
+  firstPublishedAt: 'firstPublishedAt',
+  license: 'license',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type FontAssetScalarFieldEnum = (typeof FontAssetScalarFieldEnum)[keyof typeof FontAssetScalarFieldEnum]
 
 
 export const UploadSessionScalarFieldEnum = {

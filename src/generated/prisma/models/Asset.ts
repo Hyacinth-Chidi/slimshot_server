@@ -341,6 +341,7 @@ export type AssetWhereInput = {
   updatedBy?: Prisma.XOR<Prisma.AdminUserNullableScalarRelationFilter, Prisma.AdminUserWhereInput> | null
   files?: Prisma.AssetFileListRelationFilter
   audio?: Prisma.XOR<Prisma.AudioAssetNullableScalarRelationFilter, Prisma.AudioAssetWhereInput> | null
+  font?: Prisma.XOR<Prisma.FontAssetNullableScalarRelationFilter, Prisma.FontAssetWhereInput> | null
   sessions?: Prisma.UploadSessionListRelationFilter
   category?: Prisma.XOR<Prisma.CategoryNullableScalarRelationFilter, Prisma.CategoryWhereInput> | null
 }
@@ -371,6 +372,7 @@ export type AssetOrderByWithRelationInput = {
   updatedBy?: Prisma.AdminUserOrderByWithRelationInput
   files?: Prisma.AssetFileOrderByRelationAggregateInput
   audio?: Prisma.AudioAssetOrderByWithRelationInput
+  font?: Prisma.FontAssetOrderByWithRelationInput
   sessions?: Prisma.UploadSessionOrderByRelationAggregateInput
   category?: Prisma.CategoryOrderByWithRelationInput
 }
@@ -405,6 +407,7 @@ export type AssetWhereUniqueInput = Prisma.AtLeast<{
   updatedBy?: Prisma.XOR<Prisma.AdminUserNullableScalarRelationFilter, Prisma.AdminUserWhereInput> | null
   files?: Prisma.AssetFileListRelationFilter
   audio?: Prisma.XOR<Prisma.AudioAssetNullableScalarRelationFilter, Prisma.AudioAssetWhereInput> | null
+  font?: Prisma.XOR<Prisma.FontAssetNullableScalarRelationFilter, Prisma.FontAssetWhereInput> | null
   sessions?: Prisma.UploadSessionListRelationFilter
   category?: Prisma.XOR<Prisma.CategoryNullableScalarRelationFilter, Prisma.CategoryWhereInput> | null
 }, "id" | "kind_slug">
@@ -485,6 +488,7 @@ export type AssetCreateInput = {
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
   category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
@@ -512,6 +516,7 @@ export type AssetUncheckedCreateInput = {
   categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
 
@@ -537,6 +542,7 @@ export type AssetUpdateInput = {
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
   category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
@@ -564,6 +570,7 @@ export type AssetUncheckedUpdateInput = {
   categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
 
@@ -839,6 +846,20 @@ export type AssetUpdateOneRequiredWithoutAudioNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.AssetUpdateToOneWithWhereWithoutAudioInput, Prisma.AssetUpdateWithoutAudioInput>, Prisma.AssetUncheckedUpdateWithoutAudioInput>
 }
 
+export type AssetCreateNestedOneWithoutFontInput = {
+  create?: Prisma.XOR<Prisma.AssetCreateWithoutFontInput, Prisma.AssetUncheckedCreateWithoutFontInput>
+  connectOrCreate?: Prisma.AssetCreateOrConnectWithoutFontInput
+  connect?: Prisma.AssetWhereUniqueInput
+}
+
+export type AssetUpdateOneRequiredWithoutFontNestedInput = {
+  create?: Prisma.XOR<Prisma.AssetCreateWithoutFontInput, Prisma.AssetUncheckedCreateWithoutFontInput>
+  connectOrCreate?: Prisma.AssetCreateOrConnectWithoutFontInput
+  upsert?: Prisma.AssetUpsertWithoutFontInput
+  connect?: Prisma.AssetWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.AssetUpdateToOneWithWhereWithoutFontInput, Prisma.AssetUpdateWithoutFontInput>, Prisma.AssetUncheckedUpdateWithoutFontInput>
+}
+
 export type AssetCreateNestedOneWithoutSessionsInput = {
   create?: Prisma.XOR<Prisma.AssetCreateWithoutSessionsInput, Prisma.AssetUncheckedCreateWithoutSessionsInput>
   connectOrCreate?: Prisma.AssetCreateOrConnectWithoutSessionsInput
@@ -1001,6 +1022,7 @@ export type AssetCreateWithoutCategoryInput = {
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
 }
 
@@ -1026,6 +1048,7 @@ export type AssetUncheckedCreateWithoutCategoryInput = {
   deletedAt?: Date | string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
 
@@ -1102,6 +1125,7 @@ export type AssetCreateWithoutFilesInput = {
   createdBy?: Prisma.AdminUserCreateNestedOneWithoutCreatedAssetsInput
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
   category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
@@ -1128,6 +1152,7 @@ export type AssetUncheckedCreateWithoutFilesInput = {
   deletedAt?: Date | string | null
   categoryId?: string | null
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
 
@@ -1168,6 +1193,7 @@ export type AssetUpdateWithoutFilesInput = {
   createdBy?: Prisma.AdminUserUpdateOneWithoutCreatedAssetsNestedInput
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
   category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
@@ -1194,6 +1220,7 @@ export type AssetUncheckedUpdateWithoutFilesInput = {
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
 
@@ -1218,6 +1245,7 @@ export type AssetCreateWithoutAudioInput = {
   createdBy?: Prisma.AdminUserCreateNestedOneWithoutCreatedAssetsInput
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
+  font?: Prisma.FontAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
   category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
@@ -1244,6 +1272,7 @@ export type AssetUncheckedCreateWithoutAudioInput = {
   deletedAt?: Date | string | null
   categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
+  font?: Prisma.FontAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
 
@@ -1284,6 +1313,7 @@ export type AssetUpdateWithoutAudioInput = {
   createdBy?: Prisma.AdminUserUpdateOneWithoutCreatedAssetsNestedInput
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
+  font?: Prisma.FontAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
   category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
@@ -1310,6 +1340,127 @@ export type AssetUncheckedUpdateWithoutAudioInput = {
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
+  font?: Prisma.FontAssetUncheckedUpdateOneWithoutAssetNestedInput
+  sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
+}
+
+export type AssetCreateWithoutFontInput = {
+  id?: string
+  kind: $Enums.AssetKind
+  slug: string
+  title: string
+  description?: string | null
+  authorName: string
+  visibility?: $Enums.Visibility
+  status?: $Enums.AssetStatus
+  moderationState?: $Enums.ModerationState
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: number
+  favoriteCount?: number
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  owner?: Prisma.UserCreateNestedOneWithoutAssetsInput
+  createdBy?: Prisma.AdminUserCreateNestedOneWithoutCreatedAssetsInput
+  updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
+  files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
+  audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
+  category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
+}
+
+export type AssetUncheckedCreateWithoutFontInput = {
+  id?: string
+  kind: $Enums.AssetKind
+  slug: string
+  title: string
+  description?: string | null
+  authorName: string
+  ownerId?: string | null
+  visibility?: $Enums.Visibility
+  status?: $Enums.AssetStatus
+  moderationState?: $Enums.ModerationState
+  createdById?: string | null
+  updatedById?: string | null
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: number
+  favoriteCount?: number
+  publishedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  categoryId?: string | null
+  files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
+  audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
+}
+
+export type AssetCreateOrConnectWithoutFontInput = {
+  where: Prisma.AssetWhereUniqueInput
+  create: Prisma.XOR<Prisma.AssetCreateWithoutFontInput, Prisma.AssetUncheckedCreateWithoutFontInput>
+}
+
+export type AssetUpsertWithoutFontInput = {
+  update: Prisma.XOR<Prisma.AssetUpdateWithoutFontInput, Prisma.AssetUncheckedUpdateWithoutFontInput>
+  create: Prisma.XOR<Prisma.AssetCreateWithoutFontInput, Prisma.AssetUncheckedCreateWithoutFontInput>
+  where?: Prisma.AssetWhereInput
+}
+
+export type AssetUpdateToOneWithWhereWithoutFontInput = {
+  where?: Prisma.AssetWhereInput
+  data: Prisma.XOR<Prisma.AssetUpdateWithoutFontInput, Prisma.AssetUncheckedUpdateWithoutFontInput>
+}
+
+export type AssetUpdateWithoutFontInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssetKindFieldUpdateOperationsInput | $Enums.AssetKind
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorName?: Prisma.StringFieldUpdateOperationsInput | string
+  visibility?: Prisma.EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+  status?: Prisma.EnumAssetStatusFieldUpdateOperationsInput | $Enums.AssetStatus
+  moderationState?: Prisma.EnumModerationStateFieldUpdateOperationsInput | $Enums.ModerationState
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: Prisma.IntFieldUpdateOperationsInput | number
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  owner?: Prisma.UserUpdateOneWithoutAssetsNestedInput
+  createdBy?: Prisma.AdminUserUpdateOneWithoutCreatedAssetsNestedInput
+  updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
+  files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
+  audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
+  category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
+}
+
+export type AssetUncheckedUpdateWithoutFontInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  kind?: Prisma.EnumAssetKindFieldUpdateOperationsInput | $Enums.AssetKind
+  slug?: Prisma.StringFieldUpdateOperationsInput | string
+  title?: Prisma.StringFieldUpdateOperationsInput | string
+  description?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  authorName?: Prisma.StringFieldUpdateOperationsInput | string
+  ownerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  visibility?: Prisma.EnumVisibilityFieldUpdateOperationsInput | $Enums.Visibility
+  status?: Prisma.EnumAssetStatusFieldUpdateOperationsInput | $Enums.AssetStatus
+  moderationState?: Prisma.EnumModerationStateFieldUpdateOperationsInput | $Enums.ModerationState
+  createdById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  attributes?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  downloadCount?: Prisma.IntFieldUpdateOperationsInput | number
+  favoriteCount?: Prisma.IntFieldUpdateOperationsInput | number
+  publishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
+  audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
 
@@ -1335,6 +1486,7 @@ export type AssetCreateWithoutSessionsInput = {
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetCreateNestedOneWithoutAssetInput
   category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
 
@@ -1361,6 +1513,7 @@ export type AssetUncheckedCreateWithoutSessionsInput = {
   categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetUncheckedCreateNestedOneWithoutAssetInput
 }
 
 export type AssetCreateOrConnectWithoutSessionsInput = {
@@ -1401,6 +1554,7 @@ export type AssetUpdateWithoutSessionsInput = {
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUpdateOneWithoutAssetNestedInput
   category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
 
@@ -1427,6 +1581,7 @@ export type AssetUncheckedUpdateWithoutSessionsInput = {
   categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUncheckedUpdateOneWithoutAssetNestedInput
 }
 
 export type AssetCreateWithoutOwnerInput = {
@@ -1450,6 +1605,7 @@ export type AssetCreateWithoutOwnerInput = {
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
   category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
@@ -1476,6 +1632,7 @@ export type AssetUncheckedCreateWithoutOwnerInput = {
   categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
 
@@ -1526,6 +1683,7 @@ export type AssetCreateWithoutCreatedByInput = {
   updatedBy?: Prisma.AdminUserCreateNestedOneWithoutUpdatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
   category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
@@ -1552,6 +1710,7 @@ export type AssetUncheckedCreateWithoutCreatedByInput = {
   categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
 
@@ -1586,6 +1745,7 @@ export type AssetCreateWithoutUpdatedByInput = {
   createdBy?: Prisma.AdminUserCreateNestedOneWithoutCreatedAssetsInput
   files?: Prisma.AssetFileCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionCreateNestedManyWithoutAssetInput
   category?: Prisma.CategoryCreateNestedOneWithoutAssetsInput
 }
@@ -1612,6 +1772,7 @@ export type AssetUncheckedCreateWithoutUpdatedByInput = {
   categoryId?: string | null
   files?: Prisma.AssetFileUncheckedCreateNestedManyWithoutAssetInput
   audio?: Prisma.AudioAssetUncheckedCreateNestedOneWithoutAssetInput
+  font?: Prisma.FontAssetUncheckedCreateNestedOneWithoutAssetInput
   sessions?: Prisma.UploadSessionUncheckedCreateNestedManyWithoutAssetInput
 }
 
@@ -1701,6 +1862,7 @@ export type AssetUpdateWithoutCategoryInput = {
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
 }
 
@@ -1726,6 +1888,7 @@ export type AssetUncheckedUpdateWithoutCategoryInput = {
   deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
 
@@ -1794,6 +1957,7 @@ export type AssetUpdateWithoutOwnerInput = {
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
   category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
@@ -1820,6 +1984,7 @@ export type AssetUncheckedUpdateWithoutOwnerInput = {
   categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
 
@@ -1910,6 +2075,7 @@ export type AssetUpdateWithoutCreatedByInput = {
   updatedBy?: Prisma.AdminUserUpdateOneWithoutUpdatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
   category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
@@ -1936,6 +2102,7 @@ export type AssetUncheckedUpdateWithoutCreatedByInput = {
   categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
 
@@ -1982,6 +2149,7 @@ export type AssetUpdateWithoutUpdatedByInput = {
   createdBy?: Prisma.AdminUserUpdateOneWithoutCreatedAssetsNestedInput
   files?: Prisma.AssetFileUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUpdateManyWithoutAssetNestedInput
   category?: Prisma.CategoryUpdateOneWithoutAssetsNestedInput
 }
@@ -2008,6 +2176,7 @@ export type AssetUncheckedUpdateWithoutUpdatedByInput = {
   categoryId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   files?: Prisma.AssetFileUncheckedUpdateManyWithoutAssetNestedInput
   audio?: Prisma.AudioAssetUncheckedUpdateOneWithoutAssetNestedInput
+  font?: Prisma.FontAssetUncheckedUpdateOneWithoutAssetNestedInput
   sessions?: Prisma.UploadSessionUncheckedUpdateManyWithoutAssetNestedInput
 }
 
@@ -2099,6 +2268,7 @@ export type AssetSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   updatedBy?: boolean | Prisma.Asset$updatedByArgs<ExtArgs>
   files?: boolean | Prisma.Asset$filesArgs<ExtArgs>
   audio?: boolean | Prisma.Asset$audioArgs<ExtArgs>
+  font?: boolean | Prisma.Asset$fontArgs<ExtArgs>
   sessions?: boolean | Prisma.Asset$sessionsArgs<ExtArgs>
   category?: boolean | Prisma.Asset$categoryArgs<ExtArgs>
   _count?: boolean | Prisma.AssetCountOutputTypeDefaultArgs<ExtArgs>
@@ -2188,6 +2358,7 @@ export type AssetInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   updatedBy?: boolean | Prisma.Asset$updatedByArgs<ExtArgs>
   files?: boolean | Prisma.Asset$filesArgs<ExtArgs>
   audio?: boolean | Prisma.Asset$audioArgs<ExtArgs>
+  font?: boolean | Prisma.Asset$fontArgs<ExtArgs>
   sessions?: boolean | Prisma.Asset$sessionsArgs<ExtArgs>
   category?: boolean | Prisma.Asset$categoryArgs<ExtArgs>
   _count?: boolean | Prisma.AssetCountOutputTypeDefaultArgs<ExtArgs>
@@ -2213,6 +2384,7 @@ export type $AssetPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs 
     updatedBy: Prisma.$AdminUserPayload<ExtArgs> | null
     files: Prisma.$AssetFilePayload<ExtArgs>[]
     audio: Prisma.$AudioAssetPayload<ExtArgs> | null
+    font: Prisma.$FontAssetPayload<ExtArgs> | null
     sessions: Prisma.$UploadSessionPayload<ExtArgs>[]
     category: Prisma.$CategoryPayload<ExtArgs> | null
   }
@@ -2636,6 +2808,7 @@ export interface Prisma__AssetClient<T, Null = never, ExtArgs extends runtime.Ty
   updatedBy<T extends Prisma.Asset$updatedByArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$updatedByArgs<ExtArgs>>): Prisma.Prisma__AdminUserClient<runtime.Types.Result.GetResult<Prisma.$AdminUserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   files<T extends Prisma.Asset$filesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$filesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssetFilePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   audio<T extends Prisma.Asset$audioArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$audioArgs<ExtArgs>>): Prisma.Prisma__AudioAssetClient<runtime.Types.Result.GetResult<Prisma.$AudioAssetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  font<T extends Prisma.Asset$fontArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$fontArgs<ExtArgs>>): Prisma.Prisma__FontAssetClient<runtime.Types.Result.GetResult<Prisma.$FontAssetPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   sessions<T extends Prisma.Asset$sessionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$sessionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UploadSessionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   category<T extends Prisma.Asset$categoryArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Asset$categoryArgs<ExtArgs>>): Prisma.Prisma__CategoryClient<runtime.Types.Result.GetResult<Prisma.$CategoryPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
@@ -3185,6 +3358,25 @@ export type Asset$audioArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
    */
   include?: Prisma.AudioAssetInclude<ExtArgs> | null
   where?: Prisma.AudioAssetWhereInput
+}
+
+/**
+ * Asset.font
+ */
+export type Asset$fontArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the FontAsset
+   */
+  select?: Prisma.FontAssetSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the FontAsset
+   */
+  omit?: Prisma.FontAssetOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.FontAssetInclude<ExtArgs> | null
+  where?: Prisma.FontAssetWhereInput
 }
 
 /**

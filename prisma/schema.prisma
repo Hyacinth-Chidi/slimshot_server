@@ -86,6 +86,7 @@ model Asset {
   updatedBy AdminUser?      @relation("AssetUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   files     AssetFile[]
   audio     AudioAsset?
+  font      FontAsset?
   sessions  UploadSession[]
   category  Category?       @relation(fields: [categoryId], references: [id])
 
@@ -151,6 +152,34 @@ model AudioAsset {
   channels    Int?
 
   asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+/// One font face (one file). Names are read from the file; the key columns hold
+/// them lower-cased, so the same face can't be uploaded twice in another case.
+/// A never-published font that is deleted loses this row, freeing its face.
+model FontAsset {
+  assetId          String    @id
+  familyName       String
+  styleName        String
+  fullName         String
+  postscriptName   String?
+  familyKey        String
+  styleKey         String
+  /// Bumped by each new version of the file; the app re-downloads when it is higher.
+  version          Int       @default(1)
+  /// Position in its category (Trending), top to bottom.
+  sortOrder        Int       @default(0)
+  /// Set on the first publish and never cleared: a published font stays available for good.
+  firstPublishedAt DateTime?
+  /// For the owner's records only; never sent to the app.
+  license          String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([familyKey, styleKey])
+  @@index([sortOrder])
 }
 
 model UploadSession {

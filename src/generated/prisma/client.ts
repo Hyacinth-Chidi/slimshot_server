@@ -60,6 +60,13 @@ export type AssetFile = Prisma.AssetFileModel
  */
 export type AudioAsset = Prisma.AudioAssetModel
 /**
+ * Model FontAsset
+ * One font face (one file). Names are read from the file; the key columns hold
+ * them lower-cased, so the same face can't be uploaded twice in another case.
+ * A never-published font that is deleted loses this row, freeing its face.
+ */
+export type FontAsset = Prisma.FontAssetModel
+/**
  * Model UploadSession
  * 
  */
