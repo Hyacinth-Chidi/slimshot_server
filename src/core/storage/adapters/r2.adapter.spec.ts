@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'node:stream';
 
 import { UnreadableUploadError, type R2Config } from '../storage-adapter.interface';
@@ -191,5 +191,43 @@ describe('R2Adapter.verifyUpload details', () => {
     const adapter = new R2Adapter('prov-r2', CONFIG, { client });
     const remote = await adapter.verifyUpload('slimshot/fonts/f.ttf', inspect);
     expect(remote.details).toEqual(details);
+  });
+});
+
+describe('R2Adapter whole-object reads and writes', () => {
+  it('reads an object into memory', async () => {
+    const client = clientReturning(() => ({
+      Body: Readable.from([Buffer.from('ab'), Buffer.from('cd')], { objectMode: false }),
+    }));
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
+    await expect(adapter.getObject('slimshot/fonts/f.ttf')).resolves.toEqual(Buffer.from('abcd'));
+    const command = client.send.mock.calls[0][0] as GetObjectCommand;
+    expect(command).toBeInstanceOf(GetObjectCommand);
+    expect(command.input).toEqual({ Bucket: 'slimshot-audio', Key: 'slimshot/fonts/f.ttf' });
+  });
+
+  it('says a missing object is not in storage', async () => {
+    const client = clientReturning(() => {
+      throw Object.assign(new Error('nope'), { name: 'NoSuchKey', $metadata: { httpStatusCode: 404 } });
+    });
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
+    await expect(adapter.getObject('slimshot/fonts/gone.ttf')).rejects.toThrow(
+      'Object not found in storage: slimshot/fonts/gone.ttf',
+    );
+  });
+
+  it('writes an object with its type, cached for good (keys never change)', async () => {
+    const client = clientReturning(() => ({}));
+    const adapter = new R2Adapter('prov-r2', CONFIG, { client });
+    await adapter.putObject('slimshot/fonts/previews/p.png', Buffer.from('png'), 'image/png');
+    const command = client.send.mock.calls[0][0] as PutObjectCommand;
+    expect(command).toBeInstanceOf(PutObjectCommand);
+    expect(command.input).toEqual({
+      Bucket: 'slimshot-audio',
+      Key: 'slimshot/fonts/previews/p.png',
+      Body: Buffer.from('png'),
+      ContentType: 'image/png',
+      CacheControl: 'public, max-age=31536000, immutable',
+    });
   });
 });

@@ -138,6 +138,36 @@ export class R2Adapter implements StorageProviderAdapter {
     );
   }
 
+  async getObject(storageKey: string): Promise<Buffer> {
+    let object: { Body?: unknown };
+    try {
+      object = (await this.client.send(
+        new GetObjectCommand({ Bucket: this.config.bucket, Key: storageKey }),
+      )) as typeof object;
+    } catch (error) {
+      if (isMissing(error)) throw new Error(`Object not found in storage: ${storageKey}`);
+      throw error;
+    }
+    const chunks: Buffer[] = [];
+    for await (const chunk of object.Body as Readable) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array));
+    }
+    return Buffer.concat(chunks);
+  }
+
+  async putObject(storageKey: string, body: Buffer, contentType: string): Promise<void> {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.config.bucket,
+        Key: storageKey,
+        Body: body,
+        ContentType: contentType,
+        // Keys are never reused, so the CDN and the app can keep a copy for good.
+        CacheControl: 'public, max-age=31536000, immutable',
+      }),
+    );
+  }
+
   async delete(storageKey: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.config.bucket, Key: storageKey }));
   }

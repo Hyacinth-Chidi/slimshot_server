@@ -64,6 +64,10 @@ export interface StorageProviderAdapter {
   getDeliveryUrl(storageKey: string): string;
   getSignedUrl(storageKey: string, ttlSeconds: number): Promise<string>;
   delete(storageKey: string): Promise<void>;
+  /** The whole object in memory (small files only: a font, say). */
+  getObject(storageKey: string): Promise<Buffer>;
+  /** Stores a file the server made itself (a font's preview, say). Keys are never reused. */
+  putObject(storageKey: string, body: Buffer, contentType: string): Promise<void>;
 }
 
 /** The upload arrived, but its content is not something the catalogue accepts. */
