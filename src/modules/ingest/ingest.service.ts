@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpStatus,
   Inject,
   Injectable,
   Logger,
@@ -12,6 +13,8 @@ import { uploadConfig, type UploadConfig, type UploadLimits } from '../../config
 import { AssetKind, AssetStatus, FileRole } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../core/audit/audit.service';
+import { appError } from '../../core/errors/app-error';
+import { ErrorCode } from '../../core/errors/error-codes';
 import { CacheService } from '../../core/cache/cache.service';
 import { QueueService } from '../../core/queue/queue.service';
 import { probeAudio } from '../../core/storage/audio-probe';
@@ -22,6 +25,7 @@ import {
 } from '../../core/storage/storage-adapter.interface';
 import { StorageRegistry } from '../../core/storage/storage.registry';
 import { KindRegistry } from '../assets/kind-registry';
+import { FontsService } from '../fonts/fonts.service';
 import { assertCategoryAssignable } from '../taxonomy/category-rules';
 import { CreateUploadTicketDto } from './dto/create-upload-ticket.dto';
 import { FinalizeUploadDto } from './dto/finalize-upload.dto';
@@ -59,6 +63,7 @@ export class IngestService {
     private readonly queue: QueueService,
     private readonly audit: AuditService,
     private readonly cache: CacheService,
+    private readonly fonts: FontsService,
   ) {}
 
   private limitsFor(kind: AssetKind): UploadLimits {
@@ -72,6 +77,7 @@ export class IngestService {
     actorId: string,
   ): Promise<TicketResponse> {
     if (dto.role === FileRole.thumbnail) return this.createCoverTicket(dto, actorId);
+    if (dto.assetId) return this.createVersionTicket(dto, actorId);
 
     const { mimeTypes: allowedMimeTypes, maxBytes } = this.limitsFor(dto.kind);
 
@@ -174,6 +180,8 @@ export class IngestService {
 
     const adapter = await this.storage.get(session.storageId);
     if (session.role === FileRole.thumbnail) return this.finalizeCover(session, adapter, actorId);
+    // Fonts (new faces and new versions) have their own checks, names and preview.
+    if (session.asset.kind === AssetKind.font) return this.fonts.finalizeUpload(session, adapter, actorId);
 
     // The only source of truth for size, format and duration is the stored
     // file itself, read back from the provider.
@@ -292,6 +300,54 @@ export class IngestService {
     return {
       assetId: session.assetId,
       status: willProcess ? AssetStatus.processing : AssetStatus.ready,
+    };
+  }
+
+  /** A new version of a font's file: same font, same face, version + 1 on finalize. */
+  private async createVersionTicket(dto: CreateUploadTicketDto, actorId: string): Promise<TicketResponse> {
+    const asset = await this.prisma.asset.findFirst({ where: { id: dto.assetId!, deletedAt: null } });
+    if (!asset) throw new NotFoundException(`Asset not found: ${dto.assetId}`);
+    if (asset.kind !== AssetKind.font) {
+      throw appError(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.VALIDATION_FAILED, 'Only fonts take a new version of their file.');
+    }
+    const { mimeTypes, maxBytes } = this.limitsFor(AssetKind.font);
+    this.kinds.assertAccepts(AssetKind.font, dto.mimeType, dto.byteSize, mimeTypes, maxBytes);
+
+    const adapter = await this.storage.getDefault();
+    const ticket = await adapter.createUploadTicket({
+      folder: 'slimshot/fonts',
+      filename: dto.filename,
+      mimeType: dto.mimeType,
+      byteSize: dto.byteSize,
+      ttlSeconds: this.upload.ticketTtlSeconds,
+    });
+    const session = await this.prisma.uploadSession.create({
+      data: {
+        assetId: asset.id,
+        role: FileRole.original,
+        storageId: adapter.id,
+        storageKey: ticket.storageKey,
+        expiresAt: ticket.expiresAt,
+        declaredMime: dto.mimeType,
+        declaredSize: dto.byteSize,
+        createdById: actorId,
+      },
+    });
+    await this.audit.record({
+      actorId,
+      actorType: 'admin',
+      action: 'font.version.ticket',
+      entityType: 'Asset',
+      entityId: asset.id,
+    });
+    return {
+      assetId: asset.id,
+      sessionId: session.id,
+      uploadUrl: ticket.uploadUrl,
+      method: ticket.method,
+      headers: ticket.headers,
+      storageKey: ticket.storageKey,
+      expiresAt: ticket.expiresAt,
     };
   }
 

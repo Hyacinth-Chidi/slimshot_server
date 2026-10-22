@@ -4,16 +4,20 @@ import { IsEnum, IsIn, IsInt, IsOptional, IsString, Min, ValidateIf } from 'clas
 import { AssetKind, FileRole } from '../../../generated/prisma/enums';
 
 export class CreateUploadTicketDto {
-  /** `thumbnail` uploads a cover for an existing asset (`assetId`); default `original` creates a new asset. */
+  /**
+   * `thumbnail` uploads a cover for an existing asset (`assetId`). `original`
+   * (the default) creates a new asset, or with `assetId` uploads a new version
+   * of an existing font.
+   */
   @IsOptional()
   @IsIn([FileRole.original, FileRole.thumbnail])
   role?: FileRole;
 
-  @ValidateIf((o: CreateUploadTicketDto) => o.role === FileRole.thumbnail)
+  @ValidateIf((o: CreateUploadTicketDto) => o.role === FileRole.thumbnail || o.assetId !== undefined)
   @IsString()
   assetId?: string;
 
-  @ValidateIf((o: CreateUploadTicketDto) => o.role !== FileRole.thumbnail)
+  @ValidateIf((o: CreateUploadTicketDto) => o.role !== FileRole.thumbnail && o.assetId === undefined)
   @IsEnum(AssetKind)
   kind!: AssetKind;
 

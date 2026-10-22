@@ -49,7 +49,10 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
     },
     asset: {
       findFirst: jest.fn(async ({ where }: { where: { id: string } }): Promise<Record<string, unknown> | null> =>
-        where.id === 'asset-1' ? { id: 'asset-1', kind: 'audio', status: 'published', deletedAt: null } : null,
+        ({
+          'asset-1': { id: 'asset-1', kind: 'audio', status: 'published', deletedAt: null },
+          'font-1': { id: 'font-1', kind: 'font', status: 'published', deletedAt: null },
+        } as Record<string, Record<string, unknown>>)[where.id] ?? null,
       ),
       create: jest.fn(async ({ data }: { data: Record<string, unknown> }) => ({
         id: 'asset-1',
@@ -100,6 +103,7 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
     cover: { maxBytes: 5_242_880, mimeTypes: ['image/jpeg', 'image/png', 'image/webp'] },
   };
   const cache = { bumpGeneration: jest.fn(async () => true) };
+  const fonts = { finalizeUpload: jest.fn(async () => ({ assetId: 'font-1', status: 'published' })) };
 
   const queue = { enqueueAssetProcessing: jest.fn(async () => 'job-1') };
 
@@ -111,9 +115,10 @@ function build(overrides: { session?: Record<string, unknown> | null } = {}) {
     queue as never,
     { record: jest.fn(async () => undefined) } as never,
     cache as never,
+    fonts as never,
   );
 
-  return { svc, prisma, adapter, created, sessions, queue, cache };
+  return { svc, prisma, adapter, created, sessions, queue, cache, fonts };
 }
 
 describe('IngestService.createTicket', () => {
@@ -552,5 +557,52 @@ describe('IngestService font tickets', () => {
   it('refuses a font over 10 MB', async () => {
     const { svc } = build();
     await expect(svc.createTicket({ ...FONT, byteSize: 10_485_761 }, 'admin-1')).rejects.toThrow(/exceeds/);
+  });
+});
+
+describe('IngestService new font versions', () => {
+  const VERSION = { role: FileRole.original, assetId: 'font-1', filename: 'Lato-Regular.ttf', mimeType: 'font/ttf', byteSize: 656_568 };
+
+  it('tickets a new version of a font without creating an asset', async () => {
+    const { svc, prisma, adapter } = build();
+    const res = await svc.createTicket(VERSION as never, 'admin-1');
+    expect(prisma.asset.create).not.toHaveBeenCalled();
+    expect(adapter.createUploadTicket).toHaveBeenCalledWith(expect.objectContaining({ folder: 'slimshot/fonts' }));
+    expect(prisma.uploadSession.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ assetId: 'font-1', role: FileRole.original }) }),
+    );
+    expect(res.assetId).toBe('font-1');
+  });
+
+  it('refuses a new version of anything but a font', async () => {
+    const { svc } = build();
+    await expect(svc.createTicket({ ...VERSION, assetId: 'asset-1' } as never, 'admin-1')).rejects.toMatchObject({
+      status: 422,
+    });
+  });
+
+  it('404s a new version of an unknown asset', async () => {
+    const { svc } = build();
+    await expect(svc.createTicket({ ...VERSION, assetId: 'gone' } as never, 'admin-1')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('hands a font upload to the fonts service to finalize', async () => {
+    const fontSession = {
+      id: 'sess-f',
+      assetId: 'font-1',
+      role: FileRole.original,
+      storageId: 'prov-1',
+      storageKey: 'slimshot/fonts/x.ttf',
+      state: 'pending',
+      expiresAt: new Date(Date.now() + 600_000),
+      declaredMime: 'font/ttf',
+      declaredSize: 10,
+      createdById: 'admin-1',
+      asset: { kind: AssetKind.font, status: 'draft', categoryId: null, title: 'x' },
+    };
+    const { svc, fonts, adapter } = build({ session: fontSession });
+    await expect(svc.finalize({ sessionId: 'sess-f' }, 'admin-1')).resolves.toEqual({ assetId: 'font-1', status: 'published' });
+    expect(fonts.finalizeUpload).toHaveBeenCalledWith(fontSession, adapter, 'admin-1');
+    expect(adapter.verifyUpload).not.toHaveBeenCalled();
   });
 });
