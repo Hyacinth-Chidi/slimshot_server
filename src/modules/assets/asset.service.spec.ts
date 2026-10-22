@@ -4,6 +4,7 @@ import { AssetKind, AssetStatus, FileRole } from '../../generated/prisma/enums';
 import { AssetService } from './asset.service';
 import { KindRegistry } from './kind-registry';
 import { AUDIO_DESCRIPTOR } from './kinds/audio/audio.descriptor';
+import { FONT_DESCRIPTOR } from './kinds/font/font.descriptor';
 
 function assetRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -45,6 +46,10 @@ const CATEGORIES = [
 
 function build(rows: Array<Record<string, unknown>> = [assetRow()]) {
   const prisma = {
+    fontAsset: {
+      update: jest.fn(async ({ data }: { data: Record<string, unknown> }) => data),
+      delete: jest.fn(async () => ({})),
+    },
     category: {
       findUnique: jest.fn(async ({ where }: { where: { id: string } }) =>
         CATEGORIES.find((c) => c.id === where.id) ?? null,
@@ -71,7 +76,7 @@ function build(rows: Array<Record<string, unknown>> = [assetRow()]) {
 
   const svc = new AssetService(
     prisma as never,
-    new KindRegistry([AUDIO_DESCRIPTOR]),
+    new KindRegistry([AUDIO_DESCRIPTOR, FONT_DESCRIPTOR]),
     cache as never,
     audit as never,
   );
@@ -263,5 +268,70 @@ describe('AssetService category filter', () => {
     const page = await svc.list({ categoryId: 'gone', limit: 25 } as never);
     expect(page).toEqual({ data: [], meta: { nextCursor: null } });
     expect(prisma.asset.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('AssetService font lifecycle', () => {
+  const preview = { role: FileRole.specimen, deliveryUrl: 'https://cdn.test/p.png', byteSize: 9, format: 'png', durationMs: null, width: 480, height: 160, variant: null };
+  const fontFile = { role: FileRole.original, deliveryUrl: 'https://cdn.test/f.ttf', byteSize: 9, format: 'ttf', durationMs: null, width: null, height: null, variant: { version: 1 } };
+  function fontRow(overrides: Record<string, unknown> = {}, font: Record<string, unknown> = {}) {
+    return assetRow({
+      id: 'font-1',
+      kind: AssetKind.font,
+      title: 'Lato Regular',
+      audio: null,
+      files: [fontFile, preview],
+      font: {
+        familyName: 'Lato', styleName: 'Regular', fullName: 'Lato Regular', postscriptName: 'Lato-Regular',
+        version: 1, sortOrder: 0, firstPublishedAt: null, license: 'OFL 1.1', ...font,
+      },
+      ...overrides,
+    });
+  }
+
+  it("shows the admin the font's names, version, order, licence and preview", async () => {
+    const { svc } = build([fontRow()]);
+    const view = await svc.getById('font-1');
+    expect(view.font).toEqual({
+      familyName: 'Lato', styleName: 'Regular', fullName: 'Lato Regular', postscriptName: 'Lato-Regular',
+      version: 1, sortOrder: 0, firstPublishedAt: null, license: 'OFL 1.1',
+    });
+    expect(view.files.specimen).toMatchObject({ url: 'https://cdn.test/p.png' });
+  });
+
+  it('gives sounds no font block', async () => {
+    const { svc } = build();
+    expect((await svc.getById('asset-1')).font).toBeNull();
+  });
+
+  it('refuses to publish a font with no preview', async () => {
+    const { svc } = build([fontRow({ files: [fontFile] })]);
+    await expect(svc.publish('font-1', 'admin-1')).rejects.toThrow('This font needs a preview before it can be published.');
+  });
+
+  it('records the first publish, and keeps that date on later publishes', async () => {
+    const { svc, prisma } = build([fontRow()]);
+    await svc.publish('font-1', 'admin-1');
+    expect(prisma.fontAsset.update).toHaveBeenCalledWith({
+      where: { assetId: 'font-1' },
+      data: { firstPublishedAt: expect.any(Date) },
+    });
+
+    const again = build([fontRow({ status: AssetStatus.archived }, { firstPublishedAt: new Date('2026-10-01') })]);
+    await again.svc.publish('font-1', 'admin-1');
+    expect(again.prisma.fontAsset.update).not.toHaveBeenCalled();
+  });
+
+  it.each(['unpublish', 'softDelete'] as const)('refuses to %s a font that was ever published', async (action) => {
+    const { svc, prisma } = build([fontRow({ status: AssetStatus.published }, { firstPublishedAt: new Date('2026-10-01') })]);
+    await expect(svc[action]('font-1', 'admin-1')).rejects.toMatchObject({ status: 409 });
+    expect(prisma.asset.update).not.toHaveBeenCalled();
+  });
+
+  it('deletes a never-published font and frees its face for a new upload', async () => {
+    const { svc, prisma } = build([fontRow()]);
+    await svc.softDelete('font-1', 'admin-1');
+    expect(prisma.asset.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ deletedAt: expect.any(Date) }) }));
+    expect(prisma.fontAsset.delete).toHaveBeenCalledWith({ where: { assetId: 'font-1' } });
   });
 });

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -15,7 +16,22 @@ import { ListAssetsDto } from './dto/list-assets.dto';
 import { UpdateAssetDto } from './dto/update-asset.dto';
 import { KindRegistry } from './kind-registry';
 
-const DETAIL_INCLUDE = { files: true, audio: true } as const;
+const DETAIL_INCLUDE = { files: true, audio: true, font: true } as const;
+
+/** A font's own facts, shown to the admin. Null for every other kind. */
+export interface FontView {
+  familyName: string;
+  styleName: string;
+  fullName: string;
+  postscriptName: string | null;
+  version: number;
+  sortOrder: number;
+  firstPublishedAt: string | null;
+  license: string | null;
+}
+
+const KEPT_FOR_GOOD =
+  'Published fonts stay available for the projects that use them. Take it out of Trending instead.';
 
 /** Only a fully processed asset may go live. */
 const PUBLISHABLE_FROM: readonly AssetStatus[] = [
@@ -30,6 +46,7 @@ export type AdminAsset = PublicAsset & {
   categoryId: string | null;
   createdAt: string;
   publishedAt: string | null;
+  font: FontView | null;
 };
 
 type AdminRow = AssetWithRelations & {
@@ -38,6 +55,7 @@ type AdminRow = AssetWithRelations & {
   categoryId: string | null;
   createdAt: Date;
   publishedAt: Date | null;
+  font?: (Omit<FontView, 'firstPublishedAt'> & { firstPublishedAt: Date | null }) | null;
 };
 
 function fileView(f: AssetWithRelations['files'][number]): PublicAssetFile {
@@ -146,6 +164,16 @@ export class AssetService {
           `It must finish processing first.`,
       );
     }
+    if (asset.kind === AssetKind.font) {
+      // The app shows fonts by their preview: a font without one would be a blank tile.
+      if (!asset.files.some((f) => f.role === FileRole.specimen)) {
+        throw new BadRequestException('This font needs a preview before it can be published.');
+      }
+      // Recorded once and never cleared: from now on the font stays available for good.
+      if (asset.font && !asset.font.firstPublishedAt) {
+        await this.prisma.fontAsset.update({ where: { assetId: id }, data: { firstPublishedAt: new Date() } });
+      }
+    }
 
     const updated = await this.prisma.asset.update({
       where: { id },
@@ -171,6 +199,7 @@ export class AssetService {
 
   async unpublish(id: string, actorId: string): Promise<AdminAsset> {
     const asset = await this.load(id);
+    this.assertNotKeptForGood(asset);
 
     const updated = await this.prisma.asset.update({
       where: { id },
@@ -196,11 +225,16 @@ export class AssetService {
 
   async softDelete(id: string, actorId: string): Promise<void> {
     const asset = await this.load(id);
+    this.assertNotKeptForGood(asset);
 
     await this.prisma.asset.update({
       where: { id },
       data: { deletedAt: new Date(), updatedById: actorId },
     });
+    // A never-published font that is deleted frees its face for a fresh upload.
+    if (asset.kind === AssetKind.font && asset.font) {
+      await this.prisma.fontAsset.delete({ where: { assetId: id } });
+    }
 
     await this.invalidate(asset.kind);
     await this.audit.record({
@@ -222,6 +256,13 @@ export class AssetService {
     return row as unknown as AdminRow;
   }
 
+  /** Fonts that were ever published are never unpublished or deleted: projects depend on them. */
+  private assertNotKeptForGood(asset: AdminRow): void {
+    if (asset.kind === AssetKind.font && asset.font?.firstPublishedAt) {
+      throw new ConflictException(KEPT_FOR_GOOD);
+    }
+  }
+
   private toAdmin(row: AdminRow): AdminAsset {
     const base = this.kinds.get(row.kind).toPublicDto(row);
     const original = row.files.find((f) => f.role === FileRole.original);
@@ -238,6 +279,18 @@ export class AssetService {
       categoryId: row.categoryId,
       createdAt: row.createdAt.toISOString(),
       publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
+      font: row.font
+        ? {
+            familyName: row.font.familyName,
+            styleName: row.font.styleName,
+            fullName: row.font.fullName,
+            postscriptName: row.font.postscriptName,
+            version: row.font.version,
+            sortOrder: row.font.sortOrder,
+            firstPublishedAt: row.font.firstPublishedAt ? row.font.firstPublishedAt.toISOString() : null,
+            license: row.font.license,
+          }
+        : null,
     };
   }
 

@@ -11,6 +11,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
+import { AssetKind } from '../../generated/prisma/enums';
 import { CurrentUser } from '../../core/auth/current-user.decorator';
 import { JwtAuthGuard } from '../../core/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../core/auth/permissions.guard';
@@ -21,6 +22,7 @@ import { UpdateAssetDto } from '../assets/dto/update-asset.dto';
 import { AccessTokenClaims } from '../auth/token.service';
 import { CreateUploadTicketDto } from '../ingest/dto/create-upload-ticket.dto';
 import { FinalizeUploadDto } from '../ingest/dto/finalize-upload.dto';
+import { FontsService } from '../fonts/fonts.service';
 import { IngestService } from '../ingest/ingest.service';
 
 @Controller('api/admin/v1/assets')
@@ -29,6 +31,7 @@ export class AdminAssetsController {
   constructor(
     private readonly assets: AssetService,
     private readonly ingest: IngestService,
+    private readonly fonts: FontsService,
   ) {}
 
   @Get()
@@ -72,10 +75,13 @@ export class AdminAssetsController {
     @Body() dto: UpdateAssetDto,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return {
-      success: true as const,
-      data: await this.assets.update(id, dto, user.sub),
-    };
+    const updated = await this.assets.update(id, dto, user.sub);
+    // A font's preview shows its display name, so a new name means a new preview.
+    if (updated.kind === AssetKind.font && dto.title !== undefined) {
+      await this.fonts.refreshPreview(id);
+      return { success: true as const, data: await this.assets.getById(id) };
+    }
+    return { success: true as const, data: updated };
   }
 
   @Post(':id/publish')

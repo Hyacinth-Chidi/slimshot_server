@@ -9,6 +9,8 @@ import { IngestModule } from '../ingest/ingest.module';
 import { ProvidersModule } from '../providers/providers.module';
 import { TaxonomyModule } from '../taxonomy/taxonomy.module';
 import { AdminAssetsController } from './admin-assets.controller';
+import { AdminFontsController } from './admin-fonts.controller';
+import { FontsModule } from '../fonts/fonts.module';
 import { AdminAuditController } from './admin-audit.controller';
 import { AdminCategoriesController } from './admin-categories.controller';
 import { AdminCreditSettingsController } from './admin-credit-settings.controller';
@@ -25,6 +27,7 @@ import { StatsService } from './stats.service';
 
 @Module({
   imports: [
+    FontsModule,
     AssetsModule,
     IngestModule,
     AuthModule,
@@ -36,6 +39,7 @@ import { StatsService } from './stats.service';
   ],
   controllers: [
     AdminAssetsController,
+    AdminFontsController,
     AdminKindsController,
     AdminCategoriesController,
     AdminStatsController,

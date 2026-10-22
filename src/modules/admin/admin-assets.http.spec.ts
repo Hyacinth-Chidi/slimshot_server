@@ -5,6 +5,7 @@ import { configureHttp } from '../../app.setup';
 import { JwtAuthGuard } from '../../core/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../core/auth/permissions.guard';
 import { AssetService } from '../assets/asset.service';
+import { FontsService } from '../fonts/fonts.service';
 import { IngestService } from '../ingest/ingest.service';
 import { AdminAssetsController } from './admin-assets.controller';
 
@@ -34,6 +35,7 @@ describe('admin assets API over HTTP: covers and categories', () => {
       providers: [
         { provide: AssetService, useValue: assets },
         { provide: IngestService, useValue: ingest },
+        { provide: FontsService, useValue: { refreshPreview: jest.fn() } },
       ],
     })
       .overrideGuard(JwtAuthGuard)

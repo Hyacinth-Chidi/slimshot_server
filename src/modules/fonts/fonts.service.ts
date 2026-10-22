@@ -1,8 +1,10 @@
-import { BadRequestException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 import { uploadConfig, type UploadConfig } from '../../config';
 import { AuditService } from '../../core/audit/audit.service';
+import { appError } from '../../core/errors/app-error';
+import { ErrorCode } from '../../core/errors/error-codes';
 import { CacheService } from '../../core/cache/cache.service';
 import { probeFont, type FontNames } from '../../core/storage/font-probe';
 import {
@@ -24,6 +26,27 @@ export interface FontUploadSession {
 }
 
 type StoredFile = { id: string; storageId: string; storageKey: string };
+
+/**
+ * The family names projects made before font ids can hold, spelled exactly as
+ * they store them (and as Google's Regular files name them). The app resolves
+ * its own bundled fonts and Roboto; this list never grows.
+ */
+export const LEGACY_FAMILIES = [
+  'Montserrat', 'Lato', 'Oswald', 'Bebas Neue', 'Playfair Display', 'Pacifico', 'Dancing Script', 'Poppins',
+  'Raleway', 'Inter', 'Nunito', 'Lobster', 'Caveat', 'Abril Fatface', 'Righteous', 'Permanent Marker',
+  'Press Start 2P', 'Cinzel', 'Sacramento',
+];
+
+export interface FontOrderRow {
+  id: string;
+  title: string;
+  styleName: string;
+  previewUrl: string | null;
+  status: AssetStatus;
+}
+
+const invalid = (message: string) => appError(HttpStatus.UNPROCESSABLE_ENTITY, ErrorCode.VALIDATION_FAILED, message);
 
 const faceName = (n: { familyName: string; styleName: string }) => `${n.familyName} ${n.styleName}`;
 const key = (s: string) => s.trim().toLowerCase();
@@ -196,6 +219,78 @@ export class FontsService {
       after: { version },
     });
     return { assetId: session.assetId, status: session.asset.status };
+  }
+
+  /** The fonts of a category in the app's order, for the dashboard's Trending order page. */
+  async order(categoryId: string): Promise<FontOrderRow[]> {
+    const rows = await this.prisma.asset.findMany({
+      where: { kind: AssetKind.font, deletedAt: null, categoryId },
+      orderBy: [{ font: { sortOrder: 'asc' } }, { id: 'asc' }],
+      include: { font: true, files: { where: { role: FileRole.specimen }, take: 1 } },
+    });
+    return rows.map((a) => ({
+      id: a.id,
+      title: a.title,
+      styleName: a.font?.styleName ?? '',
+      previewUrl: a.files[0]?.deliveryUrl ?? null,
+      status: a.status,
+    }));
+  }
+
+  /**
+   * Saves the order of a category's fonts. The list must hold every font in the
+   * category exactly once, so positions never collide; anything else changes nothing.
+   */
+  async reorder(categoryId: string, ids: string[], actorId: string): Promise<void> {
+    if (new Set(ids).size !== ids.length) throw invalid('Each font can appear only once in the order.');
+    const current = await this.order(categoryId);
+    const known = new Set(current.map((f) => f.id));
+    if (ids.length !== known.size || !ids.every((id) => known.has(id))) {
+      throw invalid('Send every font in this category, once each, in the new order.');
+    }
+    await this.prisma.$transaction(
+      ids.map((assetId, index) => this.prisma.fontAsset.update({ where: { assetId }, data: { sortOrder: index } })),
+    );
+    await this.cache.bumpGeneration(`catalog:${AssetKind.font}`);
+    await this.audit.record({
+      actorId,
+      actorType: 'admin',
+      action: 'font.reorder',
+      entityType: 'Category',
+      entityId: categoryId,
+      after: { count: ids.length },
+    });
+  }
+
+  /** The licence note: the owner's records only, never sent to the app. */
+  async updateLicense(assetId: string, license: string | null, actorId: string): Promise<void> {
+    const asset = await this.prisma.asset.findFirst({ where: { id: assetId, kind: AssetKind.font, deletedAt: null } });
+    if (!asset) throw new NotFoundException(`Font not found: ${assetId}`);
+    await this.prisma.fontAsset.update({ where: { assetId }, data: { license } });
+    await this.audit.record({
+      actorId,
+      actorType: 'admin',
+      action: 'font.license',
+      entityType: 'Asset',
+      entityId: assetId,
+    });
+  }
+
+  /** Which of the legacy families old projects can already find (a published Regular face). */
+  async legacyFamilies(): Promise<Array<{ familyName: string; fontId: string | null; published: boolean }>> {
+    const rows = await this.prisma.fontAsset.findMany({
+      where: { familyKey: { in: LEGACY_FAMILIES.map(key) }, styleKey: 'regular', asset: { deletedAt: null } },
+      include: { asset: { select: { status: true } } },
+    });
+    const byKey = new Map(rows.map((r) => [r.familyKey, r]));
+    return LEGACY_FAMILIES.map((familyName) => {
+      const row = byKey.get(key(familyName));
+      return {
+        familyName,
+        fontId: row?.assetId ?? null,
+        published: row?.asset.status === AssetStatus.published,
+      };
+    });
   }
 
   /** Redraws a font's preview from its current file and display name. False if it could not be drawn. */
