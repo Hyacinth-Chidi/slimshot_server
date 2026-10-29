@@ -25,8 +25,20 @@ FROM node:24-bookworm-slim AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 # tini forwards SIGTERM so Nest's shutdown hooks close the queue and database cleanly.
+# postgresql-client-17 is pg_dump for database backups. pg_dump refuses a server newer
+# than itself, so it must match postgres:17 in docker-compose.yml (a test keeps the two
+# in step), and Debian's own client is older: it comes from the PostgreSQL repository.
+# curl only fetches the repository's key, and goes again.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates tini \
+  && apt-get install -y --no-install-recommends openssl ca-certificates tini curl \
+  && install -d /usr/share/postgresql-common/pgdg \
+  && curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+  && . /etc/os-release \
+  && echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt ${VERSION_CODENAME}-pgdg main" \
+    > /etc/apt/sources.list.d/pgdg.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends postgresql-client-17 \
+  && apt-get purge -y --auto-remove curl \
   && rm -rf /var/lib/apt/lists/*
 COPY --from=prune --chown=node:node /app/package.json ./package.json
 COPY --from=prune --chown=node:node /app/node_modules ./node_modules
