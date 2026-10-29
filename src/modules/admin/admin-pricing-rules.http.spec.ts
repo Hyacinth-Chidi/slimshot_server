@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { configureHttp } from '../../app.setup';
 import { JwtAuthGuard } from '../../core/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../core/auth/permissions.guard';
+import { PrismaService } from '../../prisma/prisma.service';
 import { PricingService } from '../credits/pricing.service';
 import { AdminPricingRulesController } from './admin-pricing-rules.controller';
 
@@ -17,16 +18,29 @@ const pass = {
 describe('admin pricing rules API over HTTP', () => {
   let app: INestApplication;
   let base: string;
+  const RULES = [
+    { id: 'r1', version: 1, createdById: 'admin-1' },
+    { id: 'r0', version: 0, createdById: 'gone' },
+  ];
   const pricing = {
-    listRules: jest.fn(async () => []),
-    createRule: jest.fn(async () => ({ id: 'r1', version: 1 })),
-    activate: jest.fn(async () => []),
+    listRules: jest.fn(async () => RULES.map((r) => ({ ...r }))),
+    createRule: jest.fn(async () => ({ id: 'r2', version: 2, createdById: 'admin-1' })),
+    activate: jest.fn(async () => RULES.map((r) => ({ ...r }))),
   };
+  const prisma = {
+    adminUser: {
+      findMany: jest.fn(async () => [{ id: 'admin-1', email: 'o@example.com', name: 'Owner' }]),
+    },
+  };
+  const OWNER = { id: 'admin-1', email: 'o@example.com', name: 'Owner' };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminPricingRulesController],
-      providers: [{ provide: PricingService, useValue: pricing }],
+      providers: [
+        { provide: PricingService, useValue: pricing },
+        { provide: PrismaService, useValue: prisma },
+      ],
     })
       .overrideGuard(JwtAuthGuard)
       .useValue(pass)
@@ -81,6 +95,24 @@ describe('admin pricing rules API over HTTP', () => {
 
   it('422s listing an unknown feature', async () => {
     expect((await fetch(`${base}?feature=nope`)).status).toBe(422);
+  });
+
+  it('names who created each rule in the list', async () => {
+    const body = await (await fetch(`${base}?feature=auto_captions`)).json();
+    expect(body.data[0].createdBy).toEqual(OWNER);
+    // An admin id with no row left: the rule is still listed, its creator unknown.
+    expect(body.data[1].createdBy).toBeNull();
+  });
+
+  it('names the creator of a new rule', async () => {
+    const body = await (await post({ feature: 'auto_captions', mode: 'per_job', perJobCredits: 3 })).json();
+    expect(body.data.createdBy).toEqual(OWNER);
+  });
+
+  it('names the creators in the list activate returns', async () => {
+    const body = await (await fetch(`${base}/r1/activate`, { method: 'POST' })).json();
+    expect(body.data[0].createdBy).toEqual(OWNER);
+    expect(body.data[1].createdBy).toBeNull();
   });
 
   it('activates with 200', async () => {
