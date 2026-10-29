@@ -14,6 +14,7 @@ import { AdminPricingRulesController } from '../../modules/admin/admin-pricing-r
 import { AdminProvidersController } from '../../modules/admin/admin-providers.controller';
 import { AdminStatsController } from '../../modules/admin/admin-stats.controller';
 import { AdminUsersController } from '../../modules/admin/admin-users.controller';
+import { AdminUserStatsController } from '../../modules/admin/admin-user-stats.controller';
 
 /**
  * Controllers whose routes are deliberately reachable without a declared permission.
@@ -39,6 +40,7 @@ const ADMIN_CONTROLLERS: Array<new (...args: never[]) => object> = [
   AdminCreditsController,
   AdminUsersController,
   AdminCreditStatsController,
+  AdminUserStatsController,
 ];
 
 describe('admin route guarding', () => {

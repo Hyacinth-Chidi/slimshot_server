@@ -25,3 +25,12 @@ export async function adminsById(
   });
   return new Map(rows.map((row) => [row.id, { id: row.id, email: row.email, name: row.name }]));
 }
+
+/** Each row with its creator named, for "set by"; null once that admin has no row. One lookup. */
+export async function withCreators<T extends { createdById: string }>(
+  prisma: PrismaService,
+  rows: T[],
+): Promise<Array<T & { createdBy: AdminRef | null }>> {
+  const admins = await adminsById(prisma, rows.map((r) => r.createdById));
+  return rows.map((row) => ({ ...row, createdBy: admins.get(row.createdById) ?? null }));
+}

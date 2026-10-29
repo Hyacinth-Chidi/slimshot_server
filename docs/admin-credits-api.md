@@ -55,13 +55,25 @@ One record holding every amount, cap and limit. Changes apply within 30 seconds.
   "otpPerDevicePerHour": 10,
   "otpPerIpPerHour": 20,
   "updatedById": "admin id or null",
-  "updatedAt": "2026-10-04T09:00:00.000Z"
+  "updatedAt": "2026-10-04T09:00:00.000Z",
+  "lastChanged": {
+    "adRewardCredits": {
+      "at": "2026-10-27T10:00:00.000Z",
+      "by": { "id": "admin id", "email": "owner@slimshot.dev", "name": "Owner" }
+    }
+  }
 }
 ```
 
+`lastChanged` says when each field last changed and who changed it, read back from the audit
+log (each save is audited with the whole record before and after). A field that has never
+changed has no key; `by` is `null` when that admin no longer exists. `updatedAt` is for the
+whole record, so the dashboard uses `lastChanged` to show "Changed … by …" per group of fields.
+
 ### `PUT /credit-settings` (`credits.manage`)
 
-Send only the fields to change; the response is the whole record after the change. Unknown
+Send only the fields to change; the response is the whole record after the change, with
+`lastChanged` including this change. Unknown
 fields are refused with 422.
 
 | Field | Meaning | Allowed |
@@ -115,10 +127,15 @@ A rule as returned:
   "isActive": true,
   "note": "October prices",
   "createdById": "admin id",
+  "createdBy": { "id": "admin id", "email": "owner@slimshot.dev", "name": "Owner" },
   "createdAt": "…",
   "activatedAt": "…"
 }
 ```
+
+`createdBy` names the admin who created the version (`null` when that admin no longer exists).
+Every route below that returns rules includes it. `activatedAt` is the **last** time the version
+was made live: making an old version live again overwrites it.
 
 ### `GET /pricing-rules?feature=auto_captions` (`credits.manage`)
 
@@ -262,3 +279,52 @@ Credits granted and spent per UTC day and entry type, for the last `days` days i
 ```
 
 `granted` sums the positive entries and `spent` the negative ones, shown as a positive number.
+
+### `GET /stats/users?days=30` (`users.read`)
+
+How many app accounts exist, and how many were created in the last `days` days including today
+(1–365, default 30; the same UTC window as the credit stats). Deleted accounts are in neither.
+
+```json
+{ "total": 1284, "newInPeriod": 86 }
+```
+
+## 6. Elsewhere in the admin API
+
+Added for the dashboard redesign (2026-10-29). These routes are documented here because the
+dashboard reads them together with the ones above.
+
+### `GET /audit-logs` entries
+
+Each entry keeps its stored fields and gains three:
+
+```json
+{
+  "id": "…", "actorId": "admin id", "actorType": "admin", "action": "asset.publish",
+  "entityType": "Asset", "entityId": "…", "before": null, "after": null, "createdAt": "…",
+  "actor": { "id": "admin id", "email": "owner@slimshot.dev", "name": "Owner" },
+  "entityLabel": "UI Button Click",
+  "entityDeleted": false
+}
+```
+
+- `actor`: the admin, for `actorType: "admin"`; `null` for system and user entries or an admin
+  that no longer exists.
+- `entityLabel`: a sound or font's title, a user's username (or email), a category's name, a
+  price version (`"v3"`), a provider (`"Deepgram"`), an admin's email; `null` for things with no
+  name (credit settings, the font order) and for things removed outright.
+- `entityDeleted`: the thing is gone. A deleted sound or font keeps its title; a deleted user,
+  category or provider key has no label.
+
+### `GET /stats/summary`
+
+Gains `byKindStatus`, counts per kind and status (deleted assets excluded):
+
+```json
+{ "byKindStatus": { "audio": { "published": 5, "ready": 1 }, "font": { "published": 4 } } }
+```
+
+## Changelog
+
+- 2026-10-29: `lastChanged` on credit settings; `createdBy` on pricing rules; `GET /stats/users`;
+  `actor`, `entityLabel` and `entityDeleted` on audit entries; `byKindStatus` on the stats summary.
