@@ -26,6 +26,7 @@ import { AccountsModule } from './modules/accounts/accounts.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BackupsModule } from './modules/backups/backups.module';
 import { CaptionsModule } from './modules/captions/captions.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CreditsModule } from './modules/credits/credits.module';
@@ -74,6 +75,7 @@ import { PrismaModule } from './prisma/prisma.module';
     CreditsModule,
     RewardsModule,
     CaptionsModule,
+    BackupsModule,
   ],
 })
 export class AppModule {}
