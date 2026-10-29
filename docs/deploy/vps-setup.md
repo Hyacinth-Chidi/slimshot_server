@@ -29,12 +29,12 @@ Commands marked **PC** run in PowerShell on your computer. The others run on the
 | 0 | PC, DNS, GitHub | DNS record, push `main`, gather the `.env` values | once |
 | 1 | PC | SSH key login for root | once (skip if root already logs in without a password) |
 | 2 | VPS | Deploy key, clone into `/var/www/slimshot_server` | once |
-| 3 | VPS | `setup-vps.sh`: firewall, Docker, nginx, key-only SSH, backups | once |
+| 3 | VPS | `setup-vps.sh`: firewall, Docker, nginx, key-only SSH | once |
 | 4 | VPS | `.env`: generate one, or bring yours from the PC | once |
 | 5 | VPS | `setup-nginx.sh`: HTTPS certificate | once |
 | 6 | VPS | `deploy.sh`: first deploy, then check `/health` | once |
 | 7 | Dashboard, AdMob, Play Console | Point everything at the live API | once |
-| 8 | VPS and PC | Google Drive backups (`rclone`) | once |
+| 8 | Cloudflare, VPS | Backups to R2: a private bucket and one `.env` line | once |
 | 9 | VPS and GitHub | Automatic deploys on push (webhook) | once, optional |
 | 10 | VPS | Everyday commands | as needed |
 
@@ -100,6 +100,7 @@ payment method even on the free tier).
    details**) → **Create Account API token** → name `slimshot-server` → permission **Object
    Read & Write** → **Apply to specific buckets only** → `slimshot-audio` → **Create**.
    Copy the **Access Key ID** and **Secret Access Key** now: the secret is shown only once.
+   (Step 8 adds the private backup bucket to this same token.)
 5. **Note the account ID**: the 32-character **Account ID** on the R2 overview page.
 
 These become five `.env` lines (step 4):
@@ -197,12 +198,12 @@ It takes about 5 minutes. If the upgrade stops on a screen about a configuration
 "services to restart", press **Enter** for the default. The script:
 
 - updates the system;
-- installs Docker, nginx, certbot, rclone and fail2ban;
+- installs Docker, nginx, certbot and fail2ban;
 - adds a 4 GB swap file and sets the clock to UTC;
 - turns on automatic security updates;
 - points the repo at the `github-slimshot` alias (in `/root/.ssh/config`), so `git pull` uses the deploy key;
 - opens only ports 22, 80 and 443;
-- installs the nightly backup;
+- creates `/var/backups/slimshot`, where a restore saves a copy of the database first;
 - finally makes SSH key-only: root may log in with a key, never with a password.
 
 At the end, the **SSH hardening** part says one of two things:
@@ -216,8 +217,7 @@ If you ever lock yourself out, Contabo's control panel has a **VNC console**: lo
 as root with the root password (passwords still work on the console, just not over SSH).
 
 > **Ran an earlier version of this script?** It created a `deploy` user and gave it the app
-> folder. Pull the new scripts and re-run; it hands the folder back to root and moves the
-> backup job to root:
+> folder. Pull the new scripts and re-run; it hands the folder back to root:
 > ```bash
 > cd /var/www/slimshot_server
 > chown -R root:root /var/www/slimshot_server
@@ -343,69 +343,91 @@ curl https://slimshot-server.techfamz.com/health/ready
 5. **Google Play Console → Data safety → account deletion URL:**
    `https://slimshot-server.techfamz.com/account-deletion`.
 
-## 8. Backups to Google Drive
+## 8. Backups to R2
 
-A dump runs every night at 03:15 UTC (as root):
-- kept on the VPS for **14 days**;
-- copied to Google Drive and kept there for **30 days**.
+The API backs the database up to a **private** R2 bucket, on a schedule and whenever you ask,
+and the dashboard's **System › Backups** page manages them. This replaces the old nightly cron
+backup.
 
-Drive needs a one-time link, done partly on your PC because the VPS has no browser.
+### Set it up (once)
 
-**On the VPS:**
+1. **Create the bucket.** Cloudflare dashboard → **R2 Object Storage** → **Create bucket** →
+   name `slimshot-backups` → location **Automatic** → **Create bucket**. Keep it **private**:
+   - no **Custom Domain**;
+   - the **Public Development URL** (`r2.dev`) stays **disabled**;
+   - no **CORS policy**: downloads use short-lived signed links, which don't need one.
 
-```bash
-rclone config
-```
+   Anyone who could read this bucket could read every account in the database.
+2. **Let the server's token reach it.** R2 overview → **Manage API tokens** → the
+   `slimshot-server` token → **Edit** → under **Apply to specific buckets only**, add
+   `slimshot-backups` beside `slimshot-audio` → **Save**. The keys don't change, so `.env`
+   keeps the same `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`.
+3. **Add one line to `.env`** on the VPS (`nano /var/www/slimshot_server/.env`):
+   ```
+   R2_BACKUP_BUCKET=slimshot-backups
+   ```
+   Never the public bucket: the API refuses to start if it equals `R2_BUCKET`.
+4. **Redeploy:** `SKIP_PULL=1 ./deploy/scripts/deploy.sh`. This deploy also removes the old
+   nightly cron job (`/etc/cron.d/slimshot-backup`) and says so; later deploys say nothing.
 
-Answer the questions in this order:
-1. `n` (new remote), name it **`gdrive`**.
-2. Storage: **`drive`** (Google Drive).
-3. `client_id` and `client_secret`: leave both empty.
-4. Scope: **`drive.file`**, so rclone sees only the files it creates.
-5. `root_folder_id` and `service_account_file`: leave empty.
-6. Edit advanced config: `n`.
-7. Use auto config / web browser: **`n`**. It then prints a command such as
-   `rclone authorize "drive" "…"`.
+Until the line is there, the Backups page says what to add, and nothing else changes.
 
-**PC:** install rclone, then run that exact command:
+### The Backups page
 
-```powershell
-winget install Rclone.Rclone
-rclone authorize "drive" "…the text the VPS printed…"
-```
+Dashboard → **System › Backups** (the owner only):
 
-Your browser opens. Sign in to the Google account that should hold the backups and allow
-access. PowerShell then prints a token: copy all of it, paste it into the waiting VPS prompt,
-and answer `n` to "Configure this as a Shared Drive". Confirm with `y`, then quit with `q`.
+- **Back up automatically**: on from the start, **every day**; or every 7 or 30 days.
+  Automatic backups run at **03:15 UTC** on the days one is due. Backing up by hand doesn't
+  change when the next automatic one runs.
+- **Back up now** makes one straight away. It takes a minute or two; the page updates itself.
+- A backup's menu: **Download** (the link lasts 5 minutes), **Copy restore command**, and
+  **Delete**. The newest backup can't be deleted, so there is always one left.
+- If the last backup failed, the page says why.
 
-Test it:
-
-```bash
-./deploy/scripts/backup-db.sh
-# … saved /var/backups/slimshot/slimshot-…dump
-# … copied to gdrive:slimshot-backups
-```
-
-A `slimshot-backups` folder now appears in that Google Drive. Nightly results go to
-`/var/log/slimshot-backup.log`.
+Every backup, download, restore command and delete is in the audit log. Backups are kept until
+you delete them. They are **not encrypted**: keep the bucket private and your Cloudflare account
+protected with two-factor sign-in.
 
 Before risky changes, such as a big migration or an Ubuntu release upgrade, also take a
 **snapshot** in Contabo's control panel.
 
 ### Restoring
 
-```bash
-ls -lh /var/backups/slimshot/                                  # local dumps
-rclone ls gdrive:slimshot-backups                               # Drive dumps
-rclone copy gdrive:slimshot-backups/slimshot-YYYYMMDD-HHMMSS.dump /tmp/   # fetch one from Drive
+On the Backups page, a backup's menu → **Copy restore command** gives a command, valid for an
+hour, to run on the VPS. **Rehearse first** by putting `--check` after `restore-db.sh`:
 
-./deploy/scripts/restore-db.sh /tmp/slimshot-YYYYMMDD-HHMMSS.dump
+```bash
+cd /var/www/slimshot_server
+./deploy/scripts/restore-db.sh --check 'https://…'   # rehearsal: nothing live is touched
+./deploy/scripts/restore-db.sh 'https://…'           # the real restore
 ```
 
-The restore script:
-- asks you to type `RESTORE`;
-- backs up the current database first;
-- stops the API, restores the dump, then starts the API again.
+The rehearsal restores the backup into a separate database, applies the migrations, prints how
+many users, sounds and credit transactions it holds, then deletes it. If it works, the real
+restore will too.
+
+The real restore:
+1. asks you to type `RESTORE`;
+2. saves a copy of the current database to `/var/backups/slimshot`;
+3. restores the backup into a new database, `slimshot_restore`, beside the live one, and
+   applies every migration newer than the backup;
+4. stops the API, swaps the two databases, and starts the API on the restored one.
+
+If anything fails before step 4, the live database was never touched. If the API won't start
+on the restored database, the script puts the original back and starts the API on it.
+
+The database you replaced is kept as `slimshot_before_restore_<date>_<time>`. Once you're sure
+you don't need it, drop it; the script's last line gives the exact command:
+
+```bash
+docker compose -f docker-compose.yml exec postgres dropdb -U slimshot slimshot_before_restore_20261030_101500
+```
+
+A dump file on the VPS restores the same way: `./deploy/scripts/restore-db.sh /path/to/file.dump`.
+
+**`/var/backups/slimshot`** keeps each restore's safety copy for 14 days, and any nightly dumps
+from before backups moved to R2. Those stay until you delete them:
+`ls -lh /var/backups/slimshot/`, then `rm /var/backups/slimshot/slimshot-YYYYMMDD-HHMMSS.dump`.
 
 ## 9. Automatic deploys on push (webhook)
 
@@ -518,7 +540,7 @@ Swap `api` for `postgres` or `redis`, or leave it off for all three.
 | Automatic deploys | `tail -n 50 /var/log/slimshot-deploy.log` |
 | nginx errors | `tail -n 50 /var/log/nginx/slimshot-api.error.log` |
 | Every request | `tail -f /var/log/nginx/slimshot-api.access.log` |
-| Nightly backups | `ls -lh /var/backups/slimshot \| tail -n 3` |
+| Backups | Dashboard → **System › Backups** (the last run, and why it failed); the API log: `docker compose logs --since 24h api \| grep -i backup` |
 
 Each container keeps at most 50 MB of logs (five 10 MB files), oldest lines dropped first, so
 logs never fill the disk. A recreated container (every deploy, every `.env` change) starts an
@@ -550,6 +572,11 @@ Docker and every container come back on their own.
 | GitHub webhook delivery shows **403** | No signature reached the listener: the GitHub secret field is empty, or the content type isn't `application/json` |
 | GitHub webhook delivery shows **500** | The signature didn't match: the secret in GitHub differs from `/etc/slimshot/webhook.env`. Paste it again |
 | GitHub webhook delivery shows **502** | The listener isn't running: `systemctl status slimshot-webhook`, then `journalctl -u slimshot-webhook -n 50` |
+| System › Backups: "Backups are not set up yet" | `R2_BACKUP_BUCKET` isn't in `.env`: add it, then `SKIP_PULL=1 ./deploy/scripts/deploy.sh` (step 8) |
+| `deploy.sh`: "R2_BACKUP_BUCKET must not be R2_BUCKET" | `.env` names the public bucket for backups. Use `slimshot-backups` |
+| A backup fails with `AccessDenied` or `NoSuchBucket` | The `slimshot-server` token doesn't cover `slimshot-backups`, or the bucket name in `.env` is misspelt (step 8) |
+| A backup fails: "pg_dump is not installed on this server" | The API image predates backups: redeploy (`SKIP_PULL=1 ./deploy/scripts/deploy.sh`) |
+| `restore-db.sh`: "The download failed" | The restore link is over an hour old: copy a fresh one from System › Backups |
 | Webhook says delivered but nothing deployed | `tail -n 50 /var/log/slimshot-deploy.log`. It says why: another branch, a failed build, or a health check. If it's empty, check `journalctl -u slimshot-webhook -n 50` for a `sudo` error |
 
 ## 12. Security notes
@@ -563,6 +590,9 @@ Docker and every container come back on their own.
 - **`.env`:** readable only by root and never committed (it's in `.gitignore`); keep a copy in
   your password manager.
 - **Redis:** requires a password, and nothing outside the private Docker network can reach it.
+- **Database backups** are unencrypted dumps in the private `slimshot-backups` bucket. Only the
+  owner can list, download or delete them; download links last 5 minutes and restore links an
+  hour, and each one is audited. Never give that bucket a custom domain or a public URL.
 - **The deploy webhook** (`/hooks/deploy`):
   - It runs nothing unless the request carries GitHub's signature, made with the secret in
     `/etc/slimshot/webhook.env` (root-only).
@@ -628,7 +658,8 @@ updates) serves every app. For each new app:
 | `deploy/scripts/init-env.sh` | Creates `.env` with fresh secrets (run once) |
 | `deploy/scripts/setup-nginx.sh` | nginx and the Let's Encrypt certificate |
 | `deploy/scripts/deploy.sh` | Pull, build, migrate, restart, health check |
-| `deploy/scripts/backup-db.sh` / `restore-db.sh` | Nightly backup and restore |
+| `deploy/scripts/restore-db.sh` | Restores a backup beside the live database, then swaps (step 8) |
+| `deploy/scripts/backup-db.sh` | The local safety copy a restore takes first |
 | `deploy/scripts/setup-webhook.sh` | Turns on automatic deploys (run once) |
 | `deploy/scripts/webhook-deploy.sh` | What the webhook runs: deploys pushes to `main`, logs everything |
 | `deploy/nginx/` | The nginx site, the proxy settings and the certificate-request config |
@@ -641,9 +672,10 @@ On the VPS:
 | `/var/www/slimshot_server` | The code and `.env` |
 | Docker volumes `slimshot_pgdata`, `slimshot_redisdata` | The database and Redis data (survive restarts and deploys) |
 | `/root/.ssh/github_slimshot`, `/root/.ssh/config` | The repo's deploy key and its `github-slimshot` alias |
-| `/var/backups/slimshot` | Local database dumps (14 days) |
-| `/var/log/slimshot-backup.log` | Nightly backup results |
+| `/var/backups/slimshot` | Restore's safety copies (14 days), and old nightly dumps until you delete them |
 | `/var/log/slimshot-deploy.log` | Every automatic deploy's output |
 | `/etc/slimshot/webhook.env` | The webhook secret |
 | `/etc/sudoers.d/slimshot-webhook` | The webhook user's one `sudo` rule |
 | `/etc/nginx/sites-available/slimshot-api` | The installed nginx site |
+
+Off the VPS: the database backups, in the private R2 bucket `slimshot-backups` under `postgres/`.
