@@ -5,6 +5,7 @@ import { admobConfig } from './admob.config';
 import { appAuthConfig } from './app-auth.config';
 import { appConfig } from './app.config';
 import { authConfig } from './auth.config';
+import { backupConfig } from './backup.config';
 import { captionConfig } from './caption.config';
 import { cryptoConfig } from './crypto.config';
 import { emailConfig } from './email.config';
@@ -200,6 +201,33 @@ describe('parseEnv', () => {
     }
     expect(message).toContain('SMTP_HOST is required when EMAIL_SENDER=smtp');
     expect(message).toContain('EMAIL_FROM is required when EMAIL_SENDER=smtp');
+  });
+
+  it('leaves backups off when R2_BACKUP_BUCKET is blank', () => {
+    expect(parseEnv({ ...BASE, R2_BACKUP_BUCKET: '' }).R2_BACKUP_BUCKET).toBeUndefined();
+    expect(parseEnv(BASE).R2_BACKUP_BUCKET).toBeUndefined();
+  });
+
+  it('refuses a backup bucket that is the public bucket', () => {
+    expect(() => parseEnv({ ...BASE, R2_BACKUP_BUCKET: ` ${BASE.R2_BUCKET} ` })).toThrow(
+      'R2_BACKUP_BUCKET must not be R2_BUCKET: backups would be public',
+    );
+  });
+
+  it('exposes backup settings, and whether this is the live server', () => {
+    const production = {
+      ...BASE,
+      NODE_ENV: 'production',
+      EMAIL_SENDER: 'smtp',
+      SMTP_HOST: 'smtp.example.com',
+      EMAIL_FROM: 'SlimShot <no-reply@example.com>',
+      ADMOB_AD_UNIT_IDS: '1234567890',
+    };
+    process.env = { ...production, R2_BACKUP_BUCKET: ' slimshot-backups ' };
+    expect(backupConfig()).toEqual({ bucket: 'slimshot-backups', production: true });
+
+    process.env = { ...BASE };
+    expect(backupConfig()).toEqual({ bucket: null, production: false });
   });
 
   it('refuses the log email sender and missing ad units in production', () => {

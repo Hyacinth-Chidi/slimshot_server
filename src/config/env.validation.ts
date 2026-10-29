@@ -212,6 +212,12 @@ export class Env {
   @IsString()
   R2_BUCKET!: string;
 
+  // The private bucket database backups go to. Empty: backups are off.
+  @Transform(text)
+  @IsOptional()
+  @IsString()
+  R2_BACKUP_BUCKET?: string;
+
   // Where the app downloads files from: the bucket's public custom domain.
   @Transform(origin)
   @IsDefined({ message: 'R2_PUBLIC_BASE_URL is required' })
@@ -350,6 +356,10 @@ function crossFieldProblems(env: Env): string[] {
   const problems: string[] = [];
   if (env.USER_JWT_SECRET && env.USER_JWT_SECRET === env.JWT_ACCESS_SECRET) {
     problems.push('USER_JWT_SECRET must differ from JWT_ACCESS_SECRET');
+  }
+  // R2_BUCKET is served to the world from its custom domain; a dump there is everyone's.
+  if (env.R2_BACKUP_BUCKET && env.R2_BACKUP_BUCKET === env.R2_BUCKET) {
+    problems.push('R2_BACKUP_BUCKET must not be R2_BUCKET: backups would be public');
   }
   if (env.EMAIL_SENDER === 'smtp') {
     if (!env.SMTP_HOST) problems.push('SMTP_HOST is required when EMAIL_SENDER=smtp');
