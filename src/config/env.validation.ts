@@ -257,6 +257,10 @@ export class Env {
   @IsString()
   CAPTION_ELEVENLABS_MODEL = 'scribe_v2';
 
+  @Transform(({ value }) => (blank(value) ? 'grok-voice-transcribe-2.0' : String(value).trim()))
+  @IsString()
+  CAPTION_XAI_MODEL = 'grok-voice-transcribe-2.0';
+
   // App-user tokens: a secret of their own, never the admin one.
   @Transform(text)
   @IsDefined({ message: 'USER_JWT_SECRET is required' })

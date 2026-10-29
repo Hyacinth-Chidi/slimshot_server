@@ -167,6 +167,7 @@ describe('parseEnv', () => {
       CAPTION_CONCURRENCY: 4,
       CAPTION_DEEPGRAM_MODEL: 'nova-3',
       CAPTION_ELEVENLABS_MODEL: 'scribe_v2',
+      CAPTION_XAI_MODEL: 'grok-voice-transcribe-2.0',
     });
   });
 
@@ -271,6 +272,7 @@ describe('config namespaces', () => {
       concurrency: 2,
       deepgramModel: 'nova-3',
       elevenlabsModel: 'scribe_v2',
+      xaiModel: 'grok-voice-transcribe-2.0',
     });
   });
 

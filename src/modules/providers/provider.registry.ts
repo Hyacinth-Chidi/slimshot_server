@@ -4,15 +4,17 @@ import { ProviderKind } from '../../generated/prisma/enums';
 import { DeepgramProvider } from './deepgram.provider';
 import { ElevenLabsProvider } from './elevenlabs.provider';
 import type { SpeechToTextProvider } from './speech-to-text.provider';
+import { XaiProvider } from './xai.provider';
 
 @Injectable()
 export class ProviderRegistry {
   private readonly speechToText: ReadonlyMap<ProviderKind, SpeechToTextProvider>;
 
-  constructor(deepgram: DeepgramProvider, elevenlabs: ElevenLabsProvider) {
+  constructor(deepgram: DeepgramProvider, elevenlabs: ElevenLabsProvider, xai: XaiProvider) {
     this.speechToText = new Map<ProviderKind, SpeechToTextProvider>([
       [deepgram.kind, deepgram],
       [elevenlabs.kind, elevenlabs],
+      [xai.kind, xai],
     ]);
   }
 

@@ -17,13 +17,14 @@ export class ProviderError extends Error {
   }
 }
 
-/** Pulls a human message out of the error bodies Deepgram and ElevenLabs send. */
+/** Pulls a human message out of the error bodies Deepgram, ElevenLabs and xAI send. */
 export function providerMessage(body: unknown, fallback: string): string {
   if (!body || typeof body !== 'object') return fallback;
   const b = body as Record<string, unknown>;
 
   if (typeof b.err_msg === 'string') return b.err_msg; // Deepgram
   if (typeof b.message === 'string') return b.message;
+  if (typeof b.error === 'string') return b.error; // xAI: { code, error }
 
   const detail = b.detail; // ElevenLabs
   if (typeof detail === 'string') return detail;

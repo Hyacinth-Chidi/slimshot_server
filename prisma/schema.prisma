@@ -327,6 +327,7 @@ model RefreshToken {
 enum ProviderKind {
   deepgram
   elevenlabs
+  xai
 }
 
 enum ProviderCapability {

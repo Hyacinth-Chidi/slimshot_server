@@ -5,12 +5,13 @@ import { DeepgramProvider } from './deepgram.provider';
 import { ElevenLabsProvider } from './elevenlabs.provider';
 import { ProviderCredentialsService } from './provider-credentials.service';
 import { ProviderRegistry } from './provider.registry';
+import { XaiProvider } from './xai.provider';
 
 // Static on purpose: admin endpoints and the caption worker must share one
 // ProviderCredentialsService, so a key change clears the cache the worker reads.
 @Module({
   imports: [CryptoModule],
-  providers: [DeepgramProvider, ElevenLabsProvider, ProviderRegistry, ProviderCredentialsService],
+  providers: [DeepgramProvider, ElevenLabsProvider, XaiProvider, ProviderRegistry, ProviderCredentialsService],
   exports: [ProviderCredentialsService],
 })
 export class ProvidersModule {}

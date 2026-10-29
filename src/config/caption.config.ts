@@ -11,6 +11,7 @@ export const captionConfig = registerAs('caption', () => {
     concurrency: env.CAPTION_CONCURRENCY,
     deepgramModel: env.CAPTION_DEEPGRAM_MODEL,
     elevenlabsModel: env.CAPTION_ELEVENLABS_MODEL,
+    xaiModel: env.CAPTION_XAI_MODEL,
   };
 });
 

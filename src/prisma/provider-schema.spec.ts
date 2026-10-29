@@ -4,9 +4,23 @@ import { join } from 'node:path';
 import { ProviderCapability, ProviderKind } from '../generated/prisma/enums';
 
 describe('provider schema', () => {
-  it('knows both speech-to-text providers', () => {
-    expect(Object.values(ProviderKind)).toEqual(['deepgram', 'elevenlabs']);
+  it('knows the three speech-to-text providers', () => {
+    expect(Object.values(ProviderKind)).toEqual(['deepgram', 'elevenlabs', 'xai']);
     expect(Object.values(ProviderCapability)).toEqual(['speech_to_text']);
+  });
+
+  it('adds xAI with an additive migration that touches no existing row', () => {
+    const sql = readFileSync(
+      join(__dirname, '../../prisma/migrations/20261029120000_add_xai_provider/migration.sql'),
+      'utf8',
+    );
+    const statements = sql
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('--'));
+    expect(statements).toEqual([
+      `ALTER TYPE "ProviderKind" ADD VALUE 'xai';`,
+    ]);
   });
 
   it('keeps the index that lets the database refuse two active providers', () => {

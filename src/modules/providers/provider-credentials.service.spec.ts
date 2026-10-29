@@ -84,6 +84,7 @@ function build(seed: Array<{ provider: ProviderKind; key: string; isActive?: boo
   const adapters = {
     [ProviderKind.deepgram]: { kind: ProviderKind.deepgram, testKey: jest.fn(async () => ({ ok: true, message: 'Key works.' })), transcribe: jest.fn() },
     [ProviderKind.elevenlabs]: { kind: ProviderKind.elevenlabs, testKey: jest.fn(async () => ({ ok: true, message: 'Key works.' })), transcribe: jest.fn() },
+    [ProviderKind.xai]: { kind: ProviderKind.xai, testKey: jest.fn(async () => ({ ok: true, message: 'Key works.' })), transcribe: jest.fn() },
   };
   const registry = { speechToTextFor: jest.fn((kind: ProviderKind) => adapters[kind]) };
   const audit = { record: jest.fn(async (_entry: unknown) => undefined) };
@@ -100,6 +101,7 @@ describe('ProviderCredentialsService.list', () => {
     expect(list).toEqual([
       { provider: 'deepgram', capability: STT, configured: true, active: true, updatedAt: new Date('2026-09-28T10:00:00Z') },
       { provider: 'elevenlabs', capability: STT, configured: false, active: false, updatedAt: null },
+      { provider: 'xai', capability: STT, configured: false, active: false, updatedAt: null },
     ]);
     expect(JSON.stringify(list)).not.toMatch(/dg-secret-key-1|apiKeyCipher/);
   });

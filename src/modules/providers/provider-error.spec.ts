@@ -7,6 +7,7 @@ describe('providerMessage', () => {
     ['a plain message', { message: 'Too many requests' }, 'Too many requests'],
     ['ElevenLabs detail object', { detail: { status: 'invalid_api_key', message: 'Invalid API key' } }, 'Invalid API key'],
     ['ElevenLabs detail string', { detail: 'Not found' }, 'Not found'],
+    ['xAI error string', { code: 'Client specified an invalid argument', error: 'Incorrect API key provided: xa***yz.' }, 'Incorrect API key provided: xa***yz.'],
     ['ElevenLabs validation list', { detail: [{ loc: ['body', 'file'], msg: 'field required' }] }, 'field required'],
   ])('reads %s', (_label, body, expected) => {
     expect(providerMessage(body, 'fallback')).toBe(expected);

@@ -34,12 +34,17 @@ export async function requestJson<T>(
   return body as T;
 }
 
-/** Asks the provider whether a key is valid, without spending any credit. Never throws. */
+/**
+ * Asks the provider whether a key is valid, without spending any credit. Never throws.
+ * `inspect` reads a 2xx answer for providers that report a refused key inside one
+ * (xAI answers 200 for a blocked key); null means the answer is fine.
+ */
 export async function probeKey(
   provider: ProviderKind,
   url: string,
   headers: Record<string, string>,
   apiKey: string,
+  inspect?: (body: unknown) => KeyCheck | null,
 ): Promise<KeyCheck> {
   const name = PROVIDER_NAMES[provider];
   let res: Response;
@@ -52,7 +57,10 @@ export async function probeKey(
     };
   }
 
-  if (res.ok) return { ok: true, message: 'Key works.' };
+  if (res.ok) {
+    const verdict = inspect?.(await res.json().catch(() => null));
+    return verdict ?? { ok: true, message: 'Key works.' };
+  }
 
   // 403: the key authenticated but lacks the scope this probe endpoint needs.
   // Transcription uses a different scope, so the key is still usable.

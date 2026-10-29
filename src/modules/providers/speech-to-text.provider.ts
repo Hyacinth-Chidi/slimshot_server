@@ -43,4 +43,5 @@ export interface SpeechToTextProvider {
 export const PROVIDER_NAMES: Record<ProviderKind, string> = {
   [ProviderKind.deepgram]: 'Deepgram',
   [ProviderKind.elevenlabs]: 'ElevenLabs',
+  [ProviderKind.xai]: 'xAI',
 };
