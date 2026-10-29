@@ -14,7 +14,7 @@ import {
 } from '../storage-adapter.interface';
 
 /** The one client method the adapter calls; tests pass a stand-in. */
-interface CommandSender {
+export interface CommandSender {
   send(command: unknown): Promise<unknown>;
 }
 
@@ -22,7 +22,11 @@ interface R2Deps {
   client?: CommandSender;
 }
 
-function buildClient(config: R2Config): S3Client {
+/** An S3 client for the account's R2 endpoint. Also used for the backup bucket. */
+export function buildR2Client(
+  config: Pick<R2Config, 'accountId' | 'accessKeyId' | 'secretAccessKey'>,
+  opts: { requestTimeoutMs?: number } = {},
+): S3Client {
   return new S3Client({
     region: 'auto', // required by the SDK, ignored by R2
     endpoint: `https://${config.accountId}.r2.cloudflarestorage.com`,
@@ -36,7 +40,7 @@ function buildClient(config: R2Config): S3Client {
     responseChecksumValidation: 'WHEN_REQUIRED',
     // A stalled connection fails finalize after 30 s of silence instead of
     // holding the request open indefinitely.
-    requestHandler: { connectionTimeout: 5_000, requestTimeout: 30_000 },
+    requestHandler: { connectionTimeout: 5_000, requestTimeout: opts.requestTimeoutMs ?? 30_000 },
   });
 }
 
@@ -65,7 +69,7 @@ export class R2Adapter implements StorageProviderAdapter {
     private readonly config: R2Config,
     deps: R2Deps = {},
   ) {
-    this.client = deps.client ?? buildClient(config);
+    this.client = deps.client ?? buildR2Client(config);
   }
 
   async createUploadTicket(input: UploadTicketInput): Promise<UploadTicket> {
