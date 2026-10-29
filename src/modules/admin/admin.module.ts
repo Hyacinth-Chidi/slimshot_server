@@ -21,6 +21,7 @@ import { AdminKindsController } from './admin-kinds.controller';
 import { AdminPricingRulesController } from './admin-pricing-rules.controller';
 import { AdminProvidersController } from './admin-providers.controller';
 import { AdminStatsController } from './admin-stats.controller';
+import { AdminUserStatsController } from './admin-user-stats.controller';
 import { AdminUsersController } from './admin-users.controller';
 import { AdminUsersService } from './admin-users.service';
 import { StatsService } from './stats.service';
@@ -51,6 +52,7 @@ import { StatsService } from './stats.service';
     AdminCreditsController,
     AdminUsersController,
     AdminCreditStatsController,
+    AdminUserStatsController,
   ],
   providers: [StatsService, AdminUsersService],
 })

@@ -172,6 +172,17 @@ export class AdminUsersService {
     return rows.map((r) => ({ day: r.day, type: r.type, granted: Number(r.granted), spent: Number(r.spent) }));
   }
 
+  /** How many accounts exist, and how many were made in the period (the window creditStats uses). Deleted accounts are left out. */
+  async userStats(days: number, now = new Date()): Promise<{ total: number; newInPeriod: number }> {
+    const since = new Date(startOfUtcDay(now).getTime() - (days - 1) * DAY_MS);
+    const live = { accountStatus: { not: AccountStatus.deleted } };
+    const [total, newInPeriod] = await Promise.all([
+      this.prisma.user.count({ where: live }),
+      this.prisma.user.count({ where: { ...live, createdAt: { gte: since } } }),
+    ]);
+    return { total, newInPeriod };
+  }
+
   /** One guarded UPDATE, so two admins clicking at once cannot both "succeed". */
   private async moveStatus(id: string, from: AccountStatus, to: AccountStatus): Promise<void> {
     const { count } = await this.prisma.user.updateMany({

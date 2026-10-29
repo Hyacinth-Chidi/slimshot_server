@@ -7,6 +7,8 @@ export interface StatsSummary {
   totalAssets: number;
   byStatus: Record<string, number>;
   byKind: Record<string, number>;
+  /** Per kind, per status: what each Library list's status filters count. */
+  byKindStatus: Record<string, Record<string, number>>;
   totalBytes: number;
   failedCount: number;
 }
@@ -30,9 +32,10 @@ export class StatsService {
   async summary(): Promise<StatsSummary> {
     return this.cache.wrap(
       'stats',
-      { view: 'summary' },
+      // v2: the shape gained byKindStatus; a v1 entry cached before a deploy must not be served.
+      { view: 'summary-v2' },
       async () => {
-        const [total, statusGroups, kindGroups, bytes, failed] = await Promise.all([
+        const [total, statusGroups, kindGroups, kindStatusGroups, bytes, failed] = await Promise.all([
           this.prisma.asset.count({ where: { deletedAt: null } }),
           this.prisma.asset.groupBy({
             by: ['status'],
@@ -41,6 +44,11 @@ export class StatsService {
           }),
           this.prisma.asset.groupBy({
             by: ['kind'],
+            where: { deletedAt: null },
+            _count: true,
+          }),
+          this.prisma.asset.groupBy({
+            by: ['kind', 'status'],
             where: { deletedAt: null },
             _count: true,
           }),
@@ -59,6 +67,7 @@ export class StatsService {
           totalAssets: total,
           byStatus: toCountMap(statusGroups as never, 'status'),
           byKind: toCountMap(kindGroups as never, 'kind'),
+          byKindStatus: toNestedCountMap(kindStatusGroups as never),
           // Postgres SUM over zero rows is NULL, not 0. Rendering that gives
           // "NaN" in the dashboard, so coerce at the boundary.
           totalBytes: (bytes as { _sum: { byteSize: number | null } })._sum.byteSize ?? 0,
@@ -110,4 +119,12 @@ function toCountMap(
   key: string,
 ): Record<string, number> {
   return Object.fromEntries(groups.map((g) => [String(g[key]), g._count]));
+}
+
+function toNestedCountMap(
+  groups: Array<{ kind: string; status: string; _count: number }>,
+): Record<string, Record<string, number>> {
+  const out: Record<string, Record<string, number>> = {};
+  for (const g of groups) (out[String(g.kind)] ??= {})[String(g.status)] = g._count;
+  return out;
 }

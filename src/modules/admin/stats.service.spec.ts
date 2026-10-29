@@ -4,6 +4,7 @@ function build(opts: {
   total?: number;
   byStatus?: Array<{ status: string; _count: number }>;
   byKind?: Array<{ kind: string; _count: number }>;
+  byKindStatus?: Array<{ kind: string; status: string; _count: number }>;
   bytes?: number | null;
   failed?: number;
 } = {}) {
@@ -13,7 +14,11 @@ function build(opts: {
         where?.status === 'failed' ? (opts.failed ?? 0) : (opts.total ?? 0),
       ),
       groupBy: jest.fn(async ({ by }: { by: string[] }) =>
-        by[0] === 'status' ? (opts.byStatus ?? []) : (opts.byKind ?? []),
+        by.length === 2
+          ? (opts.byKindStatus ?? [])
+          : by[0] === 'status'
+            ? (opts.byStatus ?? [])
+            : (opts.byKind ?? []),
       ),
     },
     assetFile: {
@@ -57,6 +62,27 @@ describe('StatsService.summary', () => {
     });
     const s = await svc.summary();
     expect(s.byStatus).toEqual({ published: 3, ready: 2 });
+  });
+
+  it('counts assets by kind and status', async () => {
+    const { svc, prisma } = build({
+      byKindStatus: [
+        { kind: 'audio', status: 'published', _count: 5 },
+        { kind: 'audio', status: 'ready', _count: 1 },
+        { kind: 'font', status: 'published', _count: 4 },
+      ],
+    });
+    const s = await svc.summary();
+    expect(s.byKindStatus).toEqual({ audio: { published: 5, ready: 1 }, font: { published: 4 } });
+    expect(prisma.asset.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ by: ['kind', 'status'], where: { deletedAt: null } }),
+    );
+  });
+
+  it('caches the summary under a new key, so an older cached shape is never served', async () => {
+    const { svc, cache } = build();
+    await svc.summary();
+    expect(cache.wrap).toHaveBeenCalledWith('stats', { view: 'summary-v2' }, expect.any(Function), 60);
   });
 
   it('reports the failed count separately from the status map', async () => {

@@ -23,6 +23,7 @@ function build(found: Record<string, unknown> | null = user) {
       findMany: jest.fn(async (_args: unknown) => [] as unknown[]),
       findUnique: jest.fn(async (_args: unknown) => found),
       updateMany: jest.fn(async (_args: unknown) => ({ count: 1 })),
+      count: jest.fn(async ({ where }: { where: { createdAt?: unknown } }) => (where.createdAt ? 86 : 1284)),
     },
     $queryRaw: jest.fn(async (..._args: unknown[]) => [] as unknown[]),
   };
@@ -155,5 +156,20 @@ describe('AdminUsersService', () => {
     const { svc, prisma } = build();
     prisma.$queryRaw.mockResolvedValueOnce([{ day: '2026-10-01', type: 'rewarded_ad', granted: 10n, spent: 0n }]);
     await expect(svc.creditStats(7)).resolves.toEqual([{ day: '2026-10-01', type: 'rewarded_ad', granted: 10, spent: 0 }]);
+  });
+});
+
+describe('AdminUsersService.userStats', () => {
+  it('counts users and new users in the period, leaving out deleted accounts', async () => {
+    const { svc, prisma } = build();
+    const stats = await svc.userStats(7, new Date('2026-10-29T15:00:00Z'));
+
+    expect(stats).toEqual({ total: 1284, newInPeriod: 86 });
+    const calls = prisma.user.count.mock.calls.map((c) => c[0].where);
+    expect(calls).toEqual([
+      { accountStatus: { not: 'deleted' } },
+      // The same window as the credit stats: today and the six UTC days before it.
+      { accountStatus: { not: 'deleted' }, createdAt: { gte: new Date('2026-10-23T00:00:00Z') } },
+    ]);
   });
 });
