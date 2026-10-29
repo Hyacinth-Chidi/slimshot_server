@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { PERMISSION_KEY } from './permissions';
 import { AuthController } from '../../modules/auth/auth.controller';
 import { AdminAssetsController } from '../../modules/admin/admin-assets.controller';
+import { AdminBackupsController } from '../../modules/admin/admin-backups.controller';
 import { AdminAuditController } from '../../modules/admin/admin-audit.controller';
 import { AdminCategoriesController } from '../../modules/admin/admin-categories.controller';
 import { AdminJobsController } from '../../modules/admin/admin-jobs.controller';
@@ -41,6 +42,7 @@ const ADMIN_CONTROLLERS: Array<new (...args: never[]) => object> = [
   AdminUsersController,
   AdminCreditStatsController,
   AdminUserStatsController,
+  AdminBackupsController,
 ];
 
 describe('admin route guarding', () => {

@@ -50,6 +50,13 @@ describe('permissions', () => {
     expect(roleHas(AdminRole.owner, 'credits.manage')).toBe(true);
   });
 
+  it('only the owner may manage database backups', () => {
+    expect(roleHas(AdminRole.owner, 'backups.manage')).toBe(true);
+    for (const role of [AdminRole.admin, AdminRole.editor, AdminRole.viewer]) {
+      expect(roleHas(role, 'backups.manage')).toBe(false);
+    }
+  });
+
   it('only owner may manage other admins', () => {
     expect(roleHas(AdminRole.owner, 'admin.manage')).toBe(true);
     expect(roleHas(AdminRole.admin, 'admin.manage')).toBe(false);

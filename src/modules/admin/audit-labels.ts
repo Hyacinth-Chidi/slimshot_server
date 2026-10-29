@@ -54,6 +54,12 @@ const LOOKUPS: Record<string, { find: Lookup; missing: EntityLabel }> = {
       return new Map(rows.map((r) => [r.id, { label: PROVIDER_NAMES[r.provider], deleted: false }]));
     },
   },
+  // A backup lives in the bucket, not a table: its file name is its label. Its deletion
+  // is an entry of its own (backup.deleted), so it is never marked deleted here.
+  Backup: {
+    missing: { label: null, deleted: false },
+    find: async (_prisma, ids) => new Map(ids.map((id) => [id, { label: id, deleted: false }])),
+  },
   AdminUser: {
     missing: { label: null, deleted: false },
     find: async (prisma, ids) => {

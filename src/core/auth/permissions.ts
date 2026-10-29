@@ -18,6 +18,7 @@ export const PERMISSIONS = [
   'users.read',
   'users.manage',
   'credits.manage',
+  'backups.manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -46,6 +47,7 @@ const OWNER: readonly Permission[] = [
   'admin.manage',
   'providers.manage',
   'credits.manage',
+  'backups.manage',
 ];
 
 export const ROLE_PERMISSIONS: Record<AdminRole, readonly Permission[]> = {

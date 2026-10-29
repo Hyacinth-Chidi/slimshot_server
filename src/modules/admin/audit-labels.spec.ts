@@ -96,6 +96,14 @@ describe('labelEntities', () => {
     expect(prisma.adminUser.findMany).not.toHaveBeenCalled();
   });
 
+  it('names a backup by its file, which no table holds, without a query', async () => {
+    const prisma = build();
+    const name = 'slimshot-20261029-031507-auto.dump';
+    const labels = await labelEntities(prisma as never, [key('Backup', name)]);
+    expect(labels.get(`Backup:${name}`)).toEqual({ label: name, deleted: false });
+    for (const t of Object.values(prisma)) expect(t.findMany).not.toHaveBeenCalled();
+  });
+
   it('skips rows without an entity id', async () => {
     const prisma = build();
     const labels = await labelEntities(prisma as never, [{ entityType: 'Asset', entityId: null }]);

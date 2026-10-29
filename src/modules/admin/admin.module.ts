@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { AccountsModule } from '../accounts/accounts.module';
 import { AssetsModule } from '../assets/assets.module';
 import { AuthModule } from '../auth/auth.module';
+import { BackupsModule } from '../backups/backups.module';
 import { CreditSettingsModule } from '../credits/credit-settings.module';
 import { CreditsModule } from '../credits/credits.module';
 import { IngestModule } from '../ingest/ingest.module';
@@ -12,6 +13,7 @@ import { AdminAssetsController } from './admin-assets.controller';
 import { AdminFontsController } from './admin-fonts.controller';
 import { FontsModule } from '../fonts/fonts.module';
 import { AdminAuditController } from './admin-audit.controller';
+import { AdminBackupsController } from './admin-backups.controller';
 import { AdminCategoriesController } from './admin-categories.controller';
 import { AdminCreditSettingsController } from './admin-credit-settings.controller';
 import { AdminCreditStatsController } from './admin-credit-stats.controller';
@@ -37,6 +39,7 @@ import { StatsService } from './stats.service';
     CreditsModule,
     CreditSettingsModule,
     AccountsModule,
+    BackupsModule,
   ],
   controllers: [
     AdminAssetsController,
@@ -53,6 +56,7 @@ import { StatsService } from './stats.service';
     AdminUsersController,
     AdminCreditStatsController,
     AdminUserStatsController,
+    AdminBackupsController,
   ],
   providers: [StatsService, AdminUsersService],
 })
