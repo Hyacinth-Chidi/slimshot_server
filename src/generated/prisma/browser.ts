@@ -127,3 +127,9 @@ export type CreditSettings = Prisma.CreditSettingsModel
  * Immutable once created; a price change is a new version. One active per feature (partial index).
  */
 export type PricingRule = Prisma.PricingRuleModel
+/**
+ * Model BackupSettings
+ * Exactly one row, id "default", inserted by the migration. The owner edits autoEnabled and
+ * intervalDays from the admin API; the backup worker writes how the last run went.
+ */
+export type BackupSettings = Prisma.BackupSettingsModel

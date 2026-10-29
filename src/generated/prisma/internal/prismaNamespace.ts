@@ -404,7 +404,8 @@ export const ModelName = {
   BonusClaim: 'BonusClaim',
   Referral: 'Referral',
   CreditSettings: 'CreditSettings',
-  PricingRule: 'PricingRule'
+  PricingRule: 'PricingRule',
+  BackupSettings: 'BackupSettings'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -420,7 +421,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "asset" | "category" | "assetFile" | "audioAsset" | "fontAsset" | "uploadSession" | "user" | "userEntitlement" | "storageProvider" | "auditLog" | "adminUser" | "refreshToken" | "providerCredential" | "device" | "userSession" | "userRefreshToken" | "creditTransaction" | "bonusClaim" | "referral" | "creditSettings" | "pricingRule"
+    modelProps: "asset" | "category" | "assetFile" | "audioAsset" | "fontAsset" | "uploadSession" | "user" | "userEntitlement" | "storageProvider" | "auditLog" | "adminUser" | "refreshToken" | "providerCredential" | "device" | "userSession" | "userRefreshToken" | "creditTransaction" | "bonusClaim" | "referral" | "creditSettings" | "pricingRule" | "backupSettings"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1978,6 +1979,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    BackupSettings: {
+      payload: Prisma.$BackupSettingsPayload<ExtArgs>
+      fields: Prisma.BackupSettingsFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.BackupSettingsFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.BackupSettingsFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>
+        }
+        findFirst: {
+          args: Prisma.BackupSettingsFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.BackupSettingsFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>
+        }
+        findMany: {
+          args: Prisma.BackupSettingsFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>[]
+        }
+        create: {
+          args: Prisma.BackupSettingsCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>
+        }
+        createMany: {
+          args: Prisma.BackupSettingsCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.BackupSettingsCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>[]
+        }
+        delete: {
+          args: Prisma.BackupSettingsDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>
+        }
+        update: {
+          args: Prisma.BackupSettingsUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>
+        }
+        deleteMany: {
+          args: Prisma.BackupSettingsDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.BackupSettingsUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.BackupSettingsUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>[]
+        }
+        upsert: {
+          args: Prisma.BackupSettingsUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$BackupSettingsPayload>
+        }
+        aggregate: {
+          args: Prisma.BackupSettingsAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateBackupSettings>
+        }
+        groupBy: {
+          args: Prisma.BackupSettingsGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BackupSettingsGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.BackupSettingsCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.BackupSettingsCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2358,6 +2433,21 @@ export const PricingRuleScalarFieldEnum = {
 } as const
 
 export type PricingRuleScalarFieldEnum = (typeof PricingRuleScalarFieldEnum)[keyof typeof PricingRuleScalarFieldEnum]
+
+
+export const BackupSettingsScalarFieldEnum = {
+  id: 'id',
+  autoEnabled: 'autoEnabled',
+  intervalDays: 'intervalDays',
+  lastRunAt: 'lastRunAt',
+  lastRunOk: 'lastRunOk',
+  lastRunError: 'lastRunError',
+  lastRunTrigger: 'lastRunTrigger',
+  updatedById: 'updatedById',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BackupSettingsScalarFieldEnum = (typeof BackupSettingsScalarFieldEnum)[keyof typeof BackupSettingsScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -2852,6 +2942,7 @@ export type GlobalOmitConfig = {
   referral?: Prisma.ReferralOmit
   creditSettings?: Prisma.CreditSettingsOmit
   pricingRule?: Prisma.PricingRuleOmit
+  backupSettings?: Prisma.BackupSettingsOmit
 }
 
 /* Types for Logging */

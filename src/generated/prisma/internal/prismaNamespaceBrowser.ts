@@ -71,7 +71,8 @@ export const ModelName = {
   BonusClaim: 'BonusClaim',
   Referral: 'Referral',
   CreditSettings: 'CreditSettings',
-  PricingRule: 'PricingRule'
+  PricingRule: 'PricingRule',
+  BackupSettings: 'BackupSettings'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -431,6 +432,21 @@ export const PricingRuleScalarFieldEnum = {
 } as const
 
 export type PricingRuleScalarFieldEnum = (typeof PricingRuleScalarFieldEnum)[keyof typeof PricingRuleScalarFieldEnum]
+
+
+export const BackupSettingsScalarFieldEnum = {
+  id: 'id',
+  autoEnabled: 'autoEnabled',
+  intervalDays: 'intervalDays',
+  lastRunAt: 'lastRunAt',
+  lastRunOk: 'lastRunOk',
+  lastRunError: 'lastRunError',
+  lastRunTrigger: 'lastRunTrigger',
+  updatedById: 'updatedById',
+  updatedAt: 'updatedAt'
+} as const
+
+export type BackupSettingsScalarFieldEnum = (typeof BackupSettingsScalarFieldEnum)[keyof typeof BackupSettingsScalarFieldEnum]
 
 
 export const SortOrder = {
