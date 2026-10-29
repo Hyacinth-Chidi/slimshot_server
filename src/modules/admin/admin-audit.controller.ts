@@ -10,6 +10,8 @@ import { JwtAuthGuard } from '../../core/auth/jwt-auth.guard';
 import { PermissionsGuard } from '../../core/auth/permissions.guard';
 import { RequirePermission } from '../../core/auth/permissions';
 import { PrismaService } from '../../prisma/prisma.service';
+import { adminsById } from './admin-directory';
+import { labelEntities } from './audit-labels';
 
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 25;
@@ -56,9 +58,24 @@ export class AdminAuditController {
     const hasMore = rows.length > take;
     const page = hasMore ? rows.slice(0, take) : rows;
 
+    // Readable entries: who did it and what it was, one lookup per kind of thing.
+    const [admins, labels] = await Promise.all([
+      adminsById(this.prisma, page.filter((r) => r.actorType === 'admin').map((r) => r.actorId)),
+      labelEntities(this.prisma, page),
+    ]);
+    const data = page.map((row) => {
+      const entity = labels.get(`${row.entityType}:${row.entityId}`);
+      return {
+        ...row,
+        actor: row.actorType === 'admin' && row.actorId ? (admins.get(row.actorId) ?? null) : null,
+        entityLabel: entity?.label ?? null,
+        entityDeleted: entity?.deleted ?? false,
+      };
+    });
+
     return {
       success: true as const,
-      data: page,
+      data,
       meta: {
         nextCursor: hasMore ? page[page.length - 1].id : null,
       },
