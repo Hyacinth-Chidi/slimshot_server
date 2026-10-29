@@ -5,7 +5,7 @@
 #   bash deploy/scripts/setup-vps.sh
 #
 # What it does (safe to re-run; every step checks before it changes anything):
-#   - updates the system; installs git, nginx, certbot, rclone, fail2ban, ufw, jq
+#   - updates the system; installs git, nginx, certbot, fail2ban, ufw, jq
 #   - UTC clock, a 4 GB swap file, automatic security updates
 #   - Docker Engine + Compose plugin, with log rotation
 #   - gives this repo its own GitHub host alias (github-slimshot), so `git pull`
@@ -13,7 +13,8 @@
 #   - firewall: only SSH, HTTP and HTTPS are open
 #   - SSH: key-only; root may log in with a key, never a password
 #     (only once root has a key; HARDEN_SSH=no skips it)
-#   - the nightly database backup (cron, as root, 03:15 UTC)
+#   - the folder for the safety copy restore-db.sh saves before a restore
+#     (database backups themselves go to R2, scheduled from System › Backups)
 #
 # The server-wide parts (firewall, SSH, Docker, nginx, swap) suit other apps on
 # the same VPS too; see "Hosting other apps" in docs/deploy/vps-setup.md.
@@ -44,7 +45,7 @@ main() {
   apt-get update -y
   apt-get -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold upgrade -y
   apt-get install -y ca-certificates curl gnupg git ufw fail2ban unattended-upgrades \
-    nginx certbot rclone openssl jq htop
+    nginx certbot openssl jq htop
 
   step "Clock to UTC"
   timedatectl set-timezone UTC
@@ -120,26 +121,10 @@ main() {
   install -d -m 755 /var/www/certbot
   systemctl enable --now nginx
 
-  step "Nightly database backup"
+  step "Folder for restore's safety copies"
+  # Backups go to R2 from the API (System › Backups); restore-db.sh saves a copy of
+  # the live database here before it replaces it.
   install -d -m 700 -o root -g root "$BACKUP_DIR"
-  touch /var/log/slimshot-backup.log
-  chown root:root /var/log/slimshot-backup.log
-  cat > /etc/cron.d/slimshot-backup <<EOF
-# Nightly Postgres backup for the SlimShot API (see docs/deploy/vps-setup.md).
-SHELL=/bin/bash
-PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-15 3 * * * root ${APP_DIR}/deploy/scripts/backup-db.sh >> /var/log/slimshot-backup.log 2>&1
-EOF
-  chmod 644 /etc/cron.d/slimshot-backup
-  cat > /etc/logrotate.d/slimshot-backup <<'EOF'
-/var/log/slimshot-backup.log {
-  monthly
-  rotate 6
-  compress
-  missingok
-  notifempty
-}
-EOF
 
   step "SSH hardening"
   if [ "$HARDEN_SSH" != "yes" ]; then

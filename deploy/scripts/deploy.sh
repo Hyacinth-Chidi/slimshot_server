@@ -9,7 +9,9 @@
 #   4. start Postgres and Redis, wait until healthy
 #   5. apply database migrations and the idempotent seed
 #   6. restart the API and wait for its health check
-#   7. remove old images
+#   7. once R2 backups are set up (R2_BACKUP_BUCKET in .env), remove the old
+#      nightly backup cron job
+#   8. remove old images
 #
 # If the API fails its health check, the script prints its last log lines and
 # exits non-zero. Postgres and Redis keep running; nothing is deleted.
@@ -21,6 +23,18 @@ die() { printf '\033[1;31mERROR: %s\033[0m\n' "$*" >&2; exit 1; }
 # Runs inside the new API image: the same validation the API does at start-up.
 ENV_CHECK="try { require('./dist/config/env.validation').parseEnv(process.env); console.log('.env is valid.'); } catch (e) { console.error(e.message); process.exit(1); }"
 step() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
+
+# Backups go to R2 now, scheduled from the dashboard. The nightly pg_dump cron job that
+# setup-vps.sh used to install goes only once R2_BACKUP_BUCKET is set, so a server is
+# never left with neither. Silent when there is nothing to do.
+retire_old_backup_cron() {
+  local bucket
+  bucket="$(grep -E '^R2_BACKUP_BUCKET=' .env | tail -n 1 | cut -d= -f2- | tr -d "\"' \t\r" || true)"
+  [ -n "$bucket" ] && [ -f /etc/cron.d/slimshot-backup ] || return 0
+  step "Retiring the old nightly backup job"
+  rm -f /etc/cron.d/slimshot-backup /etc/logrotate.d/slimshot-backup
+  echo "Removed the nightly backup cron job: backups go to R2 ($bucket), scheduled from System › Backups."
+}
 
 # Everything runs inside main() so bash reads the whole file before `git pull`
 # can change it underneath.
@@ -73,6 +87,8 @@ main() {
   local port
   port="$(grep -E '^PORT=' .env | cut -d= -f2 | tr -d '"' || true)"
   curl -fsS "http://127.0.0.1:${port:-2700}/health/ready" && echo
+
+  retire_old_backup_cron
 
   step "Removing old images"
   docker image prune -f >/dev/null
