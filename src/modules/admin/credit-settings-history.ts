@@ -57,10 +57,12 @@ export async function lastChangedByField(
   let scanned = 0;
 
   while (pending.size > 0 && scanned < maxEntries) {
+    const take = Math.min(PAGE, maxEntries - scanned);
     const page = await prisma.auditLog.findMany({
-      where: { action: 'credits.settings.updated' },
+      // (entityType, entityId) is indexed; filtering on action alone would read the whole log.
+      where: { entityType: 'CreditSettings', entityId: 'default', action: 'credits.settings.updated' },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: Math.min(PAGE, maxEntries - scanned),
+      take,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: { id: true, actorId: true, createdAt: true, before: true, after: true },
     });
@@ -78,6 +80,8 @@ export async function lastChangedByField(
     }
     scanned += page.length;
     cursor = page[page.length - 1].id;
+    // A short page is the last one: some fields have simply never changed.
+    if (page.length < take) break;
   }
 
   const admins = await adminsById(prisma, [...found.values()].map((f) => f.actorId));

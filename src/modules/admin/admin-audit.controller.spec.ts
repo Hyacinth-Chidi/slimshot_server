@@ -53,6 +53,26 @@ describe('AdminAuditController.list enrichment', () => {
   });
 });
 
+describe('AdminAuditController.list provider entries', () => {
+  // Removing a key or switching a provider off is written with no entityId,
+  // and a key added again is a new row: the name must come from the entry.
+  it('names the provider from the entry, even when the key row is gone', async () => {
+    const prisma = {
+      auditLog: {
+        findMany: jest.fn(async () => [
+          { id: 'l1', actorId: null, actorType: 'system', action: 'provider.key.removed', entityType: 'ProviderCredential', entityId: null, after: { provider: 'deepgram', capability: 'speech_to_text' }, createdAt: new Date() },
+          { id: 'l2', actorId: null, actorType: 'system', action: 'provider.key.set', entityType: 'ProviderCredential', entityId: 'old-row', after: { provider: 'elevenlabs', capability: 'speech_to_text' }, createdAt: new Date() },
+        ]),
+      },
+      providerCredential: { findMany: jest.fn(async () => []) },
+    };
+    const res = await new AdminAuditController(prisma as never).list();
+
+    expect(res.data[0]).toMatchObject({ entityLabel: 'Deepgram', entityDeleted: false });
+    expect(res.data[1]).toMatchObject({ entityLabel: 'ElevenLabs', entityDeleted: false });
+  });
+});
+
 describe('AdminAuditController.list', () => {
   // A cursor is only stable over a total order. `createdAt` alone is not
   // unique - two rows written in the same millisecond, which a burst of audit

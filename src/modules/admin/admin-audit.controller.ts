@@ -11,7 +11,7 @@ import { PermissionsGuard } from '../../core/auth/permissions.guard';
 import { RequirePermission } from '../../core/auth/permissions';
 import { PrismaService } from '../../prisma/prisma.service';
 import { adminsById } from './admin-directory';
-import { labelEntities } from './audit-labels';
+import { labelEntities, labelFor } from './audit-labels';
 
 const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 25;
@@ -64,12 +64,12 @@ export class AdminAuditController {
       labelEntities(this.prisma, page),
     ]);
     const data = page.map((row) => {
-      const entity = labels.get(`${row.entityType}:${row.entityId}`);
+      const entity = labelFor(labels, row);
       return {
         ...row,
         actor: row.actorType === 'admin' && row.actorId ? (admins.get(row.actorId) ?? null) : null,
-        entityLabel: entity?.label ?? null,
-        entityDeleted: entity?.deleted ?? false,
+        entityLabel: entity.label,
+        entityDeleted: entity.deleted,
       };
     });
 

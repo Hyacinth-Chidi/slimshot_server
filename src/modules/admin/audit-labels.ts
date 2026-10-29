@@ -1,12 +1,11 @@
 import { PrismaService } from '../../prisma/prisma.service';
+import { PROVIDER_NAMES } from '../providers/speech-to-text.provider';
 
 /** What an audit entry's entity is called, and whether it is gone. */
 export interface EntityLabel {
   label: string | null;
   deleted: boolean;
 }
-
-const PROVIDER_NAMES: Record<string, string> = { deepgram: 'Deepgram', elevenlabs: 'ElevenLabs' };
 
 type Lookup = (prisma: PrismaService, ids: string[]) => Promise<Map<string, EntityLabel>>;
 
@@ -52,7 +51,7 @@ const LOOKUPS: Record<string, { find: Lookup; missing: EntityLabel }> = {
     missing: { label: null, deleted: true },
     find: async (prisma, ids) => {
       const rows = await prisma.providerCredential.findMany({ where: { id: { in: ids } }, select: { id: true, provider: true } });
-      return new Map(rows.map((r) => [r.id, { label: PROVIDER_NAMES[r.provider] ?? r.provider, deleted: false }]));
+      return new Map(rows.map((r) => [r.id, { label: PROVIDER_NAMES[r.provider], deleted: false }]));
     },
   },
   AdminUser: {
@@ -95,4 +94,22 @@ export async function labelEntities(
     }),
   );
   return labels;
+}
+
+/**
+ * One entry's label. Provider entries name their provider in `after`, which
+ * holds even when the entry has no entityId (a removed key, a provider switched
+ * off) or its key row was replaced since; the lookup is the fallback.
+ */
+export function labelFor(
+  labels: Map<string, EntityLabel>,
+  row: { entityType: string; entityId: string | null; after?: unknown },
+): EntityLabel {
+  if (row.entityType === 'ProviderCredential') {
+    const provider = (row.after as { provider?: unknown } | null | undefined)?.provider;
+    if (typeof provider === 'string' && provider in PROVIDER_NAMES) {
+      return { label: PROVIDER_NAMES[provider as keyof typeof PROVIDER_NAMES], deleted: false };
+    }
+  }
+  return labels.get(`${row.entityType}:${row.entityId}`) ?? NO_LABEL;
 }

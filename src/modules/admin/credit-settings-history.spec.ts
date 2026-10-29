@@ -56,13 +56,20 @@ describe('lastChangedByField', () => {
     expect([...CREDIT_SETTING_FIELDS].sort()).toEqual(Object.keys(ALL_FIELDS).sort());
   });
 
-  it('reads only credit settings changes, newest first', async () => {
+  it('reads only credit settings changes, newest first, by the indexed entity', async () => {
     const { prisma } = build([]);
     await lastChangedByField(prisma as never);
     expect(prisma.auditLog.findMany.mock.calls[0][0]).toMatchObject({
-      where: { action: 'credits.settings.updated' },
+      // (entityType, entityId) is indexed; action alone is not.
+      where: { entityType: 'CreditSettings', entityId: 'default', action: 'credits.settings.updated' },
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
+  });
+
+  it('stops when a page comes back short, even with fields never changed', async () => {
+    const { prisma } = build([entry('e1', 20, { signupBonusCredits: 150 })]);
+    await lastChangedByField(prisma as never);
+    expect(prisma.auditLog.findMany).toHaveBeenCalledTimes(1);
   });
 
   it('takes the newest change of each field', async () => {
