@@ -3,6 +3,7 @@ export { appAuthConfig, type AppAuthConfig } from './app-auth.config';
 export { appConfig, type AppConfig } from './app.config';
 export { authConfig, type AuthConfig } from './auth.config';
 export { backupConfig, type BackupConfig } from './backup.config';
+export { pushConfig, type PushConfig } from './push.config';
 export { captionConfig, type CaptionConfig } from './caption.config';
 export { cryptoConfig, type CryptoConfig } from './crypto.config';
 export { emailConfig, type EmailConfig } from './email.config';

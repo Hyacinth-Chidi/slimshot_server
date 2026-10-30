@@ -72,7 +72,8 @@ export const ModelName = {
   Referral: 'Referral',
   CreditSettings: 'CreditSettings',
   PricingRule: 'PricingRule',
-  BackupSettings: 'BackupSettings'
+  BackupSettings: 'BackupSettings',
+  PushMessage: 'PushMessage'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -325,7 +326,9 @@ export const DeviceScalarFieldEnum = {
   appVersion: 'appVersion',
   userId: 'userId',
   createdAt: 'createdAt',
-  lastSeenAt: 'lastSeenAt'
+  lastSeenAt: 'lastSeenAt',
+  pushToken: 'pushToken',
+  pushTokenAt: 'pushTokenAt'
 } as const
 
 export type DeviceScalarFieldEnum = (typeof DeviceScalarFieldEnum)[keyof typeof DeviceScalarFieldEnum]
@@ -449,6 +452,25 @@ export const BackupSettingsScalarFieldEnum = {
 } as const
 
 export type BackupSettingsScalarFieldEnum = (typeof BackupSettingsScalarFieldEnum)[keyof typeof BackupSettingsScalarFieldEnum]
+
+
+export const PushMessageScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  body: 'body',
+  audience: 'audience',
+  userId: 'userId',
+  status: 'status',
+  targetCount: 'targetCount',
+  sentCount: 'sentCount',
+  failedCount: 'failedCount',
+  error: 'error',
+  sentById: 'sentById',
+  createdAt: 'createdAt',
+  finishedAt: 'finishedAt'
+} as const
+
+export type PushMessageScalarFieldEnum = (typeof PushMessageScalarFieldEnum)[keyof typeof PushMessageScalarFieldEnum]
 
 
 export const SortOrder = {

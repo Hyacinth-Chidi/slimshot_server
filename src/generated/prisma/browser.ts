@@ -133,3 +133,8 @@ export type PricingRule = Prisma.PricingRuleModel
  * intervalDays from the admin API; the backup worker writes how the last run went.
  */
 export type BackupSettings = Prisma.BackupSettingsModel
+/**
+ * Model PushMessage
+ * A push notification the owner sent from the dashboard, and how its delivery went.
+ */
+export type PushMessage = Prisma.PushMessageModel

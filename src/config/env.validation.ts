@@ -218,6 +218,12 @@ export class Env {
   @IsString()
   R2_BACKUP_BUCKET?: string;
 
+  // Firebase service account key (the JSON file), base64 on one line. Empty: push is off.
+  @Transform(text)
+  @IsOptional()
+  @IsString()
+  FIREBASE_SERVICE_ACCOUNT_BASE64?: string;
+
   // Where the app downloads files from: the bucket's public custom domain.
   @Transform(origin)
   @IsDefined({ message: 'R2_PUBLIC_BASE_URL is required' })
@@ -357,6 +363,9 @@ function crossFieldProblems(env: Env): string[] {
   if (env.USER_JWT_SECRET && env.USER_JWT_SECRET === env.JWT_ACCESS_SECRET) {
     problems.push('USER_JWT_SECRET must differ from JWT_ACCESS_SECRET');
   }
+  if (env.FIREBASE_SERVICE_ACCOUNT_BASE64 && !decodeServiceAccount(env.FIREBASE_SERVICE_ACCOUNT_BASE64)) {
+    problems.push('FIREBASE_SERVICE_ACCOUNT_BASE64 must be a Firebase service account key file, base64-encoded');
+  }
   // R2_BUCKET is served to the world from its custom domain; a dump there is everyone's.
   if (env.R2_BACKUP_BUCKET && env.R2_BACKUP_BUCKET === env.R2_BUCKET) {
     problems.push('R2_BACKUP_BUCKET must not be R2_BUCKET: backups would be public');
@@ -405,4 +414,24 @@ export function parseEnv(raw: Record<string, unknown>): Env {
 export function validate(config: Record<string, unknown>): Record<string, unknown> {
   parseEnv(config);
   return config;
+}
+
+export interface FirebaseServiceAccount {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+}
+
+/** The parts of a Firebase service account key file that sending needs, or null if it isn't one. */
+export function decodeServiceAccount(base64: string): FirebaseServiceAccount | null {
+  try {
+    const key: unknown = JSON.parse(Buffer.from(base64.trim(), 'base64').toString('utf8'));
+    if (typeof key !== 'object' || key === null) return null;
+    const { project_id: projectId, client_email: clientEmail, private_key: privateKey } = key as Record<string, unknown>;
+    if (typeof projectId !== 'string' || typeof clientEmail !== 'string' || typeof privateKey !== 'string') return null;
+    if (!projectId || !clientEmail || !privateKey.includes('PRIVATE KEY')) return null;
+    return { projectId, clientEmail, privateKey };
+  } catch {
+    return null;
+  }
 }

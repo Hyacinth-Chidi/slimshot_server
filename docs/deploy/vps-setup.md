@@ -35,6 +35,7 @@ Commands marked **PC** run in PowerShell on your computer. The others run on the
 | 6 | VPS | `deploy.sh`: first deploy, then check `/health` | once |
 | 7 | Dashboard, AdMob, Play Console | Point everything at the live API | once |
 | 8 | Cloudflare, VPS | Backups to R2: a private bucket and one `.env` line | once |
+| 8B | Firebase, VPS | Push notifications: one `.env` line | once, optional |
 | 9 | VPS and GitHub | Automatic deploys on push (webhook) | once, optional |
 | 10 | VPS | Everyday commands | as needed |
 
@@ -434,6 +435,35 @@ A dump file on the VPS restores the same way: `./deploy/scripts/restore-db.sh /p
 backups moved to R2. Nothing deletes them for you, since a restore may read an older one:
 `ls -lh /var/backups/slimshot/`, then `rm /var/backups/slimshot/slimshot-YYYYMMDD-HHMMSS.dump`.
 
+## 8B. Push notifications (Firebase)
+
+The dashboard's **System › Notifications** page sends notifications to the app through Firebase
+Cloud Messaging. The server needs one key from Firebase; until it has it, the page explains what
+to add and nothing else changes.
+
+1. **Firebase project.** At [console.firebase.google.com](https://console.firebase.google.com),
+   **Add project** (or open the one the app developer already uses), name it `SlimShot`. Google
+   Analytics is optional.
+2. **The server's key.** Project settings (gear icon) › **Service accounts** › **Generate new
+   private key** › **Generate key**. A JSON file downloads. It lets anyone send notifications to
+   your users: never commit it, email it or paste it into a chat.
+3. **Turn it into one line** (**PC**, PowerShell, in the folder with the file):
+   ```powershell
+   [Convert]::ToBase64String([IO.File]::ReadAllBytes("slimshot-firebase-adminsdk.json")) | Set-Clipboard
+   ```
+   (Use the real file name.) The long line is now on your clipboard.
+4. **Add it to `.env`** on the VPS (`nano /var/www/slimshot_server/.env`):
+   ```
+   FIREBASE_SERVICE_ACCOUNT_BASE64=<paste>
+   ```
+   Then `SKIP_PULL=1 ./deploy/scripts/deploy.sh`. If the line is wrong, the deploy stops at
+   "Checking .env against the new code" and the running API is untouched.
+5. **Delete the downloaded JSON file** from your PC. The copy in `.env` is the one that counts;
+   if it is ever lost, generate a new key the same way and delete the old one in Firebase
+   (Service accounts › Manage service account permissions).
+6. **The app.** The app developer adds the Android (and iOS) app to the same Firebase project and
+   follows `docs/app-push-api.md`. Messages reach installs only once the app sends its token.
+
 ## 9. Automatic deploys on push (webhook)
 
 Once the first manual deploy works, a push to `main` can deploy by itself:
@@ -577,6 +607,8 @@ Docker and every container come back on their own.
 | GitHub webhook delivery shows **403** | No signature reached the listener: the GitHub secret field is empty, or the content type isn't `application/json` |
 | GitHub webhook delivery shows **500** | The signature didn't match: the secret in GitHub differs from `/etc/slimshot/webhook.env`. Paste it again |
 | GitHub webhook delivery shows **502** | The listener isn't running: `systemctl status slimshot-webhook`, then `journalctl -u slimshot-webhook -n 50` |
+| System › Notifications: "not set up" | `FIREBASE_SERVICE_ACCOUNT_BASE64` isn't in `.env`: add it, then `SKIP_PULL=1 ./deploy/scripts/deploy.sh` (step 8B) |
+| `deploy.sh`: "FIREBASE_SERVICE_ACCOUNT_BASE64 must be a Firebase service account key file" | The line isn't the whole key file in base64: copy it again (step 8B, point 3) |
 | System › Backups: "Backups are not set up yet" | `R2_BACKUP_BUCKET` isn't in `.env`: add it, then `SKIP_PULL=1 ./deploy/scripts/deploy.sh` (step 8) |
 | `deploy.sh`: "R2_BACKUP_BUCKET must not be R2_BUCKET" | `.env` names the public bucket for backups. Use `slimshot-backups` |
 | A backup fails with `AccessDenied` or `NoSuchBucket` | The `slimshot-server` token doesn't cover `slimshot-backups`, or the bucket name in `.env` is misspelt (step 8) |

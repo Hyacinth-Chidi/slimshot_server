@@ -405,7 +405,8 @@ export const ModelName = {
   Referral: 'Referral',
   CreditSettings: 'CreditSettings',
   PricingRule: 'PricingRule',
-  BackupSettings: 'BackupSettings'
+  BackupSettings: 'BackupSettings',
+  PushMessage: 'PushMessage'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -421,7 +422,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "asset" | "category" | "assetFile" | "audioAsset" | "fontAsset" | "uploadSession" | "user" | "userEntitlement" | "storageProvider" | "auditLog" | "adminUser" | "refreshToken" | "providerCredential" | "device" | "userSession" | "userRefreshToken" | "creditTransaction" | "bonusClaim" | "referral" | "creditSettings" | "pricingRule" | "backupSettings"
+    modelProps: "asset" | "category" | "assetFile" | "audioAsset" | "fontAsset" | "uploadSession" | "user" | "userEntitlement" | "storageProvider" | "auditLog" | "adminUser" | "refreshToken" | "providerCredential" | "device" | "userSession" | "userRefreshToken" | "creditTransaction" | "bonusClaim" | "referral" | "creditSettings" | "pricingRule" | "backupSettings" | "pushMessage"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2053,6 +2054,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PushMessage: {
+      payload: Prisma.$PushMessagePayload<ExtArgs>
+      fields: Prisma.PushMessageFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PushMessageFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PushMessageFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>
+        }
+        findFirst: {
+          args: Prisma.PushMessageFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PushMessageFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>
+        }
+        findMany: {
+          args: Prisma.PushMessageFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>[]
+        }
+        create: {
+          args: Prisma.PushMessageCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>
+        }
+        createMany: {
+          args: Prisma.PushMessageCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PushMessageCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>[]
+        }
+        delete: {
+          args: Prisma.PushMessageDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>
+        }
+        update: {
+          args: Prisma.PushMessageUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>
+        }
+        deleteMany: {
+          args: Prisma.PushMessageDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PushMessageUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PushMessageUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>[]
+        }
+        upsert: {
+          args: Prisma.PushMessageUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PushMessagePayload>
+        }
+        aggregate: {
+          args: Prisma.PushMessageAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePushMessage>
+        }
+        groupBy: {
+          args: Prisma.PushMessageGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PushMessageGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PushMessageCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PushMessageCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2326,7 +2401,9 @@ export const DeviceScalarFieldEnum = {
   appVersion: 'appVersion',
   userId: 'userId',
   createdAt: 'createdAt',
-  lastSeenAt: 'lastSeenAt'
+  lastSeenAt: 'lastSeenAt',
+  pushToken: 'pushToken',
+  pushTokenAt: 'pushTokenAt'
 } as const
 
 export type DeviceScalarFieldEnum = (typeof DeviceScalarFieldEnum)[keyof typeof DeviceScalarFieldEnum]
@@ -2450,6 +2527,25 @@ export const BackupSettingsScalarFieldEnum = {
 } as const
 
 export type BackupSettingsScalarFieldEnum = (typeof BackupSettingsScalarFieldEnum)[keyof typeof BackupSettingsScalarFieldEnum]
+
+
+export const PushMessageScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  body: 'body',
+  audience: 'audience',
+  userId: 'userId',
+  status: 'status',
+  targetCount: 'targetCount',
+  sentCount: 'sentCount',
+  failedCount: 'failedCount',
+  error: 'error',
+  sentById: 'sentById',
+  createdAt: 'createdAt',
+  finishedAt: 'finishedAt'
+} as const
+
+export type PushMessageScalarFieldEnum = (typeof PushMessageScalarFieldEnum)[keyof typeof PushMessageScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -2945,6 +3041,7 @@ export type GlobalOmitConfig = {
   creditSettings?: Prisma.CreditSettingsOmit
   pricingRule?: Prisma.PricingRuleOmit
   backupSettings?: Prisma.BackupSettingsOmit
+  pushMessage?: Prisma.PushMessageOmit
 }
 
 /* Types for Logging */

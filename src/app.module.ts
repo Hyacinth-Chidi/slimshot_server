@@ -8,6 +8,7 @@ import {
   authConfig,
   backupConfig,
   captionConfig,
+  pushConfig,
   cryptoConfig,
   databaseConfig,
   emailConfig,
@@ -27,6 +28,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { BackupsModule } from './modules/backups/backups.module';
+import { PushModule } from './modules/push/push.module';
 import { CaptionsModule } from './modules/captions/captions.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CreditsModule } from './modules/credits/credits.module';
@@ -55,6 +57,7 @@ import { PrismaModule } from './prisma/prisma.module';
         emailConfig,
         admobConfig,
         backupConfig,
+        pushConfig,
       ],
     }),
     PrismaModule,
@@ -76,6 +79,7 @@ import { PrismaModule } from './prisma/prisma.module';
     RewardsModule,
     CaptionsModule,
     BackupsModule,
+    PushModule,
   ],
 })
 export class AppModule {}

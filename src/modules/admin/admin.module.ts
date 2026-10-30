@@ -4,6 +4,7 @@ import { AccountsModule } from '../accounts/accounts.module';
 import { AssetsModule } from '../assets/assets.module';
 import { AuthModule } from '../auth/auth.module';
 import { BackupsModule } from '../backups/backups.module';
+import { PushModule } from '../push/push.module';
 import { CreditSettingsModule } from '../credits/credit-settings.module';
 import { CreditsModule } from '../credits/credits.module';
 import { IngestModule } from '../ingest/ingest.module';
@@ -14,6 +15,7 @@ import { AdminFontsController } from './admin-fonts.controller';
 import { FontsModule } from '../fonts/fonts.module';
 import { AdminAuditController } from './admin-audit.controller';
 import { AdminBackupsController } from './admin-backups.controller';
+import { AdminNotificationsController } from './admin-notifications.controller';
 import { AdminCategoriesController } from './admin-categories.controller';
 import { AdminCreditSettingsController } from './admin-credit-settings.controller';
 import { AdminCreditStatsController } from './admin-credit-stats.controller';
@@ -40,6 +42,7 @@ import { StatsService } from './stats.service';
     CreditSettingsModule,
     AccountsModule,
     BackupsModule,
+    PushModule,
   ],
   controllers: [
     AdminAssetsController,
@@ -57,6 +60,7 @@ import { StatsService } from './stats.service';
     AdminCreditStatsController,
     AdminUserStatsController,
     AdminBackupsController,
+    AdminNotificationsController,
   ],
   providers: [StatsService, AdminUsersService],
 })

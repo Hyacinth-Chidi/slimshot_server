@@ -6,6 +6,7 @@ import { appAuthConfig } from './app-auth.config';
 import { appConfig } from './app.config';
 import { authConfig } from './auth.config';
 import { backupConfig } from './backup.config';
+import { pushConfig } from './push.config';
 import { captionConfig } from './caption.config';
 import { cryptoConfig } from './crypto.config';
 import { emailConfig } from './email.config';
@@ -201,6 +202,40 @@ describe('parseEnv', () => {
     }
     expect(message).toContain('SMTP_HOST is required when EMAIL_SENDER=smtp');
     expect(message).toContain('EMAIL_FROM is required when EMAIL_SENDER=smtp');
+  });
+
+  const FIREBASE_KEY = {
+    type: 'service_account',
+    project_id: 'slimshot-app',
+    client_email: 'firebase-adminsdk@slimshot-app.iam.gserviceaccount.com',
+    private_key: '-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n',
+  };
+  const b64 = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64');
+
+  it('leaves push off when FIREBASE_SERVICE_ACCOUNT_BASE64 is blank', () => {
+    expect(parseEnv({ ...BASE, FIREBASE_SERVICE_ACCOUNT_BASE64: '' }).FIREBASE_SERVICE_ACCOUNT_BASE64).toBeUndefined();
+    process.env = { ...BASE };
+    expect(pushConfig()).toEqual({ serviceAccount: null });
+  });
+
+  it('reads the Firebase key for push from one base64 line', () => {
+    process.env = { ...BASE, FIREBASE_SERVICE_ACCOUNT_BASE64: ` ${b64(FIREBASE_KEY)} ` };
+    expect(pushConfig()).toEqual({
+      serviceAccount: {
+        projectId: 'slimshot-app',
+        clientEmail: 'firebase-adminsdk@slimshot-app.iam.gserviceaccount.com',
+        privateKey: FIREBASE_KEY.private_key,
+      },
+    });
+  });
+
+  it.each([
+    ['not base64 JSON', 'not-a-key'],
+    ['JSON without the private key', b64({ project_id: 'p', client_email: 'e@x' })],
+  ])('refuses a Firebase key that is %s', (_why, value) => {
+    expect(() => parseEnv({ ...BASE, FIREBASE_SERVICE_ACCOUNT_BASE64: value })).toThrow(
+      'FIREBASE_SERVICE_ACCOUNT_BASE64 must be a Firebase service account key file, base64-encoded',
+    );
   });
 
   it('leaves backups off when R2_BACKUP_BUCKET is blank', () => {

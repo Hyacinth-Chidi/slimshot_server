@@ -353,13 +353,16 @@ model ProviderCredential {
 
 /// An anonymous app install. The app holds the token; only its SHA-256 is kept.
 model Device {
-  id         String   @id @default(cuid())
-  tokenHash  String   @unique
-  platform   String?
-  appVersion String?
-  userId     String?
-  createdAt  DateTime @default(now())
-  lastSeenAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  platform    String?
+  appVersion  String?
+  userId      String?
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+  /// The install's Firebase Cloud Messaging token, if the app has notifications on. One install per token.
+  pushToken   String?   @unique
+  pushTokenAt DateTime?
 
   user     User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   sessions UserSession[]
@@ -530,4 +533,25 @@ model BackupSettings {
   lastRunTrigger String?
   updatedById    String?
   updatedAt      DateTime  @updatedAt
+}
+
+/// A push notification the owner sent from the dashboard, and how its delivery went.
+model PushMessage {
+  id          String    @id @default(cuid())
+  title       String
+  body        String
+  /// "all" or "user".
+  audience    String
+  userId      String?
+  /// "sending", "sent" or "failed".
+  status      String    @default("sending")
+  targetCount Int       @default(0)
+  sentCount   Int       @default(0)
+  failedCount Int       @default(0)
+  error       String?
+  sentById    String
+  createdAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  @@index([createdAt])
 }
