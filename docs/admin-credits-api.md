@@ -43,6 +43,8 @@ One record holding every amount, cap and limit. Changes apply within 30 seconds.
   "signupBonusCredits": 100,
   "adRewardCredits": 5,
   "adDailyCap": 10,
+  "dailyRewardEnabled": false,
+  "dailyRewardCredits": 5,
   "referralInviterCredits": 20,
   "referralInviteeCredits": 20,
   "referralCapCount": 10,
@@ -81,6 +83,8 @@ fields are refused with 422.
 | `signupBonusCredits` | Credits on claiming an account (once per email and per install) | 0–100000 |
 | `adRewardCredits` | Credits per completed rewarded ad | 0–100000 |
 | `adDailyCap` | Rewarded ads per user per UTC day | 0–1000 |
+| `dailyRewardEnabled` | Daily credits on or off (starts off) | true / false |
+| `dailyRewardCredits` | Credits per daily claim; a user claims once every 24 h from their last claim | 1–100000 |
 | `referralInviterCredits` | Credits to the person who invited | 0–100000 |
 | `referralInviteeCredits` | Credits to the person invited | 0–100000 |
 | `referralCapCount` | Rewarded referrals per inviter… | 0–10000 |

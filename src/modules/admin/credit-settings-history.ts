@@ -17,6 +17,8 @@ export const CREDIT_SETTING_FIELDS = [
   'otpPerDevicePerHour',
   'otpPerIpPerHour',
   'disposableEmailDomains',
+  'dailyRewardEnabled',
+  'dailyRewardCredits',
 ] as const;
 
 export type CreditSettingField = (typeof CREDIT_SETTING_FIELDS)[number];

@@ -127,7 +127,8 @@ export const CreditTxType = {
   feature_refund: 'feature_refund',
   admin_adjustment: 'admin_adjustment',
   account_deleted: 'account_deleted',
-  purchase: 'purchase'
+  purchase: 'purchase',
+  daily_reward: 'daily_reward'
 } as const
 
 export type CreditTxType = (typeof CreditTxType)[keyof typeof CreditTxType]

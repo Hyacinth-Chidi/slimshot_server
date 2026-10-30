@@ -20,6 +20,7 @@ describe('accounts and credits schema', () => {
       'admin_adjustment',
       'account_deleted',
       'purchase',
+      'daily_reward',
     ]);
   });
 
@@ -50,6 +51,17 @@ describe('accounts and credits schema', () => {
     expect(sql).toContain(
       'CREATE UNIQUE INDEX "PricingRule_one_active" ON "PricingRule"("feature") WHERE "isActive";',
     );
+  });
+
+  it('adds daily credits, switched off, in an additive migration', () => {
+    const daily = readFileSync(
+      join(__dirname, '../../prisma/migrations/20261030120000_daily_reward/migration.sql'),
+      'utf8',
+    );
+    expect(daily).toContain(`ALTER TYPE "CreditTxType" ADD VALUE 'daily_reward';`);
+    expect(daily).toContain('"dailyRewardEnabled" BOOLEAN NOT NULL DEFAULT false');
+    expect(daily).toContain('"dailyRewardCredits" INTEGER NOT NULL DEFAULT 5');
+    expect(daily).not.toMatch(/DROP|DELETE|UPDATE/i);
   });
 
   it('creates the default settings row', () => {

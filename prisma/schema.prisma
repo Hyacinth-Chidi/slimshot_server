@@ -377,6 +377,7 @@ enum CreditTxType {
   admin_adjustment
   account_deleted
   purchase
+  daily_reward
 }
 
 enum CreditFeature {
@@ -487,6 +488,9 @@ model CreditSettings {
   otpPerEmailPerHour       Int
   otpPerDevicePerHour      Int
   otpPerIpPerHour          Int
+  /// Daily credits: a signed-in user claims this many once every 24 hours. Off until the owner turns it on.
+  dailyRewardEnabled       Boolean  @default(false)
+  dailyRewardCredits       Int      @default(5)
   updatedById              String?
   updatedAt                DateTime @updatedAt
 }

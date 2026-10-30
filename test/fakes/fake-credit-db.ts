@@ -104,6 +104,18 @@ export class FakeCreditDb {
           const row = db.ledger.find((r) => r.idempotencyKey === args.where.idempotencyKey);
           return row ? { ...row } : null;
         },
+        /** The newest matching row (orderBy createdAt desc is the only order callers use). */
+        async findFirst(args: { where: { userId: string; type?: string } }) {
+          await tick();
+          const rows = db.ledger.filter(
+            (r) => r.userId === args.where.userId && (args.where.type === undefined || r.type === args.where.type),
+          );
+          const newest = rows.reduce<FakeLedgerRow | null>(
+            (best, r) => (!best || r.createdAt.getTime() >= best.createdAt.getTime() ? r : best),
+            null,
+          );
+          return newest ? { ...newest } : null;
+        },
         async count(args: { where: { userId: string; type?: string; createdAt?: { gte: Date } } }) {
           await tick();
           return db.ledger.filter(

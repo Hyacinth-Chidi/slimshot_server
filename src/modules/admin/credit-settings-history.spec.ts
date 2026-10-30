@@ -23,6 +23,8 @@ const ALL_FIELDS: Record<string, unknown> = {
   otpPerDevicePerHour: 10,
   otpPerIpPerHour: 20,
   disposableEmailDomains: ['a.com', 'b.com'],
+  dailyRewardEnabled: false,
+  dailyRewardCredits: 5,
 };
 
 const at = (day: number) => new Date(Date.UTC(2026, 9, day, 10));

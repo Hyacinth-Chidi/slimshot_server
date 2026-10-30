@@ -4,10 +4,28 @@ import type { Request } from 'express';
 import { CurrentAppUser } from '../accounts/current-app-user.decorator';
 import { type AuthenticatedAppUser, UserAuthGuard } from '../accounts/user-auth.guard';
 import { AdSessionsService } from './ad-sessions.service';
+import { DailyRewardService } from './daily-reward.service';
 
 @Controller('api/app/v1/rewards')
 export class RewardsController {
-  constructor(private readonly sessions: AdSessionsService) {}
+  constructor(
+    private readonly sessions: AdSessionsService,
+    private readonly daily: DailyRewardService,
+  ) {}
+
+  /** Whether daily credits are on, how many, and when the next claim opens (null: now). */
+  @Get('daily')
+  @UseGuards(UserAuthGuard)
+  async dailyStatus(@CurrentAppUser() user: AuthenticatedAppUser) {
+    return { success: true as const, data: await this.daily.status(user.id) };
+  }
+
+  @Post('daily/claim')
+  @HttpCode(200)
+  @UseGuards(UserAuthGuard)
+  async claimDaily(@CurrentAppUser() user: AuthenticatedAppUser) {
+    return { success: true as const, data: await this.daily.claim(user) };
+  }
 
   @Post('ads/session')
   @HttpCode(200)

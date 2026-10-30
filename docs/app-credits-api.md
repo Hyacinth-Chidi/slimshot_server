@@ -200,7 +200,8 @@ Console's account deletion field.
 - `type` values: `signup_bonus` (claim bonus), `referral_invitee` / `referral_inviter` (referral
   rewards), `rewarded_ad` (watched an ad), `feature_charge` (paid for a feature, negative),
   `feature_refund` (a failed job gave its credits back), `admin_adjustment` (support changed the
-  balance), `account_deleted` (credits forfeited on deletion), `purchase` (reserved for payments).
+  balance), `account_deleted` (credits forfeited on deletion), `purchase` (reserved for payments),
+  `daily_reward` (daily credits, §14).
 
 ## 11. Price quote
 
@@ -376,7 +377,42 @@ units listed in its `ADMOB_AD_UNIT_IDS`, so send those IDs to whoever runs the s
    If it is still `pending` after 30 seconds, stop and refresh `/me` later: a late callback still
    lands. A nonce lasts one hour; another user's nonce answers `404 NOT_FOUND`.
 
-## 14. Errors
+## 14. Daily credits
+
+A signed-in user can claim a set number of credits once every 24 hours, counted from their last
+claim. The owner sets the amount and switches it on or off in the dashboard (Credits › Rewards);
+it starts switched off. Both routes need the user's access token.
+
+### `GET /rewards/daily`
+
+```json
+{ "success": true, "data": { "enabled": true, "credits": 5, "nextClaimAt": null } }
+```
+
+- `enabled: false`: hide the daily credits button.
+- `nextClaimAt: null` (and `enabled`): claimable now, so show "Claim 5 credits".
+- `nextClaimAt` a date: claimed already; show a countdown to that time, then enable the button.
+
+Read it when the screen with the button opens, and after a claim.
+
+### `POST /rewards/daily/claim`
+
+No body. `200`:
+
+```json
+{ "success": true, "data": { "credits": 5, "balance": 115, "nextClaimAt": "2026-10-31T09:12:44.000Z" } }
+```
+
+Show "+5 credits", update the balance from `balance`, and start the countdown to `nextClaimAt`.
+A double tap is safe: only one claim pays; the other answers `409 DAILY_REWARD_NOT_READY`.
+
+| Status | `error.code` | What the app does |
+|---|---|---|
+| 409 | `DAILY_REWARD_NOT_READY` | `details.nextClaimAt` says when: show the countdown |
+| 409 | `DAILY_REWARD_OFF` | the owner switched it off: hide the button |
+| 403 | `ACCOUNT_SUSPENDED` | show "contact support" |
+
+## 15. Errors
 
 | Status | `error.code` | When | What the app does |
 |---|---|---|---|
@@ -403,6 +439,8 @@ units listed in its `ADMOB_AD_UNIT_IDS`, so send those IDs to whoever runs the s
 | 422 | `INVALID_AUDIO` | the WAV cannot be read (not PCM or float, empty, broken header) | extract it again (§12) |
 | 409 | `IDEMPOTENCY_KEY_REUSED` | this `Idempotency-Key` already paid for an earlier upload whose job is gone; nothing was charged | resend the upload with a new key |
 | 413 | `PAYLOAD_TOO_LARGE` | the audio is over the size limit | split the video's audio |
+| 409 | `DAILY_REWARD_NOT_READY` | daily credits already claimed; `details.nextClaimAt` | show a countdown to that time |
+| 409 | `DAILY_REWARD_OFF` | daily credits are switched off | hide the daily credits button |
 | 503 | `CAPTIONS_UNAVAILABLE` | Auto caption is switched off or has no price set | show "Auto caption is unavailable right now" |
 | 404 | `NOT_FOUND` | unknown, someone else's, or expired caption job or ad session | start again |
 | 409 | `AD_DAILY_CAP_REACHED` | today's rewarded ads are used up; `details.resetsAt` | hide "Watch an ad" until then |

@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsFQDN,
   IsInt,
@@ -37,6 +38,8 @@ export class UpdateCreditSettingsDto {
   @IsOptional() @IsInt() @Min(1) @Max(10_000) otpPerEmailPerHour?: number;
   @IsOptional() @IsInt() @Min(1) @Max(10_000) otpPerDevicePerHour?: number;
   @IsOptional() @IsInt() @Min(1) @Max(10_000) otpPerIpPerHour?: number;
+  @IsOptional() @IsBoolean() dailyRewardEnabled?: boolean;
+  @IsOptional() @IsInt() @Min(1) @Max(100_000) dailyRewardCredits?: number;
 
   @IsOptional()
   @Transform(domainList)

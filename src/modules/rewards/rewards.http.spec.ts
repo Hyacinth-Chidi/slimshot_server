@@ -6,6 +6,7 @@ import { appError } from '../../core/errors/app-error';
 import { ErrorCode } from '../../core/errors/error-codes';
 import { UserAuthGuard } from '../accounts/user-auth.guard';
 import { AdSessionsService } from './ad-sessions.service';
+import { DailyRewardService } from './daily-reward.service';
 import { RewardsController } from './rewards.controller';
 
 const ACCESS = 'Bearer a.b.c';
@@ -28,11 +29,18 @@ describe('rewards API over HTTP', () => {
     status: jest.fn(),
     handleCallback: jest.fn(async () => undefined),
   };
+  const daily = {
+    status: jest.fn(async () => ({ enabled: true, credits: 5, nextClaimAt: null })),
+    claim: jest.fn(async () => ({ credits: 5, balance: 15, nextClaimAt: '2026-10-31T09:00:00.000Z' })),
+  };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [RewardsController],
-      providers: [{ provide: AdSessionsService, useValue: sessions }],
+      providers: [
+        { provide: AdSessionsService, useValue: sessions },
+        { provide: DailyRewardService, useValue: daily },
+      ],
     })
       .overrideGuard(UserAuthGuard)
       .useValue(fakeGuard)
@@ -45,6 +53,34 @@ describe('rewards API over HTTP', () => {
 
   afterAll(async () => {
     await app.close();
+  });
+
+  it('tells a signed-in user whether daily credits can be claimed', async () => {
+    expect((await fetch(`${base}/daily`)).status).toBe(401);
+    const res = await fetch(`${base}/daily`, { headers: { authorization: ACCESS } });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, data: { enabled: true, credits: 5, nextClaimAt: null } });
+    expect(daily.status).toHaveBeenLastCalledWith('u1');
+  });
+
+  it('claims daily credits for a signed-in user only, and passes on why not', async () => {
+    expect((await fetch(`${base}/daily/claim`, { method: 'POST' })).status).toBe(401);
+    const res = await fetch(`${base}/daily/claim`, { method: 'POST', headers: { authorization: ACCESS } });
+    expect(res.status).toBe(200);
+    expect((await res.json()).data).toEqual({ credits: 5, balance: 15, nextClaimAt: '2026-10-31T09:00:00.000Z' });
+    expect(daily.claim).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'u1' }));
+
+    daily.claim.mockRejectedValueOnce(
+      appError(409, ErrorCode.DAILY_REWARD_NOT_READY, 'Your daily credits are not ready yet.', {
+        nextClaimAt: '2026-10-31T09:00:00.000Z',
+      }),
+    );
+    const early = await fetch(`${base}/daily/claim`, { method: 'POST', headers: { authorization: ACCESS } });
+    expect(early.status).toBe(409);
+    expect((await early.json()).error).toMatchObject({
+      code: 'DAILY_REWARD_NOT_READY',
+      details: { nextClaimAt: '2026-10-31T09:00:00.000Z' },
+    });
   });
 
   it('starts a session for a signed-in user only', async () => {
