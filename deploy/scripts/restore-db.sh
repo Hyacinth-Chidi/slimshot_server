@@ -29,6 +29,7 @@ RESTORE_OURS=0  # slimshot_restore exists and is ours to drop
 API_STOPPED=0   # the API is stopped and must be started again
 OLD_DB=""       # where the live database was renamed to, until it is safely in place
 SWAPPED=0       # the restored database is now called slimshot
+DONE=0          # finished: nothing to put right
 
 step() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33mWARNING: %s\033[0m\n' "$*" >&2; }
@@ -49,10 +50,12 @@ env_value() {
 }
 
 cleanup() {
-  local status=$?
+  # A second Ctrl-C, or the SSH session dropping, must not stop the putting-right halfway.
+  trap '' INT TERM HUP
   set +e
   [ -n "$DOWNLOAD" ] && rm -f "$DOWNLOAD"
-  [ "$status" -eq 0 ] && return
+  # DONE, not $?: after a hangup, bash runs this with a stale exit status of 0.
+  [ "$DONE" -eq 1 ] && return
   if [ -n "$OLD_DB" ] && [ "$SWAPPED" -eq 0 ]; then
     warn "Stopped mid-swap: renaming $OLD_DB back to $DB."
     admin_sql -c "ALTER DATABASE $OLD_DB RENAME TO $DB;"
@@ -72,6 +75,30 @@ download() {
   if ! curl -fsS --proto =https --retry 3 -o "$DOWNLOAD" "$1"; then
     die "The download failed. A restore link lasts an hour: copy a fresh one from System › Backups."
   fi
+}
+
+applied_migrations() {
+  "${COMPOSE[@]}" exec -T postgres psql -U slimshot -d "$1" -v ON_ERROR_STOP=1 -qAt -c \
+    'SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL;' |
+    LC_ALL=C sort
+}
+
+# Every migration the live database has must be in the restored one too. If the migrate
+# run had reached the wrong database, the swap would put an older table layout under
+# newer code, and the API would only fail later, on the first query that needs it.
+check_migrations() {
+  local live restored missing
+  live="$(applied_migrations "$DB")" || die "Could not read the live database's migrations."
+  restored="$(applied_migrations "$RESTORE_DB")" || die "Could not read the restored database's migrations (step 4)."
+  missing="$(LC_ALL=C comm -23 <(printf '%s\n' "$live") <(printf '%s\n' "$restored") | grep -v '^$' || true)"
+  [ -z "$missing" ] || die "The restored database lacks migrations the live one has (step 4): $(echo "$missing" | tr '\n' ' ')Nothing live was touched."
+}
+
+# Ready, not just alive: /health/ready also checks the database, Redis and storage.
+api_ready() {
+  local port
+  port="$(env_value PORT)"
+  curl -fsS -o /dev/null --retry 5 --retry-delay 2 --retry-all-errors "http://127.0.0.1:${port:-2700}/health/ready"
 }
 
 # Steps 3 and 4: the backup, restored beside the live database and migrated.
@@ -95,6 +122,7 @@ build_restored_database() {
     "${COMPOSE[@]}" --profile tools run --rm -e DATABASE_URL migrate; then
     die "The migrations failed on the restored database (step 4). Nothing live was touched."
   fi
+  check_migrations
 }
 
 swap_in_restored() {
@@ -140,6 +168,7 @@ main() {
 
   trap cleanup EXIT
   trap 'exit 130' INT TERM
+  trap 'exit 129' HUP
 
   if [[ "$source" == https://* ]]; then
     download "$source"
@@ -156,6 +185,7 @@ main() {
       'SELECT (SELECT count(*) FROM "User") AS users, (SELECT count(*) FROM "Asset") AS assets, (SELECT count(*) FROM "CreditTransaction") AS credit_transactions;'
     admin_sql -c "DROP DATABASE $RESTORE_DB WITH (FORCE);" >/dev/null
     RESTORE_OURS=0
+    DONE=1
     echo
     echo "$name restores and migrates cleanly. Nothing live was touched."
     return
@@ -184,9 +214,9 @@ main() {
   swap_in_restored "$old"
 
   step "Starting the API on the restored database"
-  if ! "${COMPOSE[@]}" up -d --wait --wait-timeout 120 api; then
+  if ! "${COMPOSE[@]}" up -d --wait --wait-timeout 120 api || ! api_ready; then
     "${COMPOSE[@]}" logs --tail=40 api || true
-    step "The API did not become healthy: putting the original database back"
+    step "The API did not become ready: putting the original database back"
     "${COMPOSE[@]}" stop api
     put_original_back
     "${COMPOSE[@]}" up -d --wait --wait-timeout 120 api && API_STOPPED=0
@@ -194,6 +224,7 @@ main() {
   fi
   API_STOPPED=0
   OLD_DB=""
+  DONE=1
 
   echo
   echo "Restored from $name. The API is running on it."

@@ -397,10 +397,14 @@ On the Backups page, a backup's menu → **Copy restore command** gives a comman
 hour, to run on the VPS. **Rehearse first** by putting `--check` after `restore-db.sh`:
 
 ```bash
+tmux new -s restore                                  # a dropped SSH connection can't cut it short
 cd /var/www/slimshot_server
 ./deploy/scripts/restore-db.sh --check 'https://…'   # rehearsal: nothing live is touched
 ./deploy/scripts/restore-db.sh 'https://…'           # the real restore
 ```
+
+If the connection drops anyway, `ssh` back in and `tmux attach -t restore`. Without tmux, the
+script still starts the API again and puts the original database back if it was cut short.
 
 The rehearsal restores the backup into a separate database, applies the migrations, prints how
 many users, sounds and credit transactions it holds, then deletes it. If it works, the real
@@ -411,9 +415,10 @@ The real restore:
 2. saves a copy of the current database to `/var/backups/slimshot`;
 3. restores the backup into a new database, `slimshot_restore`, beside the live one, and
    applies every migration newer than the backup;
-4. stops the API, swaps the two databases, and starts the API on the restored one.
+4. checks the restored database has every migration the live one has;
+5. stops the API, swaps the two databases, and starts the API on the restored one.
 
-If anything fails before step 4, the live database was never touched. If the API won't start
+If anything fails before step 5, the live database was never touched. If the API isn't ready
 on the restored database, the script puts the original back and starts the API on it.
 
 The database you replaced is kept as `slimshot_before_restore_<date>_<time>`. Once you're sure
@@ -425,8 +430,8 @@ docker compose -f docker-compose.yml exec postgres dropdb -U slimshot slimshot_b
 
 A dump file on the VPS restores the same way: `./deploy/scripts/restore-db.sh /path/to/file.dump`.
 
-**`/var/backups/slimshot`** keeps each restore's safety copy for 14 days, and any nightly dumps
-from before backups moved to R2. Those stay until you delete them:
+**`/var/backups/slimshot`** keeps each restore's safety copy, and any nightly dumps from before
+backups moved to R2. Nothing deletes them for you, since a restore may read an older one:
 `ls -lh /var/backups/slimshot/`, then `rm /var/backups/slimshot/slimshot-YYYYMMDD-HHMMSS.dump`.
 
 ## 9. Automatic deploys on push (webhook)
@@ -672,7 +677,7 @@ On the VPS:
 | `/var/www/slimshot_server` | The code and `.env` |
 | Docker volumes `slimshot_pgdata`, `slimshot_redisdata` | The database and Redis data (survive restarts and deploys) |
 | `/root/.ssh/github_slimshot`, `/root/.ssh/config` | The repo's deploy key and its `github-slimshot` alias |
-| `/var/backups/slimshot` | Restore's safety copies (14 days), and old nightly dumps until you delete them |
+| `/var/backups/slimshot` | Restore's safety copies and old nightly dumps, kept until you delete them |
 | `/var/log/slimshot-deploy.log` | Every automatic deploy's output |
 | `/etc/slimshot/webhook.env` | The webhook secret |
 | `/etc/sudoers.d/slimshot-webhook` | The webhook user's one `sudo` rule |

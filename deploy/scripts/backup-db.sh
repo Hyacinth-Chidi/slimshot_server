@@ -7,16 +7,17 @@
 # Backups proper go to the private R2 bucket from the API: System › Backups in the
 # dashboard makes them on demand and on a schedule.
 #
+# It never deletes anything: a restore may be reading an older dump from this folder.
+# Delete old copies by hand when you no longer need them.
+#
 # Settings (environment variables):
 #   BACKUP_DIR  /var/backups/slimshot
-#   KEEP_DAYS   14   local copies older than this are deleted
 
 set -euo pipefail
 
 main() {
   cd "$(dirname "${BASH_SOURCE[0]}")/../.."
   local dir="${BACKUP_DIR:-/var/backups/slimshot}"
-  local keep="${KEEP_DAYS:-14}"
   local file
   file="$dir/slimshot-$(date -u +%Y%m%d-%H%M%S).dump"
 
@@ -31,8 +32,6 @@ main() {
   mv "$file.partial" "$file"
   chmod 600 "$file"
   echo "saved $file ($(du -h "$file" | cut -f1))"
-
-  find "$dir" -name 'slimshot-*.dump' -mtime +"$keep" -delete
   echo "$(date -u +%FT%TZ) backup done"
 }
 
