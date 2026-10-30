@@ -19,6 +19,7 @@ export const CREDIT_SETTING_FIELDS = [
   'disposableEmailDomains',
   'dailyRewardEnabled',
   'dailyRewardCredits',
+  'dailyRewardIntervalDays',
 ] as const;
 
 export type CreditSettingField = (typeof CREDIT_SETTING_FIELDS)[number];

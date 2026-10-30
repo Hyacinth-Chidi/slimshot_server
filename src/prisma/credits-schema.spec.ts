@@ -61,6 +61,8 @@ describe('accounts and credits schema', () => {
     expect(daily).toContain(`ALTER TYPE "CreditTxType" ADD VALUE 'daily_reward';`);
     expect(daily).toContain('"dailyRewardEnabled" BOOLEAN NOT NULL DEFAULT false');
     expect(daily).toContain('"dailyRewardCredits" INTEGER NOT NULL DEFAULT 5');
+    expect(daily).toContain('"dailyRewardIntervalDays" INTEGER NOT NULL DEFAULT 1');
+    expect(daily).toContain('CHECK ("dailyRewardIntervalDays" IN (1, 7, 30))');
     expect(daily).not.toMatch(/DROP|DELETE|UPDATE/i);
   });
 

@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsEnum,
   IsFQDN,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -40,6 +41,8 @@ export class UpdateCreditSettingsDto {
   @IsOptional() @IsInt() @Min(1) @Max(10_000) otpPerIpPerHour?: number;
   @IsOptional() @IsBoolean() dailyRewardEnabled?: boolean;
   @IsOptional() @IsInt() @Min(1) @Max(100_000) dailyRewardCredits?: number;
+  /** Every day, every week or every month (30 days). */
+  @IsOptional() @IsIn([1, 7, 30]) dailyRewardIntervalDays?: number;
 
   @IsOptional()
   @Transform(domainList)

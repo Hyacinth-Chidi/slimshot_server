@@ -41,6 +41,7 @@ export type CreditSettingsAvgAggregateOutputType = {
   otpPerDevicePerHour: number | null
   otpPerIpPerHour: number | null
   dailyRewardCredits: number | null
+  dailyRewardIntervalDays: number | null
 }
 
 export type CreditSettingsSumAggregateOutputType = {
@@ -58,6 +59,7 @@ export type CreditSettingsSumAggregateOutputType = {
   otpPerDevicePerHour: number | null
   otpPerIpPerHour: number | null
   dailyRewardCredits: number | null
+  dailyRewardIntervalDays: number | null
 }
 
 export type CreditSettingsMinAggregateOutputType = {
@@ -77,6 +79,7 @@ export type CreditSettingsMinAggregateOutputType = {
   otpPerIpPerHour: number | null
   dailyRewardEnabled: boolean | null
   dailyRewardCredits: number | null
+  dailyRewardIntervalDays: number | null
   updatedById: string | null
   updatedAt: Date | null
 }
@@ -98,6 +101,7 @@ export type CreditSettingsMaxAggregateOutputType = {
   otpPerIpPerHour: number | null
   dailyRewardEnabled: boolean | null
   dailyRewardCredits: number | null
+  dailyRewardIntervalDays: number | null
   updatedById: string | null
   updatedAt: Date | null
 }
@@ -120,6 +124,7 @@ export type CreditSettingsCountAggregateOutputType = {
   otpPerIpPerHour: number
   dailyRewardEnabled: number
   dailyRewardCredits: number
+  dailyRewardIntervalDays: number
   updatedById: number
   updatedAt: number
   _all: number
@@ -141,6 +146,7 @@ export type CreditSettingsAvgAggregateInputType = {
   otpPerDevicePerHour?: true
   otpPerIpPerHour?: true
   dailyRewardCredits?: true
+  dailyRewardIntervalDays?: true
 }
 
 export type CreditSettingsSumAggregateInputType = {
@@ -158,6 +164,7 @@ export type CreditSettingsSumAggregateInputType = {
   otpPerDevicePerHour?: true
   otpPerIpPerHour?: true
   dailyRewardCredits?: true
+  dailyRewardIntervalDays?: true
 }
 
 export type CreditSettingsMinAggregateInputType = {
@@ -177,6 +184,7 @@ export type CreditSettingsMinAggregateInputType = {
   otpPerIpPerHour?: true
   dailyRewardEnabled?: true
   dailyRewardCredits?: true
+  dailyRewardIntervalDays?: true
   updatedById?: true
   updatedAt?: true
 }
@@ -198,6 +206,7 @@ export type CreditSettingsMaxAggregateInputType = {
   otpPerIpPerHour?: true
   dailyRewardEnabled?: true
   dailyRewardCredits?: true
+  dailyRewardIntervalDays?: true
   updatedById?: true
   updatedAt?: true
 }
@@ -220,6 +229,7 @@ export type CreditSettingsCountAggregateInputType = {
   otpPerIpPerHour?: true
   dailyRewardEnabled?: true
   dailyRewardCredits?: true
+  dailyRewardIntervalDays?: true
   updatedById?: true
   updatedAt?: true
   _all?: true
@@ -329,6 +339,7 @@ export type CreditSettingsGroupByOutputType = {
   otpPerIpPerHour: number
   dailyRewardEnabled: boolean
   dailyRewardCredits: number
+  dailyRewardIntervalDays: number
   updatedById: string | null
   updatedAt: Date
   _count: CreditSettingsCountAggregateOutputType | null
@@ -374,6 +385,7 @@ export type CreditSettingsWhereInput = {
   otpPerIpPerHour?: Prisma.IntFilter<"CreditSettings"> | number
   dailyRewardEnabled?: Prisma.BoolFilter<"CreditSettings"> | boolean
   dailyRewardCredits?: Prisma.IntFilter<"CreditSettings"> | number
+  dailyRewardIntervalDays?: Prisma.IntFilter<"CreditSettings"> | number
   updatedById?: Prisma.StringNullableFilter<"CreditSettings"> | string | null
   updatedAt?: Prisma.DateTimeFilter<"CreditSettings"> | Date | string
 }
@@ -396,6 +408,7 @@ export type CreditSettingsOrderByWithRelationInput = {
   otpPerIpPerHour?: Prisma.SortOrder
   dailyRewardEnabled?: Prisma.SortOrder
   dailyRewardCredits?: Prisma.SortOrder
+  dailyRewardIntervalDays?: Prisma.SortOrder
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -421,6 +434,7 @@ export type CreditSettingsWhereUniqueInput = Prisma.AtLeast<{
   otpPerIpPerHour?: Prisma.IntFilter<"CreditSettings"> | number
   dailyRewardEnabled?: Prisma.BoolFilter<"CreditSettings"> | boolean
   dailyRewardCredits?: Prisma.IntFilter<"CreditSettings"> | number
+  dailyRewardIntervalDays?: Prisma.IntFilter<"CreditSettings"> | number
   updatedById?: Prisma.StringNullableFilter<"CreditSettings"> | string | null
   updatedAt?: Prisma.DateTimeFilter<"CreditSettings"> | Date | string
 }, "id">
@@ -443,6 +457,7 @@ export type CreditSettingsOrderByWithAggregationInput = {
   otpPerIpPerHour?: Prisma.SortOrder
   dailyRewardEnabled?: Prisma.SortOrder
   dailyRewardCredits?: Prisma.SortOrder
+  dailyRewardIntervalDays?: Prisma.SortOrder
   updatedById?: Prisma.SortOrderInput | Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.CreditSettingsCountOrderByAggregateInput
@@ -473,6 +488,7 @@ export type CreditSettingsScalarWhereWithAggregatesInput = {
   otpPerIpPerHour?: Prisma.IntWithAggregatesFilter<"CreditSettings"> | number
   dailyRewardEnabled?: Prisma.BoolWithAggregatesFilter<"CreditSettings"> | boolean
   dailyRewardCredits?: Prisma.IntWithAggregatesFilter<"CreditSettings"> | number
+  dailyRewardIntervalDays?: Prisma.IntWithAggregatesFilter<"CreditSettings"> | number
   updatedById?: Prisma.StringNullableWithAggregatesFilter<"CreditSettings"> | string | null
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"CreditSettings"> | Date | string
 }
@@ -495,6 +511,7 @@ export type CreditSettingsCreateInput = {
   otpPerIpPerHour: number
   dailyRewardEnabled?: boolean
   dailyRewardCredits?: number
+  dailyRewardIntervalDays?: number
   updatedById?: string | null
   updatedAt?: Date | string
 }
@@ -517,6 +534,7 @@ export type CreditSettingsUncheckedCreateInput = {
   otpPerIpPerHour: number
   dailyRewardEnabled?: boolean
   dailyRewardCredits?: number
+  dailyRewardIntervalDays?: number
   updatedById?: string | null
   updatedAt?: Date | string
 }
@@ -539,6 +557,7 @@ export type CreditSettingsUpdateInput = {
   otpPerIpPerHour?: Prisma.IntFieldUpdateOperationsInput | number
   dailyRewardEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   dailyRewardCredits?: Prisma.IntFieldUpdateOperationsInput | number
+  dailyRewardIntervalDays?: Prisma.IntFieldUpdateOperationsInput | number
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -561,6 +580,7 @@ export type CreditSettingsUncheckedUpdateInput = {
   otpPerIpPerHour?: Prisma.IntFieldUpdateOperationsInput | number
   dailyRewardEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   dailyRewardCredits?: Prisma.IntFieldUpdateOperationsInput | number
+  dailyRewardIntervalDays?: Prisma.IntFieldUpdateOperationsInput | number
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -583,6 +603,7 @@ export type CreditSettingsCreateManyInput = {
   otpPerIpPerHour: number
   dailyRewardEnabled?: boolean
   dailyRewardCredits?: number
+  dailyRewardIntervalDays?: number
   updatedById?: string | null
   updatedAt?: Date | string
 }
@@ -605,6 +626,7 @@ export type CreditSettingsUpdateManyMutationInput = {
   otpPerIpPerHour?: Prisma.IntFieldUpdateOperationsInput | number
   dailyRewardEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   dailyRewardCredits?: Prisma.IntFieldUpdateOperationsInput | number
+  dailyRewardIntervalDays?: Prisma.IntFieldUpdateOperationsInput | number
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -627,6 +649,7 @@ export type CreditSettingsUncheckedUpdateManyInput = {
   otpPerIpPerHour?: Prisma.IntFieldUpdateOperationsInput | number
   dailyRewardEnabled?: Prisma.BoolFieldUpdateOperationsInput | boolean
   dailyRewardCredits?: Prisma.IntFieldUpdateOperationsInput | number
+  dailyRewardIntervalDays?: Prisma.IntFieldUpdateOperationsInput | number
   updatedById?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -657,6 +680,7 @@ export type CreditSettingsCountOrderByAggregateInput = {
   otpPerIpPerHour?: Prisma.SortOrder
   dailyRewardEnabled?: Prisma.SortOrder
   dailyRewardCredits?: Prisma.SortOrder
+  dailyRewardIntervalDays?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -676,6 +700,7 @@ export type CreditSettingsAvgOrderByAggregateInput = {
   otpPerDevicePerHour?: Prisma.SortOrder
   otpPerIpPerHour?: Prisma.SortOrder
   dailyRewardCredits?: Prisma.SortOrder
+  dailyRewardIntervalDays?: Prisma.SortOrder
 }
 
 export type CreditSettingsMaxOrderByAggregateInput = {
@@ -695,6 +720,7 @@ export type CreditSettingsMaxOrderByAggregateInput = {
   otpPerIpPerHour?: Prisma.SortOrder
   dailyRewardEnabled?: Prisma.SortOrder
   dailyRewardCredits?: Prisma.SortOrder
+  dailyRewardIntervalDays?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -716,6 +742,7 @@ export type CreditSettingsMinOrderByAggregateInput = {
   otpPerIpPerHour?: Prisma.SortOrder
   dailyRewardEnabled?: Prisma.SortOrder
   dailyRewardCredits?: Prisma.SortOrder
+  dailyRewardIntervalDays?: Prisma.SortOrder
   updatedById?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -735,6 +762,7 @@ export type CreditSettingsSumOrderByAggregateInput = {
   otpPerDevicePerHour?: Prisma.SortOrder
   otpPerIpPerHour?: Prisma.SortOrder
   dailyRewardCredits?: Prisma.SortOrder
+  dailyRewardIntervalDays?: Prisma.SortOrder
 }
 
 export type CreditSettingsCreatedisposableEmailDomainsInput = {
@@ -766,6 +794,7 @@ export type CreditSettingsSelect<ExtArgs extends runtime.Types.Extensions.Intern
   otpPerIpPerHour?: boolean
   dailyRewardEnabled?: boolean
   dailyRewardCredits?: boolean
+  dailyRewardIntervalDays?: boolean
   updatedById?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["creditSettings"]>
@@ -788,6 +817,7 @@ export type CreditSettingsSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   otpPerIpPerHour?: boolean
   dailyRewardEnabled?: boolean
   dailyRewardCredits?: boolean
+  dailyRewardIntervalDays?: boolean
   updatedById?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["creditSettings"]>
@@ -810,6 +840,7 @@ export type CreditSettingsSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   otpPerIpPerHour?: boolean
   dailyRewardEnabled?: boolean
   dailyRewardCredits?: boolean
+  dailyRewardIntervalDays?: boolean
   updatedById?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["creditSettings"]>
@@ -832,11 +863,12 @@ export type CreditSettingsSelectScalar = {
   otpPerIpPerHour?: boolean
   dailyRewardEnabled?: boolean
   dailyRewardCredits?: boolean
+  dailyRewardIntervalDays?: boolean
   updatedById?: boolean
   updatedAt?: boolean
 }
 
-export type CreditSettingsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "signupBonusCredits" | "adRewardCredits" | "adDailyCap" | "referralInviterCredits" | "referralInviteeCredits" | "referralCapCount" | "referralCapDays" | "ipSignupLimitPer24h" | "disposableEmailDomains" | "otpMaxAttempts" | "otpResendCooldownSeconds" | "otpPerEmailPerHour" | "otpPerDevicePerHour" | "otpPerIpPerHour" | "dailyRewardEnabled" | "dailyRewardCredits" | "updatedById" | "updatedAt", ExtArgs["result"]["creditSettings"]>
+export type CreditSettingsOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "signupBonusCredits" | "adRewardCredits" | "adDailyCap" | "referralInviterCredits" | "referralInviteeCredits" | "referralCapCount" | "referralCapDays" | "ipSignupLimitPer24h" | "disposableEmailDomains" | "otpMaxAttempts" | "otpResendCooldownSeconds" | "otpPerEmailPerHour" | "otpPerDevicePerHour" | "otpPerIpPerHour" | "dailyRewardEnabled" | "dailyRewardCredits" | "dailyRewardIntervalDays" | "updatedById" | "updatedAt", ExtArgs["result"]["creditSettings"]>
 
 export type $CreditSettingsPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "CreditSettings"
@@ -858,10 +890,12 @@ export type $CreditSettingsPayload<ExtArgs extends runtime.Types.Extensions.Inte
     otpPerDevicePerHour: number
     otpPerIpPerHour: number
     /**
-     * Daily credits: a signed-in user claims this many once every 24 hours. Off until the owner turns it on.
+     * Credit claims: a signed-in user claims this many once every 1, 7 or 30 days (a CHECK in the
+     * migration). Unclaimed periods never add up. Off until the owner turns it on.
      */
     dailyRewardEnabled: boolean
     dailyRewardCredits: number
+    dailyRewardIntervalDays: number
     updatedById: string | null
     updatedAt: Date
   }, ExtArgs["result"]["creditSettings"]>
@@ -1304,6 +1338,7 @@ export interface CreditSettingsFieldRefs {
   readonly otpPerIpPerHour: Prisma.FieldRef<"CreditSettings", 'Int'>
   readonly dailyRewardEnabled: Prisma.FieldRef<"CreditSettings", 'Boolean'>
   readonly dailyRewardCredits: Prisma.FieldRef<"CreditSettings", 'Int'>
+  readonly dailyRewardIntervalDays: Prisma.FieldRef<"CreditSettings", 'Int'>
   readonly updatedById: Prisma.FieldRef<"CreditSettings", 'String'>
   readonly updatedAt: Prisma.FieldRef<"CreditSettings", 'DateTime'>
 }

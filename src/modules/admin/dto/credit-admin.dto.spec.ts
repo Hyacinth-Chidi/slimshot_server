@@ -14,6 +14,7 @@ describe('UpdateCreditSettingsDto: daily credits', () => {
   it('takes the switch and the amount', async () => {
     expect(await problems({ dailyRewardEnabled: true, dailyRewardCredits: 5 })).toEqual([]);
     expect(await problems({ dailyRewardEnabled: false })).toEqual([]);
+    for (const days of [1, 7, 30]) expect(await problems({ dailyRewardIntervalDays: days })).toEqual([]);
   });
 
   it.each([
@@ -21,6 +22,8 @@ describe('UpdateCreditSettingsDto: daily credits', () => {
     [{ dailyRewardCredits: 0 }, 'dailyRewardCredits'],
     [{ dailyRewardCredits: 2.5 }, 'dailyRewardCredits'],
     [{ dailyRewardCredits: 100_001 }, 'dailyRewardCredits'],
+    [{ dailyRewardIntervalDays: 14 }, 'dailyRewardIntervalDays'],
+    [{ dailyRewardIntervalDays: '7' }, 'dailyRewardIntervalDays'],
   ])('refuses %j', async (body, field) => {
     expect(await problems(body)).toEqual([field]);
   });

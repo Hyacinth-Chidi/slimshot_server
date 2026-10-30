@@ -25,6 +25,7 @@ const ALL_FIELDS: Record<string, unknown> = {
   disposableEmailDomains: ['a.com', 'b.com'],
   dailyRewardEnabled: false,
   dailyRewardCredits: 5,
+  dailyRewardIntervalDays: 1,
 };
 
 const at = (day: number) => new Date(Date.UTC(2026, 9, day, 10));

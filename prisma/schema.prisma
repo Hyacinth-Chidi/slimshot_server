@@ -491,9 +491,11 @@ model CreditSettings {
   otpPerEmailPerHour       Int
   otpPerDevicePerHour      Int
   otpPerIpPerHour          Int
-  /// Daily credits: a signed-in user claims this many once every 24 hours. Off until the owner turns it on.
+  /// Credit claims: a signed-in user claims this many once every 1, 7 or 30 days (a CHECK in the
+  /// migration). Unclaimed periods never add up. Off until the owner turns it on.
   dailyRewardEnabled       Boolean  @default(false)
   dailyRewardCredits       Int      @default(5)
+  dailyRewardIntervalDays  Int      @default(1)
   updatedById              String?
   updatedAt                DateTime @updatedAt
 }

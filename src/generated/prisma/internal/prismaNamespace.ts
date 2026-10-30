@@ -2487,6 +2487,7 @@ export const CreditSettingsScalarFieldEnum = {
   otpPerIpPerHour: 'otpPerIpPerHour',
   dailyRewardEnabled: 'dailyRewardEnabled',
   dailyRewardCredits: 'dailyRewardCredits',
+  dailyRewardIntervalDays: 'dailyRewardIntervalDays',
   updatedById: 'updatedById',
   updatedAt: 'updatedAt'
 } as const
