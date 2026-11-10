@@ -19,8 +19,9 @@ export class CreditsService {
     private readonly pricing: PricingService,
   ) {}
 
-  async quote(userId: string, feature: CreditFeature, durationSeconds: number) {
-    const { credits, rule } = await this.pricing.price(feature, durationSeconds);
+  /** [amount] is seconds for Auto captions, characters for text to speech. */
+  async quote(userId: string, feature: CreditFeature, amount: number) {
+    const { credits, rule } = await this.pricing.price(feature, amount);
     const { creditBalance } = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { creditBalance: true },
