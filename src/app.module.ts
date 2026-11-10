@@ -30,6 +30,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { BackupsModule } from './modules/backups/backups.module';
 import { PushModule } from './modules/push/push.module';
 import { CaptionsModule } from './modules/captions/captions.module';
+import { VoicesModule } from './modules/voices/voices.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CreditsModule } from './modules/credits/credits.module';
 import { DevicesModule } from './modules/devices/devices.module';
@@ -80,6 +81,7 @@ import { PrismaModule } from './prisma/prisma.module';
     CaptionsModule,
     BackupsModule,
     PushModule,
+    VoicesModule,
   ],
 })
 export class AppModule {}

@@ -67,6 +67,14 @@ const LOOKUPS: Record<string, { find: Lookup; missing: EntityLabel }> = {
       return new Map(rows.map((r) => [r.id, { label: r.email, deleted: r.deletedAt !== null }]));
     },
   },
+  // Voices are never deleted (a sync keeps the ones the provider drops), so a missing id is unknown.
+  Voice: {
+    missing: { label: null, deleted: false },
+    find: async (prisma, ids) => {
+      const rows = await prisma.voice.findMany({ where: { id: { in: ids } }, select: { id: true, label: true } });
+      return new Map(rows.map((r) => [r.id, { label: r.label, deleted: false }]));
+    },
+  },
 };
 
 const NO_LABEL: EntityLabel = { label: null, deleted: false };

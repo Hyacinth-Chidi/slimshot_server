@@ -25,6 +25,7 @@ function build() {
     pricingRule: table([{ id: 'p3', version: 3 }]),
     providerCredential: table([{ id: 'k1', provider: 'deepgram' }]),
     adminUser: table([{ id: 'adm2', email: 'editor@slimshot.dev', deletedAt: null }]),
+    voice: table([{ id: 'vo1', label: 'Narrator' }]),
   };
 }
 
@@ -42,6 +43,7 @@ describe('labelEntities', () => {
       key('AdminUser', 'adm2'),
       key('CreditSettings', 'default'),
       key('FontOrder', 'fonts'),
+      key('Voice', 'vo1'),
     ]);
 
     expect(labels.get('Asset:a1')).toEqual({ label: 'UI Button Click', deleted: false });
@@ -53,6 +55,7 @@ describe('labelEntities', () => {
     expect(labels.get('AdminUser:adm2')).toEqual({ label: 'editor@slimshot.dev', deleted: false });
     expect(labels.get('CreditSettings:default')).toEqual({ label: null, deleted: false });
     expect(labels.get('FontOrder:fonts')).toEqual({ label: null, deleted: false });
+    expect(labels.get('Voice:vo1')).toEqual({ label: 'Narrator', deleted: false });
   });
 
   it("keeps a deleted sound's title and marks it deleted", async () => {

@@ -28,6 +28,8 @@ import { AdminStatsController } from './admin-stats.controller';
 import { AdminUserStatsController } from './admin-user-stats.controller';
 import { AdminUsersController } from './admin-users.controller';
 import { AdminUsersService } from './admin-users.service';
+import { AdminVoicesController } from './admin-voices.controller';
+import { VoicesModule } from '../voices/voices.module';
 import { StatsService } from './stats.service';
 
 @Module({
@@ -43,6 +45,7 @@ import { StatsService } from './stats.service';
     AccountsModule,
     BackupsModule,
     PushModule,
+    VoicesModule,
   ],
   controllers: [
     AdminAssetsController,
@@ -58,6 +61,7 @@ import { StatsService } from './stats.service';
     AdminCreditsController,
     AdminUsersController,
     AdminCreditStatsController,
+    AdminVoicesController,
     AdminUserStatsController,
     AdminBackupsController,
     AdminNotificationsController,
