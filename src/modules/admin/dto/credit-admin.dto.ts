@@ -71,6 +71,8 @@ export class CreatePricingRuleDto {
 
   /** per_second: credits per started block of this many seconds, never below minCredits. */
   @IsOptional() @IsInt() @Min(1) @Max(86_400) blockSeconds?: number;
+  /** per_characters: credits per started block of this many characters, never below minCredits. */
+  @IsOptional() @IsInt() @Min(1) @Max(100_000) blockCharacters?: number;
   @IsOptional() @IsInt() @Min(0) @Max(100_000) blockCredits?: number;
   @IsOptional() @IsInt() @Min(0) @Max(100_000) minCredits?: number;
 

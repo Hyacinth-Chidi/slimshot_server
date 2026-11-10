@@ -7,7 +7,16 @@ import { isUniqueViolation } from '../../core/errors/prisma-errors';
 import type { Prisma, PricingRule } from '../../generated/prisma/client';
 import { CreditFeature, PricingMode } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
-import { blockProblems, type PricedRule, type PriceTier, priceFor, tierProblems } from './pricing';
+import {
+  blockProblems,
+  characterBlockProblems,
+  FEATURE_MODE_MESSAGES,
+  FEATURE_MODES,
+  type PricedRule,
+  type PriceTier,
+  priceFor,
+  tierProblems,
+} from './pricing';
 
 export interface NewPricingRule {
   feature: CreditFeature;
@@ -15,14 +24,29 @@ export interface NewPricingRule {
   perJobCredits?: number;
   tiers?: PriceTier[];
   blockSeconds?: number;
+  blockCharacters?: number;
   blockCredits?: number;
   minCredits?: number;
   note?: string;
 }
 
+/** What a feature without a live price says. */
+const UNAVAILABLE: Record<CreditFeature, { code: ErrorCode; message: string }> = {
+  [CreditFeature.auto_captions]: {
+    code: ErrorCode.CAPTIONS_UNAVAILABLE,
+    message: 'Auto caption is not available right now. Try again later.',
+  },
+  [CreditFeature.text_to_speech]: {
+    code: ErrorCode.TTS_UNAVAILABLE,
+    message: 'Text to speech is not available right now. Try again later.',
+  },
+};
+
 function ruleProblems(input: NewPricingRule): string[] {
+  if (!FEATURE_MODES[input.feature].includes(input.mode)) return [FEATURE_MODE_MESSAGES[input.feature]];
   if (input.mode === PricingMode.duration_tiers) return tierProblems(input.tiers ?? []);
   if (input.mode === PricingMode.per_second) return blockProblems(input);
+  if (input.mode === PricingMode.per_characters) return characterBlockProblems(input);
   const credits = input.perJobCredits;
   return credits === undefined || !Number.isInteger(credits) || credits < 0
     ? ['A per-job rule needs perJobCredits, a whole number ≥ 0.']
@@ -46,21 +70,20 @@ export class PricingService {
       perJobCredits: row.perJobCredits,
       tiers: (row.tiers as unknown as PriceTier[] | null) ?? null,
       blockSeconds: row.blockSeconds,
+      blockCharacters: row.blockCharacters,
       blockCredits: row.blockCredits,
       minCredits: row.minCredits,
     };
   }
 
-  async price(feature: CreditFeature, durationSeconds: number): Promise<{ credits: number; rule: PricedRule }> {
+  /** [amount] is seconds for Auto captions and characters for text to speech (`priceFor`). */
+  async price(feature: CreditFeature, amount: number): Promise<{ credits: number; rule: PricedRule }> {
     const rule = await this.activeRule(feature);
     if (!rule) {
-      throw appError(
-        HttpStatus.SERVICE_UNAVAILABLE,
-        ErrorCode.CAPTIONS_UNAVAILABLE,
-        'Auto caption is not available right now. Try again later.',
-      );
+      const { code, message } = UNAVAILABLE[feature];
+      throw appError(HttpStatus.SERVICE_UNAVAILABLE, code, message);
     }
-    return { credits: priceFor(rule, durationSeconds), rule };
+    return { credits: priceFor(rule, amount), rule };
   }
 
   /** Every version of a feature's pricing, newest first. */
@@ -78,6 +101,8 @@ export class PricingService {
     }
     const tiered = input.mode === PricingMode.duration_tiers;
     const perSecond = input.mode === PricingMode.per_second;
+    const perCharacters = input.mode === PricingMode.per_characters;
+    const blocks = perSecond || perCharacters;
     const last = await this.prisma.pricingRule.findFirst({
       where: { feature: input.feature },
       orderBy: { version: 'desc' },
@@ -93,8 +118,9 @@ export class PricingService {
           perJobCredits: input.mode === PricingMode.per_job ? input.perJobCredits : null,
           ...(tiered ? { tiers: input.tiers as unknown as Prisma.InputJsonValue } : {}),
           blockSeconds: perSecond ? input.blockSeconds : null,
-          blockCredits: perSecond ? input.blockCredits : null,
-          minCredits: perSecond ? (input.minCredits ?? null) : null,
+          blockCharacters: perCharacters ? input.blockCharacters : null,
+          blockCredits: blocks ? input.blockCredits : null,
+          minCredits: blocks ? (input.minCredits ?? null) : null,
           note: input.note,
           createdById: adminId,
         },

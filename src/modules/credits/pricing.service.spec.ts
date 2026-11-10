@@ -171,3 +171,63 @@ describe('PricingService admin', () => {
     expect((await errorOf(build().svc.activate('nope', 'admin-1'))).getStatus()).toBe(404);
   });
 });
+
+describe('PricingService for text to speech', () => {
+  it('text to speech is priced per job or per characters only', async () => {
+    for (const input of [
+      { mode: 'per_second', blockSeconds: 10, blockCredits: 1 },
+      { mode: 'duration_tiers', tiers: [{ upToSeconds: null, credits: 2 }] },
+    ]) {
+      const error = await errorOf(build().svc.createRule({ feature: 'text_to_speech' as never, ...input } as never, 'admin-1'));
+      expect(error.getStatus()).toBe(422);
+      expect(error.getResponse()).toMatchObject({
+        details: { problems: [expect.stringContaining('per job or per characters')] },
+      });
+    }
+  });
+
+  it('captions refuse a per-characters rule', async () => {
+    const error = await errorOf(
+      build().svc.createRule(
+        { feature: 'auto_captions' as never, mode: 'per_characters' as never, blockCharacters: 200, blockCredits: 1 },
+        'admin-1',
+      ),
+    );
+    expect(error.getStatus()).toBe(422);
+    expect(error.getResponse()).toMatchObject({
+      details: { problems: [expect.stringContaining('Auto captions is priced')] },
+    });
+  });
+
+  it('stores a per-characters rule with its block rate and minimum, and nothing else', async () => {
+    const { svc, prisma } = build();
+    await svc.createRule(
+      { feature: 'text_to_speech' as never, mode: 'per_characters' as never, blockCharacters: 200, blockCredits: 1, minCredits: 2 },
+      'admin-1',
+    );
+    expect(prisma.pricingRule.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        feature: 'text_to_speech',
+        mode: 'per_characters',
+        blockCharacters: 200,
+        blockCredits: 1,
+        minCredits: 2,
+        blockSeconds: null,
+        perJobCredits: null,
+      }),
+    });
+  });
+
+  it('text to speech without a live rule is unavailable', async () => {
+    const error = await errorOf(build().svc.price('text_to_speech' as never, 10));
+    expect(error.getStatus()).toBe(503);
+    expect(error.getResponse()).toMatchObject({ code: 'TTS_UNAVAILABLE' });
+  });
+
+  it('prices text to speech by its characters', async () => {
+    const { svc } = build([
+      rule({ feature: 'text_to_speech', mode: 'per_characters', perJobCredits: null, blockCharacters: 200, blockCredits: 1, minCredits: 1 } as never),
+    ]);
+    await expect(svc.price('text_to_speech' as never, 401)).resolves.toMatchObject({ credits: 3 });
+  });
+});
