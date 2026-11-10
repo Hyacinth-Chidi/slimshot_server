@@ -5,7 +5,8 @@ rewarded ads and account deletion. The app is built from this file, so it is kep
 current.
 
 > **Status:** accounts, sign-in, credits, paid Auto captions, the signup bonus, referrals and
-> rewarded ads are live.
+> rewarded ads are live. Paid text to speech ([`app-api/text-to-speech.md`](app-api/text-to-speech.md))
+> is built, not yet deployed.
 
 ## Basics
 
@@ -213,15 +214,29 @@ Show the price before the user generates:
 { "feature": "auto_captions", "durationSeconds": 125.4 }
 ```
 
+or, for text to speech, the characters of the texts you are about to send (1–20 000):
+
+```json
+{ "feature": "text_to_speech", "characters": 342 }
+```
+
 `200` → `{ "credits": 6, "balance": 94, "enough": true, "pricingVersion": 3 }` → "This will use
 6 credits · You have 94". When `enough` is false, offer ways to earn credits instead.
 
-Always ask; never compute the price in the app. The owner can price a job flat, by length
-brackets, or by the second (for example 1 credit per started 10 s, at least 2 per job), and can
-switch between them at any time.
+Always ask; never compute the price in the app. The owner can price Auto captions flat, by
+length brackets, or by the second (for example 1 credit per started 10 s, at least 2 per job),
+and text to speech flat or by the characters (for example 1 credit per started 500 characters),
+and can switch between them at any time.
 
 Use the duration of the exact WAV you are about to upload: the server measures that file again
-and charges what it measures.
+and charges what it measures. For text to speech, count the code points of the trimmed texts
+exactly as you will send them ([text-to-speech.md](app-api/text-to-speech.md), Basics): the
+server counts them again and charges what it counts.
+
+`503 CAPTIONS_UNAVAILABLE` / `503 TTS_UNAVAILABLE`: that feature has no price set (switched off).
+
+Text to speech itself — the voices, the request, polling, the download, refunds and its errors —
+is in [`docs/app-api/text-to-speech.md`](app-api/text-to-speech.md).
 
 ## 12. Auto captions (paid)
 
@@ -439,11 +454,14 @@ A double tap is safe: only one claim pays; the other answers `409 DAILY_REWARD_N
 | 402 | `INSUFFICIENT_CREDITS` | not enough credits; `details.required`, `details.balance` | offer ways to earn credits |
 | 415 | `UNSUPPORTED_MEDIA` | the `audio` part is not WAV | upload `audio/wav` |
 | 422 | `INVALID_AUDIO` | the WAV cannot be read (not PCM or float, empty, broken header) | extract it again (§12) |
-| 409 | `IDEMPOTENCY_KEY_REUSED` | this `Idempotency-Key` already paid for an earlier upload whose job is gone; nothing was charged | resend the upload with a new key |
+| 409 | `IDEMPOTENCY_KEY_REUSED` | this `Idempotency-Key` already paid for an earlier upload or voice request whose job is gone; nothing was charged | resend it with a new key |
 | 413 | `PAYLOAD_TOO_LARGE` | the audio is over the size limit | split the video's audio |
 | 409 | `DAILY_REWARD_NOT_READY` | credits already claimed this period; `details.nextClaimAt` | show a countdown to that time |
 | 409 | `DAILY_REWARD_OFF` | credit claims are switched off | hide the claim button |
 | 503 | `CAPTIONS_UNAVAILABLE` | Auto caption is switched off or has no price set | show "Auto caption is unavailable right now" |
-| 404 | `NOT_FOUND` | unknown, someone else's, or expired caption job or ad session | start again |
+| 503 | `TTS_UNAVAILABLE` | text to speech is switched off: no provider, or no price set | show "Voices are unavailable right now" |
+| 404 | `VOICE_NOT_FOUND` | the voice is unknown or was switched off | load the voices again and let the user pick |
+| 413 | `TEXT_TOO_LONG` | a text over its limit or a voice request over its total; `details.characters`, `details.maxCharacters` (and `details.itemId` for one text) | ask the user to shorten it |
+| 404 | `NOT_FOUND` | unknown, someone else's, or expired caption job, voice job or ad session; a voice not in its job or already deleted | start again |
 | 409 | `AD_DAILY_CAP_REACHED` | today's rewarded ads are used up; `details.resetsAt` | hide "Watch an ad" until then |
 | 422 | `VALIDATION_FAILED` | a malformed request; `details` lists the problems | fix the request |

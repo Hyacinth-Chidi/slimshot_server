@@ -1,7 +1,8 @@
 # SlimShot admin API: app users and credits
 
-The routes the admin dashboard uses to manage app users, credit amounts, Auto caption pricing
-and the ledger check. The dashboard screens for them are built from this file.
+The routes the admin dashboard uses to manage app users, credit amounts, the pricing of Auto
+captions and text to speech, and the ledger check. The dashboard screens for them are built from
+this file. Voices and the text-to-speech key are in [`admin-voices-api.md`](admin-voices-api.md).
 
 ## Basics
 
@@ -99,13 +100,20 @@ fields are refused with 422.
 | `otpPerDevicePerHour` | Code emails per install per hour | 1–10000 |
 | `otpPerIpPerHour` | Code emails per IP per hour | 1–10000 |
 
-## 2. Auto caption pricing
+## 2. Pricing: Auto captions and text to speech
 
 Pricing is versioned. A rule is never edited: to change a price, create a new version and
-activate it. Exactly one version per feature is active; until one is, the app's Auto caption
-answers `503 CAPTIONS_UNAVAILABLE`. Features today: `auto_captions`.
+activate it. Exactly one version per feature is active; until one is, the app's feature answers
+`503` — `CAPTIONS_UNAVAILABLE` for Auto captions, `TTS_UNAVAILABLE` for text to speech.
+Features: `auto_captions`, `text_to_speech`. A rule prices its own feature only.
 
-A rule is one of three modes:
+A rule is one of four modes, and each feature takes only some of them:
+
+| Feature | Modes |
+|---|---|
+| `auto_captions` | `per_job`, `duration_tiers`, `per_second` |
+| `text_to_speech` | `per_job`, `per_characters` |
+
 - `per_job`: every job costs `perJobCredits`.
 - `duration_tiers`: the job costs the first tier whose `upToSeconds` is at least the audio's
   length (inclusive: exactly 60 s is "up to 60"). The last tier has `upToSeconds: null` and
@@ -114,6 +122,11 @@ A rule is one of three modes:
   never less than `minCredits` (optional). The length is measured to the millisecond first.
   With `blockSeconds: 10, blockCredits: 1, minCredits: 2`: 3 s → 2 credits (the minimum),
   60 s → 6, 61 s → 7, 5 min → 30.
+- `per_characters`: the request costs `blockCredits` for every block of `blockCharacters` it
+  starts, and never less than `minCredits` (optional). A character is a Unicode code point of a
+  trimmed text; a request's characters are the sum over its texts. With
+  `blockCharacters: 200, blockCredits: 1, minCredits: 1`: 12 characters → 1 credit, 200 → 1,
+  201 → 2, 2000 → 10 — "1 credit per 200 characters, at least 1".
 
 Each rule carries only its own mode's fields; the others are `null`.
 
@@ -128,6 +141,7 @@ A rule as returned:
   "perJobCredits": null,
   "tiers": [{ "upToSeconds": 60, "credits": 2 }, { "upToSeconds": 300, "credits": 5 }, { "upToSeconds": null, "credits": 10 }],
   "blockSeconds": null,
+  "blockCharacters": null,
   "blockCredits": null,
   "minCredits": null,
   "isActive": true,
@@ -145,7 +159,8 @@ was made live: making an old version live again overwrites it.
 
 ### `GET /pricing-rules?feature=auto_captions` (`credits.manage`)
 
-Every version of the feature, newest first. An unknown or missing `feature` → 422.
+Every version of the feature (`auto_captions` or `text_to_speech`), newest first. An unknown or
+missing `feature` → 422.
 
 ### `POST /pricing-rules` (`credits.manage`) → `201`
 
@@ -153,19 +168,24 @@ Every version of the feature, newest first. An unknown or missing `feature` → 
 { "feature": "auto_captions", "mode": "duration_tiers", "tiers": [{ "upToSeconds": 60, "credits": 2 }, { "upToSeconds": null, "credits": 5 }], "note": "optional, ≤ 500 chars" }
 ```
 or `{ "feature": "auto_captions", "mode": "per_job", "perJobCredits": 3 }`,
-or `{ "feature": "auto_captions", "mode": "per_second", "blockSeconds": 10, "blockCredits": 1, "minCredits": 2 }`
+or `{ "feature": "auto_captions", "mode": "per_second", "blockSeconds": 10, "blockCredits": 1, "minCredits": 2 }`,
+or `{ "feature": "text_to_speech", "mode": "per_characters", "blockCharacters": 200, "blockCredits": 1, "minCredits": 1 }`,
+or `{ "feature": "text_to_speech", "mode": "per_job", "perJobCredits": 2 }`
 (`minCredits` optional).
 
-Returns the new rule: the next version, **inactive**. Field limits: `credits`,
+Returns the new rule: the next version of that feature, **inactive**. Field limits: `credits`,
 `perJobCredits`, `blockCredits` and `minCredits` 0–100000; `upToSeconds` 1–86400 or `null`;
-`blockSeconds` 1–86400; 1–50 tiers.
+`blockSeconds` 1–86400; `blockCharacters` 1–100000; 1–50 tiers.
 
-Beyond field limits, the tiers must make sense together. Otherwise `422 VALIDATION_FAILED`
-with `details.problems`, a list of sentences to show as they are:
+Beyond field limits, the rule must make sense. Otherwise `422 VALIDATION_FAILED` with
+`details.problems`, a list of sentences to show as they are:
+- the mode must suit the feature ("Text to speech is priced per job or per characters.",
+  "Auto captions is priced per job, by length or by the second.");
 - the last tier must be open-ended (`null`), and only the last;
 - each `upToSeconds` must be greater than the one before;
 - a `per_job` rule needs `perJobCredits`;
-- a `per_second` rule needs `blockSeconds` and `blockCredits`.
+- a `per_second` rule needs `blockSeconds` and `blockCredits`;
+- a `per_characters` rule needs `blockCharacters` and `blockCredits`.
 
 ### `POST /pricing-rules/{id}/activate` (`credits.manage`) → `200`
 
@@ -331,6 +351,10 @@ Gains `byKindStatus`, counts per kind and status (deleted assets excluded):
 ```
 
 ## Changelog
+
+- 2026-11-10: text to speech is priced — feature `text_to_speech`, modes `per_job` and
+  `per_characters` (`blockCharacters` on every rule); a mode must suit its feature. Voices:
+  [`admin-voices-api.md`](admin-voices-api.md).
 
 - 2026-10-29: `lastChanged` on credit settings; `createdBy` on pricing rules; `GET /stats/users`;
   `actor`, `entityLabel` and `entityDeleted` on audit entries; `byKindStatus` on the stats summary.
