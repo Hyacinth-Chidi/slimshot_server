@@ -24,8 +24,31 @@ describe('accounts and credits schema', () => {
     ]);
   });
 
-  it('prices captions per job, by length brackets, or by the second', () => {
-    expect(Object.values(PricingMode)).toEqual(['per_job', 'duration_tiers', 'per_second']);
+  it('prices captions per job, by length brackets or by the second, and voices by the characters', () => {
+    expect(Object.values(PricingMode)).toEqual(['per_job', 'duration_tiers', 'per_second', 'per_characters']);
+  });
+
+  it('adds text to speech additively: enum values, one nullable column, a table of its own', () => {
+    const tts = readFileSync(
+      join(__dirname, '../../prisma/migrations/20261110120000_text_to_speech/migration.sql'),
+      'utf8',
+    );
+    const statements = tts
+      .split(';')
+      .map((s) => s.replace(/--.*$/gm, '').replace(/\s+/g, ' ').trim())
+      .filter((s) => s.length > 0);
+    expect(statements).toHaveLength(6);
+    expect(statements.slice(0, 3)).toEqual([
+      `ALTER TYPE "ProviderCapability" ADD VALUE 'text_to_speech'`,
+      `ALTER TYPE "CreditFeature" ADD VALUE 'text_to_speech'`,
+      `ALTER TYPE "PricingMode" ADD VALUE 'per_characters'`,
+    ]);
+    // Nullable, so every existing rule stays valid as it is.
+    expect(statements[3]).toBe('ALTER TABLE "PricingRule" ADD COLUMN "blockCharacters" INTEGER');
+    expect(statements[4]).toMatch(/^CREATE TABLE "Voice" \(/);
+    expect(statements[5]).toBe(
+      'CREATE UNIQUE INDEX "Voice_provider_providerVoiceId_key" ON "Voice"("provider", "providerVoiceId")',
+    );
   });
 
   it('adds the by-the-second mode and its three columns in its own migration', () => {

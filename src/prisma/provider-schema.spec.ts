@@ -4,9 +4,9 @@ import { join } from 'node:path';
 import { ProviderCapability, ProviderKind } from '../generated/prisma/enums';
 
 describe('provider schema', () => {
-  it('knows the three speech-to-text providers', () => {
+  it('knows the three providers and both capabilities', () => {
     expect(Object.values(ProviderKind)).toEqual(['deepgram', 'elevenlabs', 'xai']);
-    expect(Object.values(ProviderCapability)).toEqual(['speech_to_text']);
+    expect(Object.values(ProviderCapability)).toEqual(['speech_to_text', 'text_to_speech']);
   });
 
   it('adds xAI with an additive migration that touches no existing row', () => {
