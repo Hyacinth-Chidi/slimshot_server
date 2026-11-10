@@ -14,6 +14,6 @@ describe('provider params', () => {
   });
 
   it('names the allowed values', () => {
-    expect(() => assertCapability('tts')).toThrow('capability must be one of: speech_to_text.');
+    expect(() => assertCapability('tts')).toThrow('capability must be one of: speech_to_text, text_to_speech.');
   });
 });

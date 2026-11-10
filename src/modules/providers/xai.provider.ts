@@ -37,7 +37,7 @@ interface XaiKeyInfo {
 }
 
 /** xAI answers 200 for a key it will not serve, and says why in these flags. */
-function keyRefusal(body: unknown): KeyCheck | null {
+export function keyRefusal(body: unknown): KeyCheck | null {
   const info = (body ?? {}) as XaiKeyInfo;
   if (info.api_key_blocked) return { ok: false, message: 'xAI has blocked this key.' };
   if (info.api_key_disabled) return { ok: false, message: 'This key is disabled in the xAI console.' };

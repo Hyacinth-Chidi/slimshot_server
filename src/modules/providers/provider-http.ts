@@ -4,6 +4,8 @@ import { PROVIDER_NAMES, type KeyCheck } from './speech-to-text.provider';
 
 /** Long enough for a long video's audio; short enough that a hung socket frees its worker slot. */
 export const TRANSCRIBE_TIMEOUT_MS = 10 * 60_000;
+/** One text's voice: seconds of work, so a hung request frees its worker slot well before the app gives up. */
+export const SYNTHESIZE_TIMEOUT_MS = 2 * 60_000;
 const KEY_CHECK_TIMEOUT_MS = 15_000;
 
 /**
@@ -32,6 +34,40 @@ export async function requestJson<T>(
     throw new ProviderError(provider, 502, `${name} returned an unreadable response.`);
   }
   return body as T;
+}
+
+/**
+ * Sends a request and answers the audio it returns: the body's bytes, or the
+ * base64 `audio` of a JSON answer (xAI sends JSON when timestamps are asked
+ * for, and its examples read raw bytes otherwise). A non-2xx is a
+ * ProviderError as in `requestJson`; an answer without audio is reported as a
+ * 502 so the worker retries it like any other outage.
+ */
+export async function requestAudio(
+  provider: ProviderKind,
+  url: string,
+  init: RequestInit,
+  apiKey: string,
+  timeoutMs = SYNTHESIZE_TIMEOUT_MS,
+): Promise<Buffer> {
+  const res = await fetch(url, { ...init, signal: AbortSignal.timeout(timeoutMs) });
+  const name = PROVIDER_NAMES[provider];
+
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => null);
+    const message = providerMessage(body, `${name} returned HTTP ${res.status}.`);
+    throw new ProviderError(provider, res.status, scrub(message, apiKey));
+  }
+
+  let audio: Buffer;
+  if ((res.headers.get('content-type') ?? '').includes('application/json')) {
+    const body = (await res.json().catch(() => null)) as { audio?: unknown } | null;
+    audio = typeof body?.audio === 'string' ? Buffer.from(body.audio, 'base64') : Buffer.alloc(0);
+  } else {
+    audio = Buffer.from(await res.arrayBuffer());
+  }
+  if (audio.length === 0) throw new ProviderError(provider, 502, `${name} returned no audio.`);
+  return audio;
 }
 
 /**
