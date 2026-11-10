@@ -200,6 +200,18 @@ describe('AllExceptionsFilter', () => {
     expect(json.mock.calls[0][0].error.code).toBe(ErrorCode.REQUEST_FAILED);
   });
 
+  it('logs a text-to-speech outage as one warning, not an error with a stack', () => {
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const { host, status } = hostFor();
+    filter.catch(appError(503, ErrorCode.TTS_UNAVAILABLE, 'off'), host);
+    expect(status).toHaveBeenCalledWith(503);
+    expect(error).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledTimes(1);
+    error.mockRestore();
+    warn.mockRestore();
+  });
+
   it('logs a caption outage as one warning, not an error with a stack', () => {
     const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);

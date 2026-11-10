@@ -74,6 +74,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     } else if (code === ErrorCode.CAPTIONS_UNAVAILABLE) {
       // Expected until the owner makes a provider active; not a server fault.
       this.logger.warn(`${where} auto caption requested but no provider is active`);
+    } else if (code === ErrorCode.TTS_UNAVAILABLE) {
+      // Expected while text to speech has no active provider or price; not a server fault.
+      this.logger.warn(`${where} text to speech requested while it is switched off`);
     } else if (status >= 500) {
       this.logger.error(where, exception instanceof Error ? exception.stack : String(exception));
     }
