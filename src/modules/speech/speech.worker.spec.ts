@@ -1,13 +1,38 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, type ReadStream, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
+import type { Readable } from 'node:stream';
 
 import { Logger } from '@nestjs/common';
 import { UnrecoverableError } from 'bullmq';
 
+import { probeAudio } from '../../core/storage/audio-probe';
 import { ProviderKind } from '../../generated/prisma/enums';
 import { ProviderError } from '../providers/provider-error';
 import { SpeechWorker } from './speech.worker';
+
+// music-metadata is ESM-only and cannot load under Jest; its own spec runs it for real.
+jest.mock('../../core/storage/audio-probe', () => ({ probeAudio: jest.fn() }));
+const probe = probeAudio as jest.MockedFunction<typeof probeAudio>;
+/** The length the probe reads from each voice, by its file's name. */
+const LENGTHS_MS: Record<string, number> = { 'a.mp3': 1_250, 'b.mp3': 2_500 };
+
+beforeEach(() => {
+  probe.mockReset().mockImplementation(async (stream: Readable) => {
+    const name = basename(String((stream as ReadStream).path));
+    await closed(stream);
+    return { format: 'mp3', mimeType: 'audio/mpeg', durationMs: LENGTHS_MS[name] };
+  });
+});
+
+/** Lets the stream open and close, as the real probe does, so nothing touches the file after a test. */
+function closed(stream: Readable): Promise<void> {
+  return new Promise((resolve) => {
+    stream.once('close', () => resolve());
+    stream.once('error', () => resolve());
+    stream.destroy();
+  });
+}
 
 const posixIt = process.platform === 'win32' ? it.skip : it;
 const JOB_ID = `tts_${'a'.repeat(32)}`;
@@ -43,7 +68,12 @@ describe('SpeechWorker.process', () => {
     const synthesize = jest.fn(async ({ text }: { text: string }) => spoken(text));
     const { worker, job, dir, refunds, cleanup } = build(synthesize);
 
-    await expect(worker.process(job())).resolves.toEqual({ items: [{ id: 'a' }, { id: 'b' }] });
+    await expect(worker.process(job())).resolves.toEqual({
+      items: [
+        { id: 'a', durationSeconds: 1.25 },
+        { id: 'b', durationSeconds: 2.5 },
+      ],
+    });
     expect(synthesize.mock.calls).toEqual([
       [{ text: 'Hello there.', voiceId: 'eve' }, 'xai-key-123'],
       [{ text: 'Second line.', voiceId: 'eve' }, 'xai-key-123'],
@@ -123,12 +153,44 @@ describe('SpeechWorker.process', () => {
     const { worker, job, dir, refunds, cleanup } = build(synthesize);
 
     await worker.process(job(0)).catch(() => undefined);
-    await expect(worker.process(job(1))).resolves.toEqual({ items: [{ id: 'a' }, { id: 'b' }] });
+    await expect(worker.process(job(1))).resolves.toEqual({
+      items: [
+        { id: 'a', durationSeconds: 1.25 },
+        { id: 'b', durationSeconds: 2.5 },
+      ],
+    });
     // Three calls, not four: the first text was not paid for twice.
     expect(synthesize).toHaveBeenCalledTimes(3);
     expect(readFileSync(join(dir, 'a.mp3'), 'utf8')).toBe('mp3:Hello there.');
     expect(readFileSync(join(dir, 'b.mp3'), 'utf8')).toBe('mp3:Second line.');
     expect(refunds.refund).not.toHaveBeenCalled();
+    warn.mockRestore();
+    cleanup();
+  });
+
+  it('a voice whose length cannot be read is made again, once', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const synthesize = jest.fn(async ({ text }: { text: string }) => spoken(text));
+    const { worker, job, dir, refunds, cleanup } = build(synthesize);
+    probe.mockImplementationOnce(async (stream: Readable) => {
+      await closed(stream);
+      throw new Error('not audio');
+    });
+
+    const first = await worker.process(job(0)).catch((e: unknown) => e);
+    expect(first).not.toBeInstanceOf(UnrecoverableError);
+    expect((first as Error).message).toBe('PROVIDER_FAILED: The voice provider sent audio that could not be read.');
+    // The unreadable file is gone, so the retry asks for it again rather than keeping it.
+    expect(existsSync(join(dir, 'a.mp3'))).toBe(false);
+    expect(refunds.refund).not.toHaveBeenCalled();
+
+    await expect(worker.process(job(1))).resolves.toEqual({
+      items: [
+        { id: 'a', durationSeconds: 1.25 },
+        { id: 'b', durationSeconds: 2.5 },
+      ],
+    });
+    expect(synthesize).toHaveBeenCalledTimes(3);
     warn.mockRestore();
     cleanup();
   });

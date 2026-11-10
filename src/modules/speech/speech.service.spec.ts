@@ -176,14 +176,18 @@ describe('SpeechService.status and audioPath', () => {
     const job = jobs.get(jobId) as FakeJob;
     job.state = 'completed';
     job.finishedOn = finishedOn;
-    job.returnvalue = { items: [{ id: 't1' }] };
+    job.returnvalue = { items: [{ id: 't1', durationSeconds: 1.5 }] };
   }
 
-  it('reports a finished job with its items', async () => {
+  it('reports a finished job with its items and their lengths', async () => {
     const { svc, jobs, cleanup } = build();
     const { jobId } = await svc.start(user(), { voiceId: 'v1', items: items('hi') }, KEY);
     finished(jobs, jobId);
-    await expect(svc.status(user(), jobId)).resolves.toEqual({ jobId, status: 'completed', items: [{ id: 't1' }] });
+    await expect(svc.status(user(), jobId)).resolves.toEqual({
+      jobId,
+      status: 'completed',
+      items: [{ id: 't1', durationSeconds: 1.5 }],
+    });
     cleanup();
   });
 

@@ -29,8 +29,15 @@ export interface SpeechJobData {
   credits: number;
 }
 
+/** One finished voice: its text's id, and how long it plays. */
+export interface SpokenItem {
+  id: string;
+  /** Read from the MP3 itself, to the millisecond. */
+  durationSeconds: number;
+}
+
 export interface SpeechJobResult {
-  items: { id: string }[];
+  items: SpokenItem[];
 }
 
 /**
@@ -76,5 +83,5 @@ export function decodeFailure(reason: string | undefined): SpeechFailure {
 
 export type SpeechJobView =
   | { jobId: string; status: 'queued' | 'processing'; pollAfterMs: number }
-  | { jobId: string; status: 'completed'; items: { id: string }[] }
+  | { jobId: string; status: 'completed'; items: SpokenItem[] }
   | { jobId: string; status: 'failed'; error: SpeechFailure };

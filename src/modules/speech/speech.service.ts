@@ -203,7 +203,7 @@ export class SpeechService {
         return {
           jobId,
           status: 'completed',
-          items: (job.returnvalue?.items ?? job.data.items).map(({ id }) => ({ id })),
+          items: (job.returnvalue?.items ?? []).map(({ id, durationSeconds }) => ({ id, durationSeconds })),
         };
       case 'failed':
         return { jobId, status: 'failed', error: decodeFailure(job.failedReason) };

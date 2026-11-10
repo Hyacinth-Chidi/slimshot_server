@@ -1,4 +1,5 @@
-import { access, mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { access, mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Inject, Logger, OnApplicationBootstrap } from '@nestjs/common';
@@ -6,6 +7,8 @@ import { Job, UnrecoverableError } from 'bullmq';
 
 import { speechConfig, type SpeechConfig } from '../../config';
 import { ErrorCode } from '../../core/errors/error-codes';
+import { probeAudio } from '../../core/storage/audio-probe';
+import type { ProviderKind } from '../../generated/prisma/enums';
 import { FeatureRefunds } from '../credits/feature-refunds';
 import { ProviderCredentialsService } from '../providers/provider-credentials.service';
 import { ProviderError, scrub } from '../providers/provider-error';
@@ -16,6 +19,7 @@ import {
   QUEUE_SPEECH,
   type SpeechJobData,
   type SpeechJobResult,
+  type SpokenItem,
 } from './speech.constants';
 
 @Processor(QUEUE_SPEECH)
@@ -55,16 +59,19 @@ export class SpeechWorker extends WorkerHost implements OnApplicationBootstrap {
       }
 
       await mkdir(dir, { recursive: true, mode: 0o700 });
+      const spoken: SpokenItem[] = [];
       for (const item of items) {
         const path = itemPath(this.cfg.tmpDir, jobId, item.id);
         // A retry after an outage keeps what the first attempt already paid the provider for.
-        if (await exists(path)) continue;
-        const audio = await active.adapter.synthesize({ text: item.text, voiceId: providerVoiceId }, active.apiKey);
-        // Whole or not at all: only a finished file ever has the name a retry and a download look for.
-        await writeFile(`${path}.part`, audio, { mode: 0o600 });
-        await rename(`${path}.part`, path);
+        if (!(await exists(path))) {
+          const audio = await active.adapter.synthesize({ text: item.text, voiceId: providerVoiceId }, active.apiKey);
+          // Whole or not at all: only a finished file ever has the name a retry and a download look for.
+          await writeFile(`${path}.part`, audio, { mode: 0o600 });
+          await rename(`${path}.part`, path);
+        }
+        spoken.push({ id: item.id, durationSeconds: await lengthOf(path, active.adapter.kind) });
       }
-      return { items: items.map(({ id }) => ({ id })) };
+      return { items: spoken };
     } catch (err) {
       if (err instanceof UnrecoverableError) throw err;
 
@@ -94,6 +101,22 @@ export class SpeechWorker extends WorkerHost implements OnApplicationBootstrap {
         await this.refunds.refund(userId, jobId, credits, 'job_failed');
       }
     }
+  }
+}
+
+/**
+ * How long a voice plays, read from the MP3's frames — what the app places on
+ * its timeline. A file that cannot be read is deleted and reported as the
+ * provider's fault, so the one retry asks for it again.
+ */
+async function lengthOf(path: string, provider: ProviderKind): Promise<number> {
+  try {
+    const { size } = await stat(path);
+    const { durationMs } = await probeAudio(createReadStream(path), size);
+    return durationMs / 1_000;
+  } catch {
+    await rm(path, { force: true });
+    throw new ProviderError(provider, 502, 'The voice provider sent audio that could not be read.');
   }
 }
 
