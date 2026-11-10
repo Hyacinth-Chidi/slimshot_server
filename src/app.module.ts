@@ -14,6 +14,7 @@ import {
   emailConfig,
   r2Config,
   redisConfig,
+  speechConfig,
   uploadConfig,
   validate,
 } from './config';
@@ -31,6 +32,7 @@ import { BackupsModule } from './modules/backups/backups.module';
 import { PushModule } from './modules/push/push.module';
 import { CaptionsModule } from './modules/captions/captions.module';
 import { VoicesModule } from './modules/voices/voices.module';
+import { SpeechModule } from './modules/speech/speech.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
 import { CreditsModule } from './modules/credits/credits.module';
 import { DevicesModule } from './modules/devices/devices.module';
@@ -54,6 +56,7 @@ import { PrismaModule } from './prisma/prisma.module';
         r2Config,
         cryptoConfig,
         captionConfig,
+        speechConfig,
         appAuthConfig,
         emailConfig,
         admobConfig,
@@ -82,6 +85,7 @@ import { PrismaModule } from './prisma/prisma.module';
     BackupsModule,
     PushModule,
     VoicesModule,
+    SpeechModule,
   ],
 })
 export class AppModule {}

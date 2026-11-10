@@ -2,12 +2,15 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { AuditService } from '../../core/audit/audit.service';
 import { CreditTxType } from '../../generated/prisma/enums';
-import { LedgerService } from '../credits/ledger.service';
+import { LedgerService } from './ledger.service';
 
-/** Gives back what a failed caption job was charged. Never throws: a refund problem is logged and audited. */
+/**
+ * Gives back what a failed paid job — a caption or a voice — was charged. Never
+ * throws: a refund problem is logged and audited.
+ */
 @Injectable()
-export class CaptionRefunds {
-  private readonly logger = new Logger(CaptionRefunds.name);
+export class FeatureRefunds {
+  private readonly logger = new Logger(FeatureRefunds.name);
 
   constructor(
     private readonly ledger: LedgerService,
@@ -27,7 +30,7 @@ export class CaptionRefunds {
       });
     } catch (err) {
       this.logger.error(
-        `Refund of ${credits} credits for caption job ${jobId} failed: ${err instanceof Error ? err.message : String(err)}`,
+        `Refund of ${credits} credits for job ${jobId} failed: ${err instanceof Error ? err.message : String(err)}`,
       );
       await this.audit.record({
         actorType: 'system',

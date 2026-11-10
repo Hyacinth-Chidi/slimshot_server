@@ -58,6 +58,8 @@ const DEFAULT_MIME_TYPES = ['audio/mpeg', 'audio/wav', 'audio/aac', 'audio/ogg',
 
 const DEFAULT_CAPTION_TMP_DIR = join(tmpdir(), 'slimshot-captions');
 
+const DEFAULT_TTS_TMP_DIR = join(tmpdir(), 'slimshot-speech');
+
 const DEFAULT_ADMOB_KEYS_URL = 'https://www.gstatic.com/admob/reward/verifier-keys.json';
 
 const bool =
@@ -272,6 +274,44 @@ export class Env {
   @Transform(({ value }) => (blank(value) ? 'grok-voice-transcribe-2.0' : String(value).trim()))
   @IsString()
   CAPTION_XAI_MODEL = 'grok-voice-transcribe-2.0';
+
+  // Text to speech: where generated voices wait for the app, and how much one request may ask.
+  @Transform(({ value }) => (blank(value) ? DEFAULT_TTS_TMP_DIR : String(value).trim()))
+  @IsString()
+  TTS_TMP_DIR = DEFAULT_TTS_TMP_DIR;
+
+  @Transform(int(60))
+  @IsInt()
+  @Min(5)
+  @Max(1_440)
+  TTS_KEEP_MINUTES = 60;
+
+  @Transform(int(2))
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  TTS_CONCURRENCY = 2;
+
+  // Both stop at 20 000: a quote takes at most that many characters, and the
+  // JSON body limit (100 kb) holds that many even as 4-byte emoji. Going past
+  // it means raising the quote's @Max and the body limit first.
+  @Transform(int(2_000))
+  @IsInt()
+  @Min(1)
+  @Max(20_000)
+  TTS_MAX_ITEM_CHARACTERS = 2_000;
+
+  @Transform(int(20_000))
+  @IsInt()
+  @Min(1)
+  @Max(20_000)
+  TTS_MAX_REQUEST_CHARACTERS = 20_000;
+
+  @Transform(int(100))
+  @IsInt()
+  @Min(1)
+  @Max(1_000)
+  TTS_MAX_ITEMS = 100;
 
   // App-user tokens: a secret of their own, never the admin one.
   @Transform(text)

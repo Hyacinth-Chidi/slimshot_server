@@ -14,7 +14,7 @@ import { LedgerService } from '../credits/ledger.service';
 import { PricingService } from '../credits/pricing.service';
 import { ProviderCredentialsService } from '../providers/provider-credentials.service';
 import type { CaptionResult } from '../providers/speech-to-text.provider';
-import { CaptionRefunds } from './caption-refunds';
+import { FeatureRefunds } from '../credits/feature-refunds';
 import {
   CAPTION_JOB_ID,
   captionJobId,
@@ -45,7 +45,7 @@ export class CaptionsService {
     private readonly providers: ProviderCredentialsService,
     private readonly pricing: PricingService,
     private readonly ledger: LedgerService,
-    private readonly refunds: CaptionRefunds,
+    private readonly refunds: FeatureRefunds,
     @Inject(captionConfig.KEY) private readonly cfg: CaptionConfig,
   ) {}
 

@@ -10,5 +10,6 @@ export { emailConfig, type EmailConfig } from './email.config';
 export { databaseConfig, type DatabaseConfig } from './database.config';
 export { parseEnv, validate, type Env } from './env.validation';
 export { r2Config, type R2EnvConfig } from './r2.config';
+export { speechConfig, type SpeechConfig } from './speech.config';
 export { redisConfig, type RedisConfig } from './redis.config';
 export { uploadConfig, type UploadConfig, type UploadLimits } from './upload.config';

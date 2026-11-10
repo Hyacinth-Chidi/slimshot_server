@@ -6,7 +6,6 @@ import { captionConfig, type CaptionConfig } from '../../config';
 import { AccountsModule } from '../accounts/accounts.module';
 import { CreditsModule } from '../credits/credits.module';
 import { ProvidersModule } from '../providers/providers.module';
-import { CaptionRefunds } from './caption-refunds';
 import { CaptionSweeper } from './caption-sweeper';
 import { CaptionWorker } from './caption.worker';
 import { QUEUE_CAPTIONS } from './captions.constants';
@@ -29,6 +28,6 @@ import { CaptionsService } from './captions.service';
     ProvidersModule,
   ],
   controllers: [CaptionsController],
-  providers: [CaptionsService, CaptionWorker, CaptionSweeper, CaptionRefunds],
+  providers: [CaptionsService, CaptionWorker, CaptionSweeper],
 })
 export class CaptionsModule {}

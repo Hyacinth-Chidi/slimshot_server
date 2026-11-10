@@ -2,15 +2,15 @@ import { Logger } from '@nestjs/common';
 
 import { appError } from '../../core/errors/app-error';
 import { ErrorCode } from '../../core/errors/error-codes';
-import { CaptionRefunds } from './caption-refunds';
+import { FeatureRefunds } from './feature-refunds';
 
 function build() {
   const ledger = { post: jest.fn(async () => ({ replayed: false })) };
   const audit = { record: jest.fn(async (_e: unknown) => undefined) };
-  return { ledger, audit, refunds: new CaptionRefunds(ledger as never, audit as never) };
+  return { ledger, audit, refunds: new FeatureRefunds(ledger as never, audit as never) };
 }
 
-describe('CaptionRefunds', () => {
+describe('FeatureRefunds', () => {
   it('refunds the charged credits keyed by the job', async () => {
     const { refunds, ledger } = build();
     await refunds.refund('u1', 'cap_x', 6, 'job_failed');

@@ -137,6 +137,16 @@ describe('parseEnv', () => {
     ['CAPTION_RESULT_TTL_SECONDS', '3601'],
     ['CAPTION_CONCURRENCY', '0'],
     ['CAPTION_CONCURRENCY', '21'],
+    ['TTS_KEEP_MINUTES', '4'],
+    ['TTS_KEEP_MINUTES', '1441'],
+    ['TTS_CONCURRENCY', '0'],
+    ['TTS_CONCURRENCY', '21'],
+    ['TTS_MAX_ITEM_CHARACTERS', '0'],
+    ['TTS_MAX_ITEM_CHARACTERS', '20001'],
+    ['TTS_MAX_REQUEST_CHARACTERS', '0'],
+    ['TTS_MAX_REQUEST_CHARACTERS', '20001'],
+    ['TTS_MAX_ITEMS', '0'],
+    ['TTS_MAX_ITEMS', '1001'],
     ['MASTER_ENCRYPTION_KEY', 'a'.repeat(63)],
     ['MASTER_ENCRYPTION_KEY', 'g'.repeat(64)],
     ['USER_ACCESS_TTL_SECONDS', '30'],
@@ -170,6 +180,17 @@ describe('parseEnv', () => {
       CAPTION_DEEPGRAM_MODEL: 'nova-3',
       CAPTION_ELEVENLABS_MODEL: 'scribe_v2',
       CAPTION_XAI_MODEL: 'grok-voice-transcribe-2.0',
+    });
+  });
+
+  it('applies the text to speech defaults', () => {
+    expect(parseEnv(BASE)).toMatchObject({
+      TTS_TMP_DIR: join(tmpdir(), 'slimshot-speech'),
+      TTS_KEEP_MINUTES: 60,
+      TTS_CONCURRENCY: 2,
+      TTS_MAX_ITEM_CHARACTERS: 2000,
+      TTS_MAX_REQUEST_CHARACTERS: 20000,
+      TTS_MAX_ITEMS: 100,
     });
   });
 

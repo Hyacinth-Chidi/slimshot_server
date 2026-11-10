@@ -10,7 +10,7 @@ import { ProviderCapability } from '../../generated/prisma/enums';
 import { ProviderCredentialsService } from '../providers/provider-credentials.service';
 import { ProviderError, scrub } from '../providers/provider-error';
 import type { CaptionResult } from '../providers/speech-to-text.provider';
-import { CaptionRefunds } from './caption-refunds';
+import { FeatureRefunds } from '../credits/feature-refunds';
 import { type CaptionJobData, encodeFailure, QUEUE_CAPTIONS } from './captions.constants';
 
 @Processor(QUEUE_CAPTIONS)
@@ -19,7 +19,7 @@ export class CaptionWorker extends WorkerHost implements OnApplicationBootstrap 
 
   constructor(
     private readonly credentials: ProviderCredentialsService,
-    private readonly refunds: CaptionRefunds,
+    private readonly refunds: FeatureRefunds,
     @Inject(captionConfig.KEY) private readonly cfg: CaptionConfig,
   ) {
     super();
