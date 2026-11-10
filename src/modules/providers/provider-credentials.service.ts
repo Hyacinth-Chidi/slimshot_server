@@ -6,6 +6,7 @@ import { ProviderCapability, ProviderKind } from '../../generated/prisma/enums';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ProviderRegistry } from './provider.registry';
 import { PROVIDER_NAMES, type KeyCheck, type SpeechToTextProvider } from './speech-to-text.provider';
+import { CAPABLE_PROVIDERS, type TextToSpeechProvider } from './text-to-speech.provider';
 
 export interface ProviderStatus {
   provider: ProviderKind;
@@ -17,6 +18,23 @@ export interface ProviderStatus {
 
 export interface ActiveProvider {
   adapter: SpeechToTextProvider;
+  apiKey: string;
+}
+
+export interface ActiveVoiceProvider {
+  adapter: TextToSpeechProvider;
+  apiKey: string;
+}
+
+/** A capability as the owner reads it in a refusal. */
+const CAPABILITY_NAMES: Record<ProviderCapability, string> = {
+  [ProviderCapability.speech_to_text]: 'speech to text',
+  [ProviderCapability.text_to_speech]: 'text to speech',
+};
+
+/** The decrypted key of a capability's active provider, as cached. */
+interface ActiveKey {
+  provider: ProviderKind;
   apiKey: string;
 }
 
@@ -34,10 +52,7 @@ export class ProviderCredentialsService {
   // Decrypting per caption job would be a DB read plus AES per job. Every
   // change below clears this, so a replaced key or a switched provider is
   // used by the very next job.
-  private readonly activeCache = new Map<
-    ProviderCapability,
-    { value: ActiveProvider | null; expiresAt: number }
-  >();
+  private readonly activeCache = new Map<ProviderCapability, { value: ActiveKey | null; expiresAt: number }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -46,12 +61,13 @@ export class ProviderCredentialsService {
     private readonly audit: AuditService,
   ) {}
 
+  /** The providers that can do [capability] — only these may hold its key. */
   async list(capability: ProviderCapability): Promise<ProviderStatus[]> {
     const rows = await this.prisma.providerCredential.findMany({
       where: { capability },
       select: { provider: true, isActive: true, updatedAt: true },
     });
-    return Object.values(ProviderKind).map((provider) => {
+    return CAPABLE_PROVIDERS[capability].map((provider) => {
       const row = rows.find((r) => r.provider === provider);
       return {
         provider,
@@ -69,6 +85,7 @@ export class ProviderCredentialsService {
     apiKey: string,
     adminId: string,
   ): Promise<void> {
+    this.assertCapable(provider, capability);
     const key = apiKey.trim();
     if (key.length < MIN_KEY_LENGTH || key.length > MAX_KEY_LENGTH) {
       throw new UnprocessableEntityException(
@@ -131,6 +148,7 @@ export class ProviderCredentialsService {
     capability: ProviderCapability,
     adminId: string,
   ): Promise<ProviderStatus[]> {
+    this.assertCapable(provider, capability);
     const row = await this.prisma.providerCredential.findUnique({
       where: { provider_capability: { provider, capability } },
       select: { id: true, isActive: true },
@@ -194,6 +212,7 @@ export class ProviderCredentialsService {
   }
 
   async test(provider: ProviderKind, capability: ProviderCapability): Promise<KeyCheck> {
+    this.assertCapable(provider, capability);
     const row = await this.prisma.providerCredential.findUnique({
       where: { provider_capability: { provider, capability } },
       select: { apiKeyCipher: true, keyVersion: true },
@@ -201,11 +220,26 @@ export class ProviderCredentialsService {
     if (!row) return { ok: false, message: `No key saved for ${PROVIDER_NAMES[provider]}.` };
 
     const apiKey = this.crypto.decrypt({ cipher: row.apiKeyCipher, keyVersion: row.keyVersion });
-    return this.registry.speechToTextFor(provider).testKey(apiKey);
+    const adapter =
+      capability === ProviderCapability.text_to_speech
+        ? this.registry.textToSpeechFor(provider)
+        : this.registry.speechToTextFor(provider);
+    return adapter.testKey(apiKey);
   }
 
   /** The provider caption jobs should use right now, or null when none is active. */
   async getActive(capability: ProviderCapability): Promise<ActiveProvider | null> {
+    const key = await this.activeKey(capability);
+    return key ? { adapter: this.registry.speechToTextFor(key.provider), apiKey: key.apiKey } : null;
+  }
+
+  /** The provider voice jobs and samples should use right now, or null when none is active. */
+  async getActiveTextToSpeech(): Promise<ActiveVoiceProvider | null> {
+    const key = await this.activeKey(ProviderCapability.text_to_speech);
+    return key ? { adapter: this.registry.textToSpeechFor(key.provider), apiKey: key.apiKey } : null;
+  }
+
+  private async activeKey(capability: ProviderCapability): Promise<ActiveKey | null> {
     const cached = this.activeCache.get(capability);
     if (cached && cached.expiresAt > Date.now()) return cached.value;
 
@@ -215,12 +249,20 @@ export class ProviderCredentialsService {
     });
     const value = row
       ? {
-          adapter: this.registry.speechToTextFor(row.provider),
+          provider: row.provider,
           apiKey: this.crypto.decrypt({ cipher: row.apiKeyCipher, keyVersion: row.keyVersion }),
         }
       : null;
 
     this.activeCache.set(capability, { value, expiresAt: Date.now() + ACTIVE_CACHE_MS });
     return value;
+  }
+
+  /** A key is only ever taken for a provider that can do the job. */
+  private assertCapable(provider: ProviderKind, capability: ProviderCapability): void {
+    if (CAPABLE_PROVIDERS[capability].includes(provider)) return;
+    throw new UnprocessableEntityException(
+      `${PROVIDER_NAMES[provider]} cannot do ${CAPABILITY_NAMES[capability]}.`,
+    );
   }
 }

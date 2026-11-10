@@ -5,6 +5,7 @@ import { ProviderCapability, ProviderKind } from '../../generated/prisma/enums';
 import { ProviderCredentialsService } from './provider-credentials.service';
 
 const STT = ProviderCapability.speech_to_text;
+const TTS = ProviderCapability.text_to_speech;
 
 interface Row {
   id: string;
@@ -31,12 +32,14 @@ function matches(row: Row, where: Where = {}): boolean {
   });
 }
 
-function build(seed: Array<{ provider: ProviderKind; key: string; isActive?: boolean }> = []) {
+function build(
+  seed: Array<{ provider: ProviderKind; key: string; isActive?: boolean; capability?: ProviderCapability }> = [],
+) {
   const crypto = new EnvelopeCryptoService('ab'.repeat(32));
   const rows: Row[] = seed.map((s, i) => ({
     id: `cred-${i + 1}`,
     provider: s.provider,
-    capability: STT,
+    capability: s.capability ?? STT,
     apiKeyCipher: crypto.encrypt(s.key).cipher,
     keyVersion: 1,
     isActive: s.isActive ?? false,
@@ -86,11 +89,22 @@ function build(seed: Array<{ provider: ProviderKind; key: string; isActive?: boo
     [ProviderKind.elevenlabs]: { kind: ProviderKind.elevenlabs, testKey: jest.fn(async () => ({ ok: true, message: 'Key works.' })), transcribe: jest.fn() },
     [ProviderKind.xai]: { kind: ProviderKind.xai, testKey: jest.fn(async () => ({ ok: true, message: 'Key works.' })), transcribe: jest.fn() },
   };
-  const registry = { speechToTextFor: jest.fn((kind: ProviderKind) => adapters[kind]) };
+  const voiceAdapters: Partial<Record<ProviderKind, unknown>> = {
+    [ProviderKind.xai]: {
+      kind: ProviderKind.xai,
+      testKey: jest.fn(async () => ({ ok: true, message: 'Voice key works.' })),
+      synthesize: jest.fn(),
+      listVoices: jest.fn(),
+    },
+  };
+  const registry = {
+    speechToTextFor: jest.fn((kind: ProviderKind) => adapters[kind]),
+    textToSpeechFor: jest.fn((kind: ProviderKind) => voiceAdapters[kind]),
+  };
   const audit = { record: jest.fn(async (_entry: unknown) => undefined) };
 
   const svc = new ProviderCredentialsService(prisma as never, crypto, registry as never, audit as never);
-  return { svc, rows, prisma, audit, adapters, crypto };
+  return { svc, rows, prisma, audit, adapters, voiceAdapters, crypto };
 }
 
 describe('ProviderCredentialsService.list', () => {
@@ -272,5 +286,46 @@ describe('ProviderCredentialsService audit', () => {
     ]);
     expect(calls[0]).toMatchObject({ actorId: 'admin-1', actorType: 'admin', entityType: 'ProviderCredential', after: { provider: 'deepgram', capability: STT } });
     expect(JSON.stringify(audit.record.mock.calls)).not.toMatch(/secret-key/);
+  });
+});
+
+describe('ProviderCredentialsService for text to speech', () => {
+  it('text to speech lists xAI only', async () => {
+    const { svc } = build([{ provider: ProviderKind.deepgram, key: 'dg-secret-key-1', isActive: true }]);
+    await expect(svc.list(TTS)).resolves.toEqual([
+      { provider: 'xai', capability: TTS, configured: false, active: false, updatedAt: null },
+    ]);
+  });
+
+  it('a key for a provider that cannot speak is refused', async () => {
+    const { svc, rows } = build();
+    await expect(svc.setKey(ProviderKind.deepgram, TTS, 'dg-secret-key-1', 'admin-1')).rejects.toThrow(
+      new UnprocessableEntityException('Deepgram cannot do text to speech.'),
+    );
+    await expect(svc.activate(ProviderKind.elevenlabs, TTS, 'admin-1')).rejects.toThrow(
+      new UnprocessableEntityException('ElevenLabs cannot do text to speech.'),
+    );
+    expect(rows).toHaveLength(0);
+  });
+
+  it('testing a text-to-speech key asks the text-to-speech adapter', async () => {
+    const { svc, adapters, voiceAdapters } = build([
+      { provider: ProviderKind.xai, key: 'xai-voice-key-1', capability: TTS },
+    ]);
+    await expect(svc.test(ProviderKind.xai, TTS)).resolves.toEqual({ ok: true, message: 'Voice key works.' });
+    expect((voiceAdapters.xai as { testKey: jest.Mock }).testKey).toHaveBeenCalledWith('xai-voice-key-1');
+    expect(adapters.xai.testKey).not.toHaveBeenCalled();
+  });
+
+  it('the active voice provider is its own', async () => {
+    const captionsOnly = build([{ provider: ProviderKind.xai, key: 'xai-stt-key-1', isActive: true }]);
+    await expect(captionsOnly.svc.getActiveTextToSpeech()).resolves.toBeNull();
+
+    const voices = build([{ provider: ProviderKind.xai, key: 'xai-voice-key-1', isActive: true, capability: TTS }]);
+    await expect(voices.svc.getActiveTextToSpeech()).resolves.toEqual({
+      adapter: voices.voiceAdapters.xai,
+      apiKey: 'xai-voice-key-1',
+    });
+    await expect(voices.svc.getActive(STT)).resolves.toBeNull();
   });
 });
