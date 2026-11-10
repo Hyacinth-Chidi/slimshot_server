@@ -406,7 +406,8 @@ export const ModelName = {
   CreditSettings: 'CreditSettings',
   PricingRule: 'PricingRule',
   BackupSettings: 'BackupSettings',
-  PushMessage: 'PushMessage'
+  PushMessage: 'PushMessage',
+  Voice: 'Voice'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -422,7 +423,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "asset" | "category" | "assetFile" | "audioAsset" | "fontAsset" | "uploadSession" | "user" | "userEntitlement" | "storageProvider" | "auditLog" | "adminUser" | "refreshToken" | "providerCredential" | "device" | "userSession" | "userRefreshToken" | "creditTransaction" | "bonusClaim" | "referral" | "creditSettings" | "pricingRule" | "backupSettings" | "pushMessage"
+    modelProps: "asset" | "category" | "assetFile" | "audioAsset" | "fontAsset" | "uploadSession" | "user" | "userEntitlement" | "storageProvider" | "auditLog" | "adminUser" | "refreshToken" | "providerCredential" | "device" | "userSession" | "userRefreshToken" | "creditTransaction" | "bonusClaim" | "referral" | "creditSettings" | "pricingRule" | "backupSettings" | "pushMessage" | "voice"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2128,6 +2129,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    Voice: {
+      payload: Prisma.$VoicePayload<ExtArgs>
+      fields: Prisma.VoiceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.VoiceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.VoiceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>
+        }
+        findFirst: {
+          args: Prisma.VoiceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.VoiceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>
+        }
+        findMany: {
+          args: Prisma.VoiceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>[]
+        }
+        create: {
+          args: Prisma.VoiceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>
+        }
+        createMany: {
+          args: Prisma.VoiceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.VoiceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>[]
+        }
+        delete: {
+          args: Prisma.VoiceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>
+        }
+        update: {
+          args: Prisma.VoiceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>
+        }
+        deleteMany: {
+          args: Prisma.VoiceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.VoiceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.VoiceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>[]
+        }
+        upsert: {
+          args: Prisma.VoiceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$VoicePayload>
+        }
+        aggregate: {
+          args: Prisma.VoiceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateVoice>
+        }
+        groupBy: {
+          args: Prisma.VoiceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VoiceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.VoiceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.VoiceCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2503,6 +2578,7 @@ export const PricingRuleScalarFieldEnum = {
   perJobCredits: 'perJobCredits',
   tiers: 'tiers',
   blockSeconds: 'blockSeconds',
+  blockCharacters: 'blockCharacters',
   blockCredits: 'blockCredits',
   minCredits: 'minCredits',
   isActive: 'isActive',
@@ -2547,6 +2623,23 @@ export const PushMessageScalarFieldEnum = {
 } as const
 
 export type PushMessageScalarFieldEnum = (typeof PushMessageScalarFieldEnum)[keyof typeof PushMessageScalarFieldEnum]
+
+
+export const VoiceScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  providerVoiceId: 'providerVoiceId',
+  label: 'label',
+  sortOrder: 'sortOrder',
+  enabled: 'enabled',
+  sampleStorageId: 'sampleStorageId',
+  sampleStorageKey: 'sampleStorageKey',
+  sampleUrl: 'sampleUrl',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VoiceScalarFieldEnum = (typeof VoiceScalarFieldEnum)[keyof typeof VoiceScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -3043,6 +3136,7 @@ export type GlobalOmitConfig = {
   pricingRule?: Prisma.PricingRuleOmit
   backupSettings?: Prisma.BackupSettingsOmit
   pushMessage?: Prisma.PushMessageOmit
+  voice?: Prisma.VoiceOmit
 }
 
 /* Types for Logging */

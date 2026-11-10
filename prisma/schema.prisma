@@ -332,6 +332,7 @@ enum ProviderKind {
 
 enum ProviderCapability {
   speech_to_text
+  text_to_speech
 }
 
 /// An AI provider's API key, encrypted with MASTER_ENCRYPTION_KEY. At most one
@@ -385,12 +386,14 @@ enum CreditTxType {
 
 enum CreditFeature {
   auto_captions
+  text_to_speech
 }
 
 enum PricingMode {
   per_job
   duration_tiers
   per_second
+  per_characters
 }
 
 enum BonusClaimKind {
@@ -510,6 +513,8 @@ model PricingRule {
   tiers         Json?
   /// per_second: credits per started block of this many seconds, never below minCredits.
   blockSeconds  Int?
+  /// per_characters: credits per started block of this many characters, never below minCredits.
+  blockCharacters Int?
   blockCredits  Int?
   minCredits    Int?
   isActive      Boolean       @default(false)
@@ -556,4 +561,22 @@ model PushMessage {
   finishedAt  DateTime?
 
   @@index([createdAt])
+}
+
+/// A text-to-speech voice the owner offers in the app. Synced from the provider switched off;
+/// the owner names it, orders it, makes its sample and switches it on (never without a sample).
+model Voice {
+  id               String       @id @default(cuid())
+  provider         ProviderKind
+  providerVoiceId  String
+  label            String
+  sortOrder        Int          @default(0)
+  enabled          Boolean      @default(false)
+  sampleStorageId  String?
+  sampleStorageKey String?
+  sampleUrl        String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([provider, providerVoiceId])
 }

@@ -73,7 +73,8 @@ export const ModelName = {
   CreditSettings: 'CreditSettings',
   PricingRule: 'PricingRule',
   BackupSettings: 'BackupSettings',
-  PushMessage: 'PushMessage'
+  PushMessage: 'PushMessage',
+  Voice: 'Voice'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -428,6 +429,7 @@ export const PricingRuleScalarFieldEnum = {
   perJobCredits: 'perJobCredits',
   tiers: 'tiers',
   blockSeconds: 'blockSeconds',
+  blockCharacters: 'blockCharacters',
   blockCredits: 'blockCredits',
   minCredits: 'minCredits',
   isActive: 'isActive',
@@ -472,6 +474,23 @@ export const PushMessageScalarFieldEnum = {
 } as const
 
 export type PushMessageScalarFieldEnum = (typeof PushMessageScalarFieldEnum)[keyof typeof PushMessageScalarFieldEnum]
+
+
+export const VoiceScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  providerVoiceId: 'providerVoiceId',
+  label: 'label',
+  sortOrder: 'sortOrder',
+  enabled: 'enabled',
+  sampleStorageId: 'sampleStorageId',
+  sampleStorageKey: 'sampleStorageKey',
+  sampleUrl: 'sampleUrl',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type VoiceScalarFieldEnum = (typeof VoiceScalarFieldEnum)[keyof typeof VoiceScalarFieldEnum]
 
 
 export const SortOrder = {

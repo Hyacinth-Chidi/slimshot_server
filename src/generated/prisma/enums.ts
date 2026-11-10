@@ -112,7 +112,8 @@ export type ProviderKind = (typeof ProviderKind)[keyof typeof ProviderKind]
 
 
 export const ProviderCapability = {
-  speech_to_text: 'speech_to_text'
+  speech_to_text: 'speech_to_text',
+  text_to_speech: 'text_to_speech'
 } as const
 
 export type ProviderCapability = (typeof ProviderCapability)[keyof typeof ProviderCapability]
@@ -135,7 +136,8 @@ export type CreditTxType = (typeof CreditTxType)[keyof typeof CreditTxType]
 
 
 export const CreditFeature = {
-  auto_captions: 'auto_captions'
+  auto_captions: 'auto_captions',
+  text_to_speech: 'text_to_speech'
 } as const
 
 export type CreditFeature = (typeof CreditFeature)[keyof typeof CreditFeature]
@@ -144,7 +146,8 @@ export type CreditFeature = (typeof CreditFeature)[keyof typeof CreditFeature]
 export const PricingMode = {
   per_job: 'per_job',
   duration_tiers: 'duration_tiers',
-  per_second: 'per_second'
+  per_second: 'per_second',
+  per_characters: 'per_characters'
 } as const
 
 export type PricingMode = (typeof PricingMode)[keyof typeof PricingMode]

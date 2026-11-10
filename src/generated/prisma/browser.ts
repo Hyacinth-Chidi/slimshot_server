@@ -138,3 +138,9 @@ export type BackupSettings = Prisma.BackupSettingsModel
  * A push notification the owner sent from the dashboard, and how its delivery went.
  */
 export type PushMessage = Prisma.PushMessageModel
+/**
+ * Model Voice
+ * A text-to-speech voice the owner offers in the app. Synced from the provider switched off;
+ * the owner names it, orders it, makes its sample and switches it on (never without a sample).
+ */
+export type Voice = Prisma.VoiceModel
